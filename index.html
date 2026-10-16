@@ -21827,7 +21827,8 @@ function vHome(){var gate=gateCard();if(gate)return gate;var h="";
     h+='</div></div>'}
   // ---- senin isin ----
   var rows="";
-  if(fbDraft&&fbDraft.order&&!fbDone&&signedIn){var tu=fbDraft.order[fbDraft.turn||0];rows+='<div class="hrow"><div class="ico2">⚽</div><div><div class="t">Kadro çekilişi</div><div class="s">'+(myTurn()?'Sıra sende':(tu?'Sırada: '+esc(userLabel(tu)):'Bekleniyor'))+'</div></div><button class="go'+(myTurn()?'':' q')+'" data-go="draw">'+(myTurn()?'Çek':'Aç')+'</button></div>'}
+  if(signedIn&&draftSetupNeeded()){rows+='<div class="hrow"><div class="ico2">⚽</div><div><div class="t">Kadro çekilişi</div><div class="s">'+(isAdmin?'Önce kadro kurma sırasını belirle':'Yönetici sırayı belirleyecek')+'</div></div><button class="go'+(isAdmin?'':' q')+'" data-go="draw">'+(isAdmin?'Sırayı belirle':'Aç')+'</button></div>'}
+  else if(fbDraft&&fbDraft.order&&!fbDone&&signedIn){var tu=fbDraft.order[fbDraft.turn||0];rows+='<div class="hrow"><div class="ico2">⚽</div><div><div class="t">Kadro çekilişi</div><div class="s">'+(myTurn()?'Sıra sende':(tu?'Sırada: '+esc(userLabel(tu)):'Bekleniyor'))+'</div></div><button class="go'+(myTurn()?'':' q')+'" data-go="draw">'+(myTurn()?'Çek':'Aç')+'</button></div>'}
   var cur=curAuc(),mine=fbLeague&&fbLeague.teams&&fbLeague.teams[myUid];
   if(cur&&cur.player&&mine){var mb=fbMyBids["w"+cur.idx],st2=roundStarted(cur.idx);
     rows+='<div class="hrow"><div class="ico2">🔨</div><div><div class="t">Açık artırma '+(st2?'kapandı':'açık')+'</div><div class="s">'+esc(cur.player.n)+' · '+cur.player.m+' '+cur.player.r+' · '+Object.keys(cur.bidders||{}).length+'/'+Object.keys(fbLeague.teams).length+' teklif</div></div>'+(st2?'':'<button class="go'+(mb?' q':'')+'" data-go="transfer">'+(mb?'Düzenle':'Teklif ver')+'</button>')+'</div>'}
