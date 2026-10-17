@@ -21767,10 +21767,11 @@ function vLiveBoard(ri){var rd=leagueRounds()[ri],teams=fbLeague.teams,h=goalToa
   var bye=Object.keys(teams).filter(function(u){return !inRd[u]});
   if(bye.length)h+='<p class="slot">😴 '+bye.map(function(u){return esc(teams[u].name)}).join(", ")+' bu hafta bay</p>';
   return h}
-function vLiveTable(){var rows=liveTable();
-  var h='<div class="card" style="padding:6px 0 4px"><div style="display:grid;grid-template-columns:18px 30px 1fr 34px;gap:8px;padding:8px 4px;color:var(--mut);font-size:11.5px"><span></span><span></span><span>Takım</span><span style="text-align:right">P</span></div>'+
+function vLiveTable(){var rows=liveTable(),G="18px 30px 1fr 22px 22px 22px 22px 44px";
+  var h='<div class="card" style="padding:6px 0 4px"><div style="display:grid;grid-template-columns:'+G+';gap:6px;padding:8px 4px;color:var(--mut);font-size:11.5px;text-align:center"><span></span><span></span><span style="text-align:left">Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span style="color:var(--tx);font-weight:800">P</span></div>'+
     rows.map(function(t,i){var mv=t.move,ar=mv>0?'<span class="ar" style="color:var(--win)">↑'+mv+'</span>':mv<0?'<span class="ar" style="color:var(--loss)">↓'+(-mv)+'</span>':'<span class="ar"></span>';
-      return '<div class="ltr mgrLink'+(t.id===myUid?' me':'')+'" data-uid="'+esc(t.id)+'" style="grid-template-columns:18px 30px 1fr 34px"><span style="font-weight:800">'+(i+1)+'</span>'+ar.replace('class="ar"','class="ar"')+'<span style="display:flex;align-items:center;gap:8px;font-weight:'+(t.id===myUid?800:600)+'">'+avU(t.id,26,t.name)+esc(t.name)+'</span><span class="pts">'+t.pts+'</span></div>'}).join("")+'</div>'+
+      return '<div class="ltr mgrLink'+(t.id===myUid?' me':'')+'" data-uid="'+esc(t.id)+'" style="grid-template-columns:'+G+';gap:6px;text-align:center"><span style="font-weight:800">'+(i+1)+'</span>'+ar+'<span style="display:flex;align-items:center;gap:8px;font-weight:'+(t.id===myUid?800:600)+';text-align:left;min-width:0"><span style="flex:none">'+avU(t.id,26,t.name)+'</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.name)+'</span></span>'+
+        '<span style="color:var(--mut)">'+t.p+'</span><span style="color:var(--mut)">'+t.w+'</span><span style="color:var(--mut)">'+t.d+'</span><span style="color:var(--mut)">'+t.l+'</span><span class="pts" style="font:900 18px Inter;color:var(--tx)">'+t.pts+'</span></div>'}).join("")+'</div>'+
     '<p class="slot" style="text-align:center">Sıralama anlık skorlara göre hesaplanır, maç bitince kesinleşir.</p>';
   return h}
 
@@ -22358,5 +22359,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v9 · 17.10 14:41</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v10 · 17.10 16:38</div></body>
 </html>
