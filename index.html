@@ -19086,7 +19086,7 @@ function pitchHTML(){
     var pid=editXI[i],pl=byId[pid];if(!pl)return "";
     var oop=!inPosition(pl.m,slotPos,editForm),c=coords[i]||{x:50,y:50};
     var f=fatObj[pl.id]||0,col=f>=60?'var(--loss)':f>=40?'var(--amber)':'var(--win)';
-    var arr=formArrow(formObj[pl.id]&&formObj[pl.id].state)+cardBadge(cardObj[pl.id],suspObj[pl.id]);
+    var arr=formArrow(formObj[pl.id]&&formObj[pl.id].state);
     return '<div class="pc plLink'+(oop?' oop':'')+(pl.r<80?' low':'')+'" data-pn="'+esc(pl.n)+'" style="left:'+c.x+'%;top:'+(100-c.y)+'%"><div class="rb '+rbCls(pl.r)+'">'+pl.r+'<span class="st2">'+arr+'</span></div>'+
       '<span class="nm3">'+esc(shortName(pl.n))+(pl.id===capId?' <b title="Kaptan">©</b>':'')+'</span><div class="fb"><i style="width:'+Math.max(8,100-f)+'%;background:'+col+'"></i></div><div class="sl">'+slotPos+'</div></div>'}).join("");
   return '<div class="pitch2">'+pitchFieldSVG()+chips+'</div>'}
@@ -21111,6 +21111,7 @@ function rivalryAll(){var now=Date.now();if(rivCache.map&&now-rivCache.t<1500)re
     (se.raw.rounds||[]).forEach(function(rd){(rd.matches||[]).forEach(function(m){if(!m.played||!m.result)return; // lig + Ulusal Kupa + Süper Kupa + Şampiyonlar Ligi
       var th=tm(m.home),ta=tm(m.away),h=m.result.h,a=m.result.a,rh=null,ra=null;
       if(h===a&&m.pen){rh=m.pen.h>m.pen.a?"w":"l";ra=rh==="w"?"l":"w"} // penaltilarla gecen mac galibiyet sayilir
+      if(/^ai_/.test(m.home)||/^ai_/.test(m.away))return;
       bump(m.home,m.away,h,a,ta.name,ta.ownerName,rh);bump(m.away,m.home,a,h,th.name,th.ownerName,ra)})})});
   rivCache={t:now,map:map};return map}
 function rivalryCardHTML(uid){var rv=rivalryAll()[uid]||{},arr=Object.keys(rv).map(function(k){return rv[k]}).sort(function(a,b){return b.p-a.p||(b.gf-b.ga)-(a.gf-a.ga)});
@@ -21902,11 +21903,6 @@ function vHome(){var gate=gateCard();if(gate)return gate;var h="";
   if(fbLeague&&fbLeague.teams){var tb=computeStats(fbLeague).table,myI=tb.findIndex(function(t){return t.id===myUid}),show=tb.slice(0,4);if(myI>=4)show.push(tb[myI]);
     h+='<div class="secH"><h3>Puan durumu</h3><a data-go="fixture" data-set="fxView:table">Tümü</a></div><div style="border-top:1px solid var(--bd)">'+show.map(function(t){var i=tb.indexOf(t),gd=t.gf-t.ga;
       return '<div class="ltr mgrLink'+(t.id===myUid?' me':'')+'" data-uid="'+esc(t.id)+'" style="grid-template-columns:18px 1fr auto 34px"><span style="font-weight:800">'+(i+1)+'</span><span style="display:flex;align-items:center;gap:8px;font-weight:'+(t.id===myUid?800:600)+'">'+avU(t.id,26,t.name)+esc(t.name)+'</span><span style="color:var(--mut)">'+(gd>0?"+":"")+gd+'</span><span class="pts">'+t.pts+'</span></div>'}).join("")+'</div>'}
-  // ---- fiksturum ----
-  if(fbLeague&&fbLeague.teams&&fbLeague.teams[myUid]){var mine2=[];leagueRounds().forEach(function(rd,ri){if(rd.skip)return;var mi=myMatchIn(rd);if(mi>=0)mine2.push([ri,mi,!!rd.matches[mi].played])});
-    var lastP=-1;mine2.forEach(function(x,i){if(x[2])lastP=i});var sh=mine2.slice(Math.max(0,lastP),Math.max(0,lastP)+5);
-    if(sh.length)h+='<div class="secH"><h3>Fikstürüm</h3>'+(liveRoundIdx()>=0?'<a data-go="fixture" data-set="fxView:live">Canlı</a>':'<a data-go="fixture" data-set="fxView:fix">Tümü</a>')+'</div><div>'+sh.map(function(x){var rd=leagueRounds()[x[0]];
-      return '<p class="slot" style="margin:8px 0 2px">'+(x[0]+1)+'. hafta · '+esc(compTitle(rd,x[0]))+'</p>'+fixRowHTML(x[0],x[1])}).join("")+'</div>'}
   // ---- haberler ----
   var nids=Object.keys(fbNews||{}).sort(function(x,y){return (fbNews[y].createdAt||0)-(fbNews[x].createdAt||0)}).slice(0,4);
   if(nids.length)h+='<div class="secH"><h3>Haberler</h3><a data-go="news">Tümü</a></div><div style="display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px">'+nids.map(function(id){var n=fbNews[id];
@@ -22302,5 +22298,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v6 · 17.10 04:14</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v7 · 17.10 04:29</div></body>
 </html>
