@@ -21917,6 +21917,7 @@ function vMore(){var gate=gateCard();if(gate)return gate;var a=teamAcc(myUid),c=
   h+='<div class="tiles">'+tile("📰","Haberler","Hafta oyuncusu, transfer",'data-go="news"')+tile("📜","Geçmiş","Sezonlar, şampiyonlar, rekorlar",'data-go="history"')+
     tile("🏛️","Kulüp tarihi","Efsaneler, ikonlar, transferler",'data-club="1"')+tile("🎨","Kulüp kimliği","Renkler, stadyum, ikon",'data-go="clubid"')+
     tile("👤","Menajer profili","Ödüller ve rekabet",'data-prof="1"')+(isAdmin?tile("🗂️","Veritabanı","Sadece yönetici",'data-go="db"'):'')+'</div>';
+  if(isAdmin)h+='<div class="secH" style="margin-top:18px"><h3>Yönetici</h3></div>'+adminSeasonButtons();
   h+='<div class="tile" id="signout" style="margin-top:14px;min-height:0;display:flex;align-items:center;gap:12px;color:var(--mut)"><div class="ic" style="margin:0">⎋</div><b style="color:var(--tx)">Çıkış yap</b></div>';
   return h}
 function vClubId(){var gate=gateCard();if(gate)return gate;
@@ -22298,5 +22299,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v7 · 17.10 04:29</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v8 · 17.10 10:37</div></body>
 </html>
