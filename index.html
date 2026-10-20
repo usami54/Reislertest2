@@ -19393,7 +19393,12 @@ function simulateMatchCore(homeRoster,awayRoster,homeLineup,awayLineup,homeInj,a
   var cancelled=[];
   function subOrdersOf(teamKey){var o=tacT[teamKey]||{},l=[];Object.keys(o).forEach(function(key){var mm=/^s(\d+)_(\d+)$/.exec(key);if(mm&&o[key]&&o[key].out&&o[key].inn)l.push({k:+mm[1],n:+mm[2],out:o[key].out,inn:o[key].inn})});
     return l.sort(function(a,b){return a.k-b.k||a.n-b.n})}
-  function applyManualSubs(side,plan,teamKey){var ords=subOrdersOf(teamKey),outAt={};if(!ords.length)return outAt;
+  // kontrol: menajer mudahale ettiyse (g<k>=true) o parcadan itibaren bilgisayar gonullu (yorgunluk) degisiklik yapmaz; g<k>=false kontrolu geri verir
+  function ctlOf(teamKey){var o=tacT[teamKey]||{},l=[];Object.keys(o).forEach(function(key){var mm=/^g(\d+)$/.exec(key);if(mm)l.push({k:+mm[1],on:!!o[key]})});return l.sort(function(a,b){return a.k-b.k})}
+  function manualAt(cl,min){var on=false;cl.forEach(function(g){if(Math.round(g.k*totalLen/NCH)<=min)on=g.on});return on}
+  function applyManualSubs(side,plan,teamKey){var cl=ctlOf(teamKey);
+    if(cl.length)plan.pendingVoluntary=plan.pendingVoluntary.filter(function(w){return !manualAt(cl,w.min)});
+    var ords=subOrdersOf(teamKey),outAt={};if(!ords.length)return outAt;
     var reds=teamKey==="home"?hReds:aReds,items=plan.subs.map(function(sb){return {min:sb.min,auto:sb}});
     ords.forEach(function(o){items.push({min:Math.round(o.k*totalLen/NCH),ord:o})});
     items.sort(function(a,b){return a.min-b.min||(a.ord?0:1)-(b.ord?0:1)});
@@ -19776,6 +19781,11 @@ function runSnapshot(sim,tacT){
   var res=simulateMatch(sim.hRoster,sim.aRoster,sim.hLine,sim.aLine,sim.hUn,sim.aUn,sim.hFD,sim.aFD,{weather:sim.wx,referee:sim.ref,neutral:!!sim.neutral,seed:sim.seed,tacT:tacT||{}});
   if(sim.ko&&res.result.h===res.result.a)addExtraTime(res,sim.hRoster,sim.aRoster,sim.hLine.formation||"4-3-3",sim.aLine.formation||"4-3-3",sim.hFD,sim.aFD);
   return res}
+function ctlManual(od){var l=[];Object.keys(od||{}).forEach(function(key){var mm=/^g(\d+)$/.exec(key);if(mm)l.push({k:+mm[1],on:!!od[key]})});l.sort(function(a,b){return a.k-b.k});return l.length?l[l.length-1].on:false}
+function releaseControl(ri,mi){var rd=leagueRounds()[ri],m=rd&&rd.matches&&rd.matches[mi];if(!m||!m.sim||m.played)return;
+  var k=orderChunkFor(ri,mi);if(k<0){msgBox("Maçın son bölümüne girildi.");return}
+  var base="leagues/"+currentSeason+"/rounds/"+ri+"/matches/"+mi;
+  return fbDb.ref(base+"/orders/"+myUid+"/g"+k).set(false).then(function(){return resimMatch(ri,mi)}).catch(function(e){fbBadge("Kontrol bırakılamadı: "+e.message)})}
 var MAX_ORDERS=6; // bir maçta bir menajerin en fazla bu kadar taktik emri
 function ordersToTacT(m,orders){var t={home:{},away:{}},od=orders||m.orders||{};
   [["home",m.home],["away",m.away]].forEach(function(p){var o=od[p[1]]||{};Object.keys(o).forEach(function(k){t[p[0]][k]=o[k]})});return t}
@@ -19803,7 +19813,8 @@ function submitTacticOrder(ri,mi,tac){
   var full=fullTactics(tac),cur=currentTacticsOf(m,side,k+1);
   if(JSON.stringify(full)===JSON.stringify(cur)&&!od["c"+k]){msgBox("Taktiğin zaten bu şekilde.");return}
   var base="leagues/"+currentSeason+"/rounds/"+ri+"/matches/"+mi;
-  return fbDb.ref(base+"/orders/"+myUid+"/c"+k).set(full).then(function(){return resimMatch(ri,mi)}).catch(function(e){fbBadge("Taktik emri kaydedilemedi: "+e.message)});
+  var up={};up["c"+k]=full;if(!ctlManual(od))up["g"+k]=true; // mudahale eden kontrolu alir
+  return fbDb.ref(base+"/orders/"+myUid).update(up).then(function(){return resimMatch(ri,mi)}).catch(function(e){fbBadge("Taktik emri kaydedilemedi: "+e.message)});
 }
 var resimBusy={};
 function resimMatch(ri,mi,tries){tries=tries||0;if(!fbDb||!currentSeason)return Promise.resolve();
@@ -19929,8 +19940,8 @@ var fixtureLegs=2;
 var CAL=["super","league","league","cup","league","league","cl","league","league","cup","league","league","cl","league","league","cl","league","league","cup","league","league","cl"]; // 22 hafta
 var CUP_STAGES=["1. tur","Yarı final","Final"],CL_STAGES=["Son 16","Çeyrek final","Yarı final","Final"];
 var CL_LOGO='<span class="clLogo" title="Şampiyonlar Ligi"></span>';
-var COMP_LOGO={"league": "data:image/webp;base64,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", "cup": "data:image/webp;base64,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", "super": "data:image/webp;base64,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"};
-function compIconHTML(c){if(c==="cl")return CL_LOGO;var u=COMP_LOGO[c];if(u)return '<img class="compLg'+(c==="league"?' compLt':'')+'" src="'+u+'" alt="'+esc(COMP_NAME[c]||"")+'">';return COMP_ICON[c]}
+var COMP_LOGO={"league": "data:image/webp;base64,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", "cup": "data:image/webp;base64,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", "super": "data:image/webp;base64,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"};
+function compIconHTML(c){if(c==="cl")return CL_LOGO;var u=COMP_LOGO[c];if(u)return '<img class="compLg" src="'+u+'" alt="'+esc(COMP_NAME[c]||"")+'">';return COMP_ICON[c]}
 var COMP_ICON={league:"⚽",super:"🛡️",cup:"🏆",cl:"⭐"},COMP_NAME={league:"Lig",super:"Süper Kupa",cup:"Ulusal Kupa",cl:"Şampiyonlar Ligi"};
 function compOf(rd){return (rd&&rd.comp)||"league"}
 function rdAll(rd){if(!rd)return false;if(rd.skip)return true;var ms=rd.matches||[];return ms.length>0&&ms.every(function(m){return m.played})}
@@ -20165,7 +20176,7 @@ function simulateRestCL(){if(!isAdmin||!fbLeague||!fbDb)return;
   fbDb.ref().update(upd).then(function(){pushNews({type:"kupa",title:"⭐ Şampiyonlar Ligi sonuçları",body:lines.join("\n\n")},"cl_kalan")})
     .catch(function(e){fbBadge("Simülasyon kaydedilemedi (Rules hatası): "+e.message)})}
 /* ---- maç basi gelirler + odul (tek yerde, tek yazim) ---- */
-function lastRoundOf(comp){var rs=leagueRounds(),k=-1;rs.forEach(function(rd,i){if(compOf(rd)===comp&&!rd.skip&&(rd.matches||[]).length)k=i});return k}
+function lastRoundOf(comp){var rs=leagueRounds(),k=-1;rs.forEach(function(rd,i){if(compOf(rd)===comp&&!rd.skip)k=i});return k}
 function roundIncome(idx){var rd=leagueRounds()[idx],c=compOf(rd),inc={},add=function(u,v){if(fbLeague.teams[u]&&Object.keys(fbLeague.teams).indexOf(u)>=0)inc[u]=(inc[u]||0)+v};
   (rd.matches||[]).forEach(function(m){var r=m.result;if(!m.played||!r)return;
     var w=koWinner(m),tie=r.h===r.a;
@@ -20621,7 +20632,7 @@ function adminNewSeasonFullReset(){if(!isAdmin)return;PREV.init=false;
     var ns2=""+Date.now(),updates={"meta/season":ns2};seedPendingOrder(updates);
     carryBudgets(ns2,updates).then(function(){fbDb.ref().update(updates).catch(function(e){fbBadge("Dönem başlatılamadı (Rules hatası): "+e.message)})})})}
 function adminFullWipe(){if(!isAdmin)return;
-  cfm("HER ŞEY sıfırlansın mı? Tüm kadrolar, ligler, geçmiş sezonlar, rekorlar, haberler, kupon ve açık artırma kayıtları silinir; herkes 50 M€ ile baştan başlar. Kullanıcı hesapları ve kulüp kimlikleri (renk, stadyum, takım adı) kalır. Bu işlem GERİ ALINAMAZ.",function(){
+  cfm("HER ŞEY sıfırlansın mı? Tüm kadrolar, ligler, geçmiş sezonlar, rekorlar, haberler, kupon ve ihale kayıtları silinir; herkes 50 M€ ile baştan başlar. Kullanıcı hesapları ve kulüp kimlikleri (renk, stadyum, takım adı) kalır. Bu işlem GERİ ALINAMAZ.",function(){
     setTimeout(function(){cfm("Son kez soruyorum: gerçekten TÜM veriler silinsin mi? (Önce veritabanının yedeğini aldığından emin ol.)",function(){
       PREV.init=false;
       var roots=["leagues","squads","draft","trades","auction","bids","budgets","orders","odds","bets","betres"];
@@ -20933,22 +20944,57 @@ function vLineupEditor(){
   h+='<button class="btn" id="saveLineup">Kaydet</button><button class="btn alt" id="cancelLineup">Vazgeç</button>';
   return h}
 
+var STDCSS=false;
+function stdCss(){if(STDCSS)return;STDCSS=true;var st=document.createElement("style");st.textContent=
+".stdBan{border-radius:18px;padding:16px;margin:12px 0;color:#fff;display:flex;align-items:center;gap:14px;border:1px solid var(--bd);position:relative;overflow:hidden}"+
+".stdBan .cl{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.14);flex:none;font-size:28px}"+
+".stdBan small{display:block;font:700 11.5px Inter;opacity:.85}.stdBan b{display:block;font:800 20px Inter;letter-spacing:-.02em;margin-top:1px}.stdBan i{font-style:normal;font:600 12.5px Inter;opacity:.88}"+
+".stdBan .tr{position:absolute;right:-6px;bottom:-16px;font-size:84px;opacity:.15;line-height:1;pointer-events:none}"+
+".stb{background:var(--card);border:1px solid var(--bd);border-radius:16px;overflow:hidden}"+
+".sth,.str{display:grid;grid-template-columns:30px minmax(0,1fr) repeat(7,23px) 30px;align-items:center;gap:0 2px;padding:0 10px 0 0}"+
+".sth{font:700 11.5px Inter;color:var(--mut);padding-top:9px;padding-bottom:9px;border-bottom:1px solid var(--bd)}.sth span,.str>span{text-align:center}"+
+".str{position:relative;padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--bd);font:600 13px Inter}.str:last-child{border-bottom:0}"+
+".str::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:transparent}.str.z1::before{background:var(--gold)}.str.z2::before{background:var(--win)}"+
+".str.me{background:color-mix(in srgb,var(--ac) 14%,transparent)}"+
+".str .pos{font:800 13px Inter;color:var(--mut);display:flex;flex-direction:column;align-items:center;line-height:1.1;padding-left:4px}.str .pos em{font-style:normal;font-size:9px}.str .pos .up{color:var(--win)}.str .pos .dn{color:var(--loss)}"+
+".str .tm{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer}.str .tm>div{min-width:0}.str .tm b{display:block;font:800 13px Inter;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"+
+".str .tm small{display:flex;align-items:center;gap:6px;font:600 10.5px Inter;color:var(--mut);margin-top:2px}"+
+".fd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:2px}.fd.w{background:var(--win)}.fd.d{background:#8a97a8}.fd.l{background:var(--loss)}"+
+".str .pt{font:900 15px Inter;color:var(--tx)}.str .av.neg{color:var(--loss)}.str .av.pos2{color:var(--win)}"+
+".stLogo .compLg{width:84px;height:84px}.stLogo .compLg,.stLogo{filter:drop-shadow(0 4px 14px rgba(0,0,0,.4))}.lgHero{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;margin:14px 0 12px;padding:18px 18px 18px 14px;border-radius:20px;border:1px solid var(--bd);background:radial-gradient(120% 140% at 0% 50%,rgba(200,16,46,.55),rgba(200,16,46,.12) 45%,transparent 70%),linear-gradient(120deg,#16263d,#0d1624)}.lgHero::after{content:'';position:absolute;right:-30px;top:-30px;width:150px;height:150px;border-radius:50%;border:22px solid rgba(255,255,255,.04)}.lgHalo{flex:none;width:104px;height:104px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,rgba(255,255,255,.22),rgba(255,255,255,.04) 70%);box-shadow:0 0 0 1px rgba(255,255,255,.14),0 10px 30px rgba(0,0,0,.45)}.lgHero .stLogo .compLg{width:84px;height:84px}.lgTx{min-width:0;flex:1;position:relative;z-index:1}.lgTx b{display:block;font:800 25px Inter;letter-spacing:-.03em;color:#fff}.lgTx small{display:block;font:600 12px Inter;color:rgba(255,255,255,.72);margin-top:2px}.lgPr{height:5px;border-radius:3px;background:rgba(255,255,255,.18);margin:12px 0 6px;overflow:hidden}.lgPr i{display:block;height:100%;border-radius:3px;background:#fff}.stat{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--bd)}.stat:first-of-type{border-top:0}.stat .sk{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:800 12px Inter;color:var(--mut);flex:none}.stat .sm{flex:1;min-width:0}.stat .sn{font:800 14px Inter;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat.t3 .sn{font-size:15px}.stat .ss{font:600 11.5px Inter;color:var(--mut);margin-top:1px}.stat .sb{height:4px;border-radius:2px;background:rgba(255,255,255,.07);margin-top:6px;overflow:hidden}.stat .sb i{display:block;height:100%;background:var(--ac);border-radius:2px}.stat .sv{text-align:right;min-width:42px}.stat .sv b{font:900 19px Inter;display:block;line-height:1}.stat .sv small{font:600 10.5px Inter;color:var(--mut)}.stLeg{display:flex;gap:14px;flex-wrap:wrap;padding:10px 12px;font:600 11.5px Inter;color:var(--mut)}.stLeg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}";
+  document.head.appendChild(st)}
+function stdForm(league){var f={};(league.rounds||[]).forEach(function(rd){if(compOf(rd)!=="league")return;(rd.matches||[]).forEach(function(m){if(!m.played||!m.result)return;
+  var r=m.result;[[m.home,r.h,r.a],[m.away,r.a,r.h]].forEach(function(p){(f[p[0]]=f[p[0]]||[]).push(p[1]>p[2]?"w":p[1]<p[2]?"l":"d")})})});return f}
 function vStandings(){var gate=gateCard();if(gate)return gate;
   if(!fbLeague)return '<div class="card"><h2>Lig henüz oluşturulmadı</h2><p class="msg">'+(isAdmin?"Fikstür sekmesinden oluşturabilirsin.":"Yönetici henüz ligi oluşturmadı.")+'</p></div>';
-  var stats=computeStats(fbLeague);
-  var medal=["🥇","🥈","🥉"];
-  var h='<div class="card"><h2>🏆 Puan durumu</h2>'+
-    '<div class="tbl"><div class="trow thead"><span class="c-name">Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>Pts</span></div>'+
-    stats.table.map(function(t,i){return '<div class="trow"><span class="c-name mgrLink" data-uid="'+esc(t.id)+'">'+(medal[i]||(i+1)+'.')+' '+avatarHTML(t.name,20)+' '+esc(t.name)+'</span><span>'+t.p+'</span><span>'+t.w+'</span><span>'+t.d+'</span><span>'+t.l+'</span><span>'+t.gf+'</span><span>'+t.ga+'</span><span>'+(t.gf-t.ga)+'</span><span class="ptsCol">'+t.pts+'</span></div>'}).join("")+
-    '</div><p class="slot" style="margin:8px 0 0;text-align:center">⇠ Kaydırarak tüm sütunları gör ⇢ · takım adına dokun, menajer profilini gör</p></div>';
-  function statList(title,arr,unit){if(!arr.length)return'<div class="card"><h2>'+title+'</h2><p class="msg">Henüz veri yok.</p></div>';
-    return '<details class="card sqCard" open><summary><span class="sqHead">'+title+'</span><span class="chev">›</span></summary>'+
-      arr.map(function(x,i){return '<div class="li"><span class="mv">'+(i+1)+'</span><span class="nm">'+plLink(x.name)+(x.team?' <span class="avg">('+esc(x.team)+')</span>':'')+'</span><span class="r">'+(unit==="avg"?x.avg:x.n)+'</span></div>'}).join("")+
-      '</details>'}
-  h+=statList("Gol krallığı",stats.scorers)+statList("Asist krallığı",stats.assists)+
-     statList("Sarı kartlar",stats.yellows)+statList("Kırmızı kartlar",stats.reds)+
-     statList("Gol yemeyen maç sayısı (Kaleci)",stats.cleanSheets)+
-     statList("Ortalama puan (en az 3 maç)",stats.avg,"avg");
+  stdCss();
+  var stats=computeStats(fbLeague),T=fbLeague.teams,rs=leagueRounds(),form=stdForm(fbLeague);
+  var lgR=[];rs.forEach(function(rd,i){if(compOf(rd)==="league"&&!rd.skip)lgR.push(i)});
+  var played=lgR.filter(function(i){var ms=rs[i].matches||[];return ms.length&&ms.every(function(m){return m.played})}),left=lgR.length-played.length;
+  var tb=stats.table,ld=tb[0],sec=tb[1],started=tb.some(function(t){return t.p>0});
+  var pct=lgR.length?Math.round(played.length/lgR.length*100):0;
+  var h='<div class="lgHero"><div class="lgHalo"><span class="stLogo">'+compIconHTML("league")+'</span></div><div class="lgTx"><b>Süper Lig</b><small>Puan durumu</small>'+
+    '<div class="lgPr"><i style="width:'+pct+'%"></i></div><small>'+(left>0?played.length+' / '+lgR.length+'. hafta oynandı':'Sezon tamamlandı')+'</small></div></div>';
+  h+='<div class="stb"><div class="sth"><span></span><span style="text-align:left">Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>P</span></div>'+
+    tb.map(function(t,i){var av=t.gf-t.ga,fm=(form[t.id]||[]).slice(-5),mv="";
+      return '<div class="str'+(i===0?' z1':i<3?' z2':'')+(t.id===myUid?' me':'')+'"><span class="pos">'+(i+1)+'</span>'+
+        '<div class="tm mgrLink" data-uid="'+esc(t.id)+'">'+avatarHTML(t.name,22)+'<div><b>'+esc(t.name)+'</b><small><span>'+(fm.length?fm.map(function(x){return '<i class="fd '+x+'"></i>'}).join(""):'')+'</span></small></div></div>'+
+        '<span>'+t.p+'</span><span>'+t.w+'</span><span>'+t.d+'</span><span>'+t.l+'</span><span>'+t.gf+'</span><span>'+t.ga+'</span><span class="av '+(av>0?'pos2':av<0?'neg':'')+'">'+(av>0?'+':'')+av+'</span><span class="pt">'+t.pts+'</span></div>'}).join("")+
+    '<div class="stLeg"><span><i style="background:var(--gold)"></i>Şampiyon</span><span><i style="background:var(--win)"></i>Şampiyonlar Ligi (ilk 3)</span><span><i class="fd w" style="width:8px;height:8px;border-radius:50%;margin-right:3px"></i><i class="fd d" style="width:8px;height:8px;border-radius:50%;margin-right:3px"></i><i class="fd l" style="width:8px;height:8px;border-radius:50%;margin-right:5px"></i>Son 5 maç</span></div></div>';
+  h+='<p class="slot" style="margin:8px 0 0;text-align:center">Takıma dokun, menajer profilini gör</p>';
+  var stItems=[["gol","Gol"],["asist","Asist"],["kaleci","Kaleci"],["puan","Puan"],["kart","Kart"]];
+  if(!stItems.some(function(x){return x[0]===UI.stView}))UI.stView="gol";
+  function statBlock(title,arr,unit,label){if(!arr.length)return '<div class="card"><h2 style="font-size:16px">'+title+'</h2><p class="msg">Henüz veri yok.</p></div>';
+    var top=arr.slice(0,10),mx=Math.max.apply(null,top.map(function(x){return unit==="avg"?+x.avg:x.n}))||1,col=["#f2b705","#c0c7d1","#cd7f32"];
+    return '<div class="card"><h2 style="font-size:16px;margin-bottom:10px">'+title+'</h2>'+top.map(function(x,i){var v=unit==="avg"?+x.avg:x.n,pc=Math.max(8,Math.round(v/mx*100));
+      return '<div class="stat'+(i<3?' t3':'')+'"><span class="sk" style="'+(i<3?'background:'+col[i]+';color:#1a1200':'')+'">'+(i+1)+'</span>'+avatarHTML(x.team||x.name,i<3?30:24)+
+        '<div class="sm"><div class="sn">'+plLink(x.name)+'</div><div class="ss">'+esc(x.team||"")+'</div><div class="sb"><i style="width:'+pc+'%"></i></div></div><div class="sv"><b>'+(unit==="avg"?x.avg:x.n)+'</b><small>'+label+'</small></div></div>'}).join("")+'</div>'}
+  h+=segHTML("stView",stItems,UI.stView);
+  if(UI.stView==="gol")h+=statBlock("Gol krallığı",stats.scorers,"n","gol");
+  else if(UI.stView==="asist")h+=statBlock("Asist krallığı",stats.assists,"n","asist");
+  else if(UI.stView==="kaleci")h+=statBlock("Gol yemeyen maç (kaleci)",stats.cleanSheets,"n","maç");
+  else if(UI.stView==="puan")h+=statBlock("Ortalama puan (en az 3 maç)",stats.avg,"avg","ort.");
+  else h+=statBlock("🟨 Sarı kartlar",stats.yellows,"n","sarı")+statBlock("🟥 Kırmızı kartlar",stats.reds,"n","kırmızı");
   return h}
 
 
@@ -21016,7 +21062,7 @@ function adminAucTick(){
   upd["auction/"+currentSeason+"/w"+idx]=rec;
   aucCreating[idx]=true;
   fbDb.ref().update(upd).then(function(){delete aucCreating[idx]})
-    .catch(function(e){delete aucCreating[idx];fbBadge("Açık artırma açılamadı (Rules hatası): "+e.message)})}
+    .catch(function(e){delete aucCreating[idx];fbBadge("İhale açılamadı (Rules hatası): "+e.message)})}
 setInterval(adminAucTick,3000);
 
 function resolveAuction(idx){var rec=fbAuc["w"+idx];
@@ -21078,10 +21124,10 @@ function resolveAuction(idx){var rec=fbAuc["w"+idx];
       else if(p){
         pushNews({type:"acikartirma",title:"🔨 "+(idx+1)+". Hafta Transferi: "+p.n+" alıcı bulamadı",
           body:p.n+" ("+p.m+", "+p.r+") için geçerli teklif gelmedi."+(lines?"\nTeklifler:\n"+lines:""),round:idx},"r"+idx+"_acik")}
-    })}).catch(function(e){delete aucResolving[idx];fbBadge("Açık artırma sonuçlanamadı (Rules hatası): "+e.message)})}
+    })}).catch(function(e){delete aucResolving[idx];fbBadge("İhale sonuçlanamadı (Rules hatası): "+e.message)})}
 
 function submitBid(){if(!signedIn||!fbDb||!currentSeason||!fbLeague)return;
-  var cur=curAuc();if(!cur||!cur.player){msgBox("Şu an açık artırmada oyuncu yok.");return}
+  var cur=curAuc();if(!cur||!cur.player){msgBox("Şu an ihalede oyuncu yok.");return}
   if(roundStarted(cur.idx)){msgBox("Bu haftanın maçları başladı, teklif süresi doldu.");return}
   var mine=fbLeague.teams&&fbLeague.teams[myUid];if(!mine){msgBox("Takımın bu ligde yok.");return}
   var m=parseFloat(String(aucBidIn||"").replace(",","."));
@@ -21105,16 +21151,16 @@ function withdrawBid(){var cur=curAuc();if(!cur||!signedIn||!fbDb)return;
 
 function aucPlayerHTML(p){return '<b>'+plLink(p.n)+'</b> <span class="avg">('+esc(p.m)+', '+p.r+')</span><br><span class="slot" style="margin:0">'+esc(p.l||"")+'</span>'}
 function vTransfer(){var gate=gateCard();if(gate)return gate;
-  if(!fbLeague||!fbLeague.teams)return '<div class="card"><h2>🔨 Transfer</h2><p class="msg">Açık artırma lig kurulduktan sonra başlar.</p></div>';
+  if(!fbLeague||!fbLeague.teams)return '<div class="card"><h2>🔨 Transfer</h2><p class="msg">Transfer ihalesi lig kurulduktan sonra başlar.</p></div>';
   var teams=fbLeague.teams,mine=teams[myUid],cur=curAuc(),nTeams=Object.keys(teams).length;
-  var h='<div class="card"><h2>🔨 Transfer: açık artırma</h2>'+
-    '<p class="slot">Sezonun ilk 10 haftasında her hafta bir oyuncu açık artırmaya çıkar (3 tanesi 85+, 3 tanesi 80+, 4 tanesi 75+). Maçlar başlamadan gizli teklifini ver; hafta bitince sonuç ve tüm teklifler açıklanır. En yüksek teklif kazanır (eşitlikte ilk veren). Kazanırsan <b>aynı mevkiden</b> bir oyuncunu bırakırsın, kaybedersen paran düşmez. Lig galibiyeti <b>+5 M€</b>, beraberlik <b>+2 M€</b> kazandırır; kupalar ve Şampiyonlar Ligi maçlarında ayrıca prim, sezon sonunda sıralama ödülü (50–25 M€) verilir. Sezonda en fazla <b>'+AUC_MAX+'</b> oyuncu alabilirsin.</p>'+
+  var h='<div class="card"><h2>🔨 Transfer İhalesi</h2>'+
+    '<p class="slot">Sezonun ilk 10 haftasında her hafta bir oyuncu ihaleye çıkar (3 tanesi 85+, 3 tanesi 80+, 4 tanesi 75+). Maçlar başlamadan gizli teklifini ver; hafta bitince sonuç ve tüm teklifler açıklanır. En yüksek teklif kazanır (eşitlikte ilk veren). Kazanırsan <b>aynı mevkiden</b> bir oyuncunu bırakırsın, kaybedersen paran düşmez. Lig galibiyeti <b>+5 M€</b>, beraberlik <b>+2 M€</b> kazandırır; kupalar ve Şampiyonlar Ligi maçlarında ayrıca prim, sezon sonunda sıralama ödülü (50–25 M€) verilir. Sezonda en fazla <b>'+AUC_MAX+'</b> oyuncu alabilirsin.</p>'+
     (mine?'<p class="slot">Bakiyen: <b>'+fmtM(availOf(myUid))+'</b> · Aldığın oyuncu: <b>'+aucWinsOf(myUid)+'/'+AUC_MAX+'</b></p>':'')+'</div>';
   if(cur){
     if(aucFormFor!==cur.idx){aucFormFor=cur.idx;var mb=fbMyBids["w"+cur.idx];
       aucBidIn=mb?String(mb.bid/1e6).replace(".",","):"";aucOutSel=mb?mb.outId:""}
     var started=roundStarted(cur.idx),bidders=Object.keys(cur.bidders||{}).length;
-    h+='<div class="card"><h2>🎯 '+(cur.idx+1)+'. hafta açık artırması</h2>';
+    h+='<div class="card"><h2>🎯 '+(cur.idx+1)+'. hafta ihalesi</h2>';
     if(!cur.player)h+='<p class="msg">Bu hafta havuzda uygun oyuncu yok.</p>';
     else{
       h+='<div class="li" style="display:block"><div class="nm">'+aucPlayerHTML(cur.player)+'</div></div>'+
@@ -21130,7 +21176,7 @@ function vTransfer(){var gate=gateCard();if(gate)return gate;
             cands.map(function(p){return '<option value="'+p.id+'"'+(aucOutSel===p.id?' selected':'')+'>'+esc(tradePlayerLabel(p,mine))+'</option>'}).join("")+'</select>'+
             '<button class="btn" id="aucSave">'+(mb2?'Teklifi güncelle':'Teklifi kaydet')+'</button>'+(mb2?'<button class="btn alt" id="aucDel">Teklifi geri çek</button>':'')}}}
     h+='</div>'}
-  else h+='<div class="card"><h2>🎯 Sıradaki açık artırma</h2><p class="msg">Şu an açık artırma yok. Yeni oyuncu, yönetici uygulamayı açtığında otomatik çıkar.</p></div>';
+  else h+='<div class="card"><h2>🎯 Sıradaki ihale</h2><p class="msg">Şu an ihale yok. Yeni oyuncu, yönetici uygulamayı açtığında otomatik çıkar.</p></div>';
   if(mine)h+=servicesHTML(mine);
   // bakiyeler
   var ids=Object.keys(teams).sort(function(a,b){return budOf(b)-budOf(a)});
@@ -21138,7 +21184,7 @@ function vTransfer(){var gate=gateCard();if(gate)return gate;
     ids.map(function(u){return '<div class="li"><span class="nm">'+esc(teams[u].name)+' <span class="avg">· '+aucWinsOf(u)+'/'+AUC_MAX+' oyuncu</span></span><span class="r">'+fmtM(budOf(u))+(reservedOf(u)?' <span class="avg">('+fmtM(reservedOf(u))+' kuponda)</span>':'')+'</span></div>'}).join("")+'</details>';
   // gecmis sonuclar
   var done=aucKeys().map(function(k){return fbAuc[k]}).filter(function(r){return r.status==="done"}).sort(function(a,b){return b.idx-a.idx});
-  h+='<details class="card sqCard" data-id="aucdone"'+(dOpen("aucdone",true)?' open':'')+'><summary><span class="sqHead">✅ Sonuçlanan açık artırmalar <span class="avg">· '+done.length+'</span></span><span class="chev">›</span></summary>'+
+  h+='<details class="card sqCard" data-id="aucdone"'+(dOpen("aucdone",true)?' open':'')+'><summary><span class="sqHead">✅ Sonuçlanan ihaleler <span class="avg">· '+done.length+'</span></span><span class="chev">›</span></summary>'+
     (done.length?done.map(function(r){var res=r.result||{},w=res.winner,bs=res.bids||[];
       return '<div class="li" style="display:block"><div class="nm"><b>'+(r.idx+1)+'. hafta</b> · '+(r.player?aucPlayerHTML(r.player):'oyuncu yok')+'</div>'+
         '<p class="slot" style="margin:4px 0">'+(w?'🏆 <b>'+esc(w.team)+'</b> · '+fmtM(w.bid)+' · ayrılan: '+esc(w.outN):'Alıcı çıkmadı')+'</p>'+
@@ -21257,6 +21303,78 @@ function managerAwardsHTML(uid){var aa=allAwards(),mine=aa.list.filter(function(
   if(sq.length)h+='<div class="sh"><span>👕 Oyuncuları</span><span></span></div>'+sq.map(function(x){return '<div class="li"><span class="nm">'+x.icon+' '+esc(x.title)+'</span><span class="r">×'+x.n+'</span></div>'}).join("");
   return h+'</div>'}
 
+/* ================= sezon ozeti posteri (takim renklerinde, paylasilabilir PNG) ================= */
+var POSTER={},POSTER_BUSY={};
+function posterData(sid){var rec=fbHistory[sid],raw=historyRaw[sid];if(!rec||!raw||raw==="loading")return null;
+  var ns=allSeasonLeagues(),se=null;ns.list.forEach(function(x){if(String(x.sid)===String(sid))se=x});if(!se)return null;
+  var tb;try{tb=computeStats(raw).table}catch(e){return null}if(!tb||!tb.length)return null;
+  var teams=Object.assign({},raw.ai||{},raw.teams||{}),tn=function(u){return (teams[u]&&teams[u].name)||""};
+  var aw=computeSeasonAwards(se),by={};aw.forEach(function(a){if(!by[a.key])by[a.key]=a});
+  var tro=seasonTrophies(raw),ch=tb[0],gfT=0,pT=0;tb.forEach(function(t){gfT+=t.gf;pT+=t.p});
+  var bestAtt=tb.slice().sort(function(a,b){return b.gf-a.gf})[0],bestDef=tb.slice().sort(function(a,b){return a.ga-b.ga})[0];
+  var xi=aw.filter(function(a){return a.key==="sezon11"}).map(function(a){return {name:a.name,team:a.team,uid:a.uid,pos:(a.detail||"").split(" · ")[0]}});
+  return {label:se.label,champ:{uid:ch.id,name:ch.name,owner:(teams[ch.id]&&teams[ch.id].ownerName)||"",p:ch.p,w:ch.w,d:ch.d,l:ch.l,gf:ch.gf,ga:ch.ga,pts:ch.pts},
+    second:tb[1]?tb[1].name:"",third:tb[2]?tb[2].name:"",
+    cups:[["ULUSAL KUPA",tn(tro.cup)],["SÜPER KUPA",tn(tro.super)],["ŞAMPİYONLAR LİGİ",tn(tro.cl)]],
+    awards:[["GOL KRALI",by.golkrali],["ASİST KRALI",by.asistkrali],["SEZONUN OYUNCUSU",by.sezonoyuncu],["ALTIN ELDİVEN",by.altineldiven],["YILIN MENAJERİ",by.yilmenajeri],["SEZONUN TRANSFERİ",by.sezontransferi],["FAIR-PLAY",by.fairplay]],
+    stats:{goals:gfT,perMatch:pT?(gfT/(pT/2)):0,att:bestAtt?bestAtt.name+" · "+bestAtt.gf+" gol":"",def:bestDef?bestDef.name+" · "+bestDef.ga+" gol yedi":""},xi:xi}}
+function drawPoster(d,logo){var W=1080,H=2000,cv=document.createElement("canvas");cv.width=W;cv.height=H;var x=cv.getContext("2d"),FF="Inter, system-ui, -apple-system, Segoe UI, sans-serif";
+  var acc=clubAccent(d.champ.uid),c1=acc.c1,c2=acc.c2;
+  var g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,darkTo(c1,0.32));g.addColorStop(0.55,darkTo(c2,0.16));g.addColorStop(1,"#070b11");x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.save();x.globalAlpha=0.16;x.fillStyle=c1;x.beginPath();x.moveTo(W*0.55,0);x.lineTo(W,0);x.lineTo(W,H*0.38);x.lineTo(W*0.2,0);x.closePath();x.fill();x.restore();
+  function rr(a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
+  function fit(t,maxW,size,wt){var sz=size;x.font=wt+" "+sz+"px "+FF;while(x.measureText(t).width>maxW&&sz>14){sz-=2;x.font=wt+" "+sz+"px "+FF}return sz}
+  function txt(t,a,b,o){o=o||{};var sz=o.size||30,wt=o.w||600;if(o.maxW)sz=fit(t,o.maxW,sz,wt);else x.font=wt+" "+sz+"px "+FF;
+    x.textAlign=o.align||"left";x.textBaseline="alphabetic";x.globalAlpha=o.alpha==null?1:o.alpha;x.fillStyle=o.color||"#fff";
+    if(o.ls&&"letterSpacing" in x)x.letterSpacing=o.ls+"px";else if("letterSpacing" in x)x.letterSpacing="0px";
+    x.fillText(t,a,b);x.globalAlpha=1;if("letterSpacing" in x)x.letterSpacing="0px"}
+  var S=d.champ;
+  var hx=60;if(logo){x.save();x.beginPath();x.arc(60+48,86,48,0,Math.PI*2);x.clip();x.drawImage(logo,60,38,96,96);x.restore();hx=180}
+  txt("REİSLER SİMÜLASYONU",hx,100,{size:30,w:700,alpha:.75,ls:4,maxW:560});txt(d.label.toUpperCase(),W-60,100,{size:30,w:800,align:"right",alpha:.9,ls:4});
+  x.fillStyle=c1;x.fillRect(60,152,120,8);
+  txt("ŞAMPİYON",60,250,{size:46,w:800,ls:10,alpha:.85});
+  txt(S.name,60,400,{size:150,w:900,maxW:960});
+  txt((S.owner?S.owner+" · ":"")+S.pts+" puan",60,470,{size:48,w:600,alpha:.9,maxW:960});
+  txt(S.p+" maç · "+S.w+" G "+S.d+" B "+S.l+" M · "+S.gf+"-"+S.ga,60,528,{size:34,w:500,alpha:.7,maxW:960});
+  txt("2. "+d.second+"     3. "+d.third,60,600,{size:34,w:600,alpha:.85,maxW:960});
+  // kupalar
+  var cw=310,gap=15;d.cups.forEach(function(c,i){var cx=60+i*(cw+gap);x.fillStyle="rgba(255,255,255,0.10)";rr(cx,650,cw,120,22);x.fill();
+    txt(c[0],cx+22,694,{size:20,w:700,alpha:.7,ls:2,maxW:cw-40});txt(c[1]||"—",cx+22,744,{size:36,w:800,maxW:cw-40})});
+  // oduller
+  var cells=d.awards.slice();cells.push(["TOPLAM GOL",{name:d.stats.goals+" gol",team:"",detail:"maç başı "+d.stats.perMatch.toFixed(2).replace(".",",")}]);
+  txt("SEZONUN ÖDÜLLERİ",60,850,{size:26,w:800,alpha:.8,ls:4});
+  var aw=470;cells.forEach(function(c,i){var col=i%2,row=Math.floor(i/2),ax=60+col*(aw+80),ay=880+row*100,a=c[1];
+    x.fillStyle=c1;x.fillRect(ax,ay+4,6,82);
+    txt(c[0],ax+22,ay+22,{size:20,w:700,alpha:.65,ls:2});
+    txt(a?a.name:"—",ax+22,ay+62,{size:36,w:800,maxW:aw-30});
+    var sub=a?((a.team?"("+a.team+")":"")+(a.detail?(a.team?" · ":"")+a.detail:"")):"";txt(sub,ax+22,ay+90,{size:24,w:500,alpha:.7,maxW:aw-30})});
+  // saha
+  var py=1360,ph=610;txt("SEZONUN 11'İ",60,py-22,{size:26,w:800,alpha:.8,ls:4});
+  x.fillStyle="rgba(16,92,52,0.55)";rr(40,py,1000,ph,28);x.fill();
+  x.save();rr(40,py,1000,ph,28);x.clip();x.strokeStyle="rgba(255,255,255,0.18)";x.lineWidth=4;x.strokeRect(70,py+30,940,ph-60);
+  x.beginPath();x.moveTo(70,py+ph/2);x.lineTo(1010,py+ph/2);x.stroke();x.beginPath();x.arc(540,py+ph/2,80,0,Math.PI*2);x.stroke();
+  x.strokeRect(340,py+30,400,90);x.strokeRect(340,py+ph-120,400,90);x.restore();
+  var rowsY={f:py+70,m:py+225,d:py+380,k:py+505},XS={SLK:[200,"f"],ST:[540,"f"],SGK:[880,"f"],OS:[200,"m"],DOS:[540,"m"],OOS:[880,"m"],SLB:[175,"d"],SGB:[905,"d"],KL:[540,"k"]},stpN=0;
+  d.xi.forEach(function(p){var pos=XS[p.pos],px,ry;if(p.pos==="STP"){px=stpN===0?410:670;stpN++;ry=rowsY.d}else if(pos){px=pos[0];ry=rowsY[pos[1]]}else return;
+    var ac=clubAccent(p.uid);x.beginPath();x.arc(px,ry,40,0,Math.PI*2);x.fillStyle=ac.c1;x.fill();x.lineWidth=5;x.strokeStyle="#fff";x.stroke();
+    txt(p.pos,px,ry+9,{size:24,w:800,align:"center",color:lumOf(ac.c1)>0.5?"#0b1017":"#fff"});
+    txt(p.name,px,ry+72,{size:28,w:800,align:"center",maxW:210});txt("("+p.team+")",px,ry+102,{size:22,w:500,align:"center",alpha:.8,maxW:210})});
+  txt("En çok gol atan: "+d.stats.att,60,1988,{size:20,w:500,alpha:.55,maxW:960});
+  return cv}
+function ensurePoster(sid){if(POSTER[sid]||POSTER_BUSY[sid])return POSTER[sid]||null;var d=posterData(sid);if(!d)return null;POSTER_BUSY[sid]=1;
+  var go=function(logo){try{var cv=drawPoster(d,logo);cv.toBlob(function(b){if(!b){delete POSTER_BUSY[sid];return}
+    var u=URL.createObjectURL(b);POSTER[sid]={url:u,blob:b};delete POSTER_BUSY[sid];
+    document.querySelectorAll('img.posterImg[data-sid="'+sid+'"]').forEach(function(im){im.src=u;im.style.display="block"});
+    document.querySelectorAll('.posterWait[data-sid="'+sid+'"]').forEach(function(e){e.style.display="none"})},"image/png")}catch(e){delete POSTER_BUSY[sid]}};
+  var li=new Image();li.onload=function(){(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){go(li)})};li.onerror=function(){go(null)};li.src=COMP_LOGO.league;return null}
+function posterBoxHTML(sid){var P=ensurePoster(sid);
+  return '<div style="margin:6px 0 12px"><p class="msg posterWait" data-sid="'+sid+'" style="'+(P?'display:none':'')+'">Poster hazırlanıyor…</p>'+
+    '<img class="posterImg" data-sid="'+sid+'" alt="Sezon özeti" src="'+(P?P.url:'')+'" style="width:100%;border-radius:18px;display:'+(P?'block':'none')+'">'+
+    '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn posterShare" data-sid="'+sid+'">📤 Paylaş</button><button class="btn alt posterDl" data-sid="'+sid+'">⬇️ İndir</button></div></div>'}
+function posterShare(sid,download){var P=POSTER[sid];if(!P)return;var name="sezon-ozeti-"+sid+".png";
+  try{var f=new File([P.blob],name,{type:"image/png"});if(!download&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:"Sezon özeti"}).catch(function(){});return}}catch(e){}
+  var a=document.createElement("a");a.href=P.url;a.download=name;document.body.appendChild(a);a.click();a.remove()}
+
 /* ---- oyuncu kariyer sayfasi ---- */
 function vPlayerProfile(name){
   var lt={app:0,g:0,a:0},ns=allSeasonLeagues(),rows=[],info={m:"",l:"",r:0},tot={app:0,sum:0,g:0,a:0,y:0,rd:0,cs:0},acq=[],ccTot={cup:{app:0,g:0,a:0},super:{app:0,g:0,a:0},cl:{app:0,g:0,a:0}},cups=[];
@@ -21269,7 +21387,7 @@ function vPlayerProfile(name){
       var x={};Object.keys(x0).forEach(function(k){x[k]=x0[k]+cz[k]}); // sezon satiri ve kariyer toplami: lig + kupa + SL
       lt.app+=x0.app;lt.g+=x0.g;lt.a+=x0.a;rows.push({label:se.label,team:team.name||"?",owner:team.ownerName||"",x:x});
       tot.app+=x.app;tot.sum+=x.sum;tot.g+=x.g;tot.a+=x.a;tot.y+=x.y;tot.rd+=x.rd;tot.cs+=x.cs});
-    if(e.auc!==null){var tm=(se.raw.teams||{})[e.aucUid]||{};acq.push((e.auc+1)+". hafta açık artırması · "+se.label+" · "+(tm.name||"?"))}});
+    if(e.auc!==null){var tm=(se.raw.teams||{})[e.aucUid]||{};acq.push((e.auc+1)+". hafta ihalesi · "+se.label+" · "+(tm.name||"?"))}});
   var cur=null;if(fbLeague&&fbLeague.teams)Object.keys(fbLeague.teams).forEach(function(u){(fbLeague.teams[u].roster||[]).forEach(function(p){if(p.n===name)cur={p:p,team:fbLeague.teams[u].name,uid:u}})});
   var h='<button class="btn alt" id="backPlayer" style="margin-top:4px;width:auto;padding:8px 16px;font-size:13.5px">‹ Geri</button>';
   var m=cur?cur.p.m:info.m,pr=cur?cur.p.r:(info.r||0),acc=cur?teamAcc(cur.uid):{c1:"#3a4658",c2:"#1b2432"},base=(cur&&cur.p.r0!==undefined)?cur.p.r0:pr;
@@ -21380,7 +21498,7 @@ function clubCardHTML(){
   var ic=clubIcon(myUid),pl=playersOf(myUid).slice().sort(function(a,b){return b.r-a.r}),all=playersOf(myUid);
   h+='<div class="card"><h2>⭐ Kulüp ikonu</h2>';
   if(!all.length)return h+'<p class="msg">Önce kadronu kur.</p></div>';
-  h+='<p class="slot">İkon oyuncu serbest kalma kurasından muaf olur ve açık artırmada bırakılamaz. İlk maça kadar değiştirilebilir.</p>';
+  h+='<p class="slot">İkon oyuncu serbest kalma kurasından muaf olur ve ihalede bırakılamaz. İlk maça kadar değiştirilebilir.</p>';
   h+='<div class="li"><span class="nm">Şu anki ikon</span><span class="r">'+(ic?'⭐ '+esc(ic.n)+' ('+esc(ic.m)+')':'seçilmedi')+'</span></div>';
   if(iconLocked())h+='<p class="msg">Bu sezonun ilk maçı oynandı, ikon değiştirilemez.</p>';
   else h+='<label>İkon oyuncu</label><select id="iconSel"><option value="">— seç —</option>'+pl.map(function(p){var i=all.indexOf(p);
@@ -21438,11 +21556,11 @@ function vClubHistory(uid){
   var ics=(fbUsers[uid]&&fbUsers[uid].icons)||{},ik=Object.keys(ics).sort(function(a,b){return +a-+b});
   if(ik.length)h+='<div class="card"><h2>⭐ İkon oyuncular</h2>'+ik.map(function(k){return '<div class="li"><span class="nm">'+esc(labelBySid[k]||"?")+'</span><span class="r">'+plLink(ics[k].n)+' <span class="avg">('+esc(ics[k].m)+')</span></span></div>'}).join("")+'</div>';
   h+='<div class="card"><h2>🔨 Transfer geçmişi</h2>'+(acq.length?acq.map(function(a){return '<div class="li"><span class="nm">'+esc(a.label)+' · '+a.wk+'. hafta · '+plLink(a.n||"?")+' <span class="avg">('+esc(a.m||"")+(a.r?', '+a.r:'')+') ← '+esc(a.out||"?")+'</span></span><span class="r">'+fmtM(a.bid)+'</span></div>'}).join("")+
-    (function(){var mx=acq.slice().sort(function(a,b){return b.bid-a.bid})[0];return mx?'<p class="slot">En pahalı transfer: <b>'+esc(mx.n||"?")+'</b> · '+fmtM(mx.bid)+'</p>':''})():'<p class="msg">Henüz açık artırmayla alınan oyuncu yok.</p>')+'</div>';
+    (function(){var mx=acq.slice().sort(function(a,b){return b.bid-a.bid})[0];return mx?'<p class="slot">En pahalı transfer: <b>'+esc(mx.n||"?")+'</b> · '+fmtM(mx.bid)+'</p>':''})():'<p class="msg">Henüz ihaleyle alınan oyuncu yok.</p>')+'</div>';
   return h}
 
 /* ================= para harcama: hizmetler (siparis -> yonetici uygular) ================= */
-var SVC_PHYSIO=3000000,SVC_REST=3000000,TRAIN_CAP=90,REST_MIN_FAT=40,REST_AMOUNT=25;
+var SVC_PHYSIO=3000000,SVC_REST=3000000,TRAIN_CAP=90,REST_MIN_FAT=40,REST_AMOUNT=30; // kondisyon = 100 - yorgunluk: kondisyonu 60 altinda (yorgunluk 40 ustu) olan +30 kondisyon alir
 function trainCost(r){return r>=80?8000000:5000000}
 // antrenman kalici: 80 alti (antrenmandan onceki reyting) toplam +2, 80 ustu toplam +1
 function trainMax(p){return ((p.r||0)-(p.tb||0))<80?2:1}
@@ -21477,7 +21595,7 @@ function applyOrder(uid,id,o,direct){var S=currentSeason;
       else{cost=SVC_PHYSIO*n;if(cost>bud-reservedOf(uid))msg="Bakiye yetersiz";
         else{var ni=copyObj(t.injuries);if(inj-n>0)ni[p.id]=inj-n;else delete ni[p.id];upd[base+"injuries"]=ni}}}
     else if(o.type==="rest"){var fat=(t.fatigue||{})[p.id]||0;
-      if(fat<REST_MIN_FAT)msg="Yorgunluk "+REST_MIN_FAT+" altında";
+      if(fat<=REST_MIN_FAT)msg="Kondisyonu "+(100-REST_MIN_FAT)+" ve üstü";
       else{cost=SVC_REST;if(cost>bud-reservedOf(uid))msg="Bakiye yetersiz";
         else{var nf=copyObj(t.fatigue);nf[p.id]=Math.max(0,Math.round((fat-REST_AMOUNT)*10)/10);upd[base+"fatigue"]=nf}}}
     else if(o.type==="train"){var tb=p.tb||0;
@@ -21503,7 +21621,7 @@ function submitOrder(){if(!signedIn||!fbDb||!currentSeason||!fbLeague)return;
   var p=(mine.roster||[]).filter(function(x){return x.id===svcPid})[0];if(!p){msgBox("Önce bir oyuncu seç.");return}
   var cnt=1,cost=0;
   if(svcType==="physio"){var inj=(mine.injuries||{})[p.id]||0;cnt=Math.min(Math.max(1,svcCnt),inj);if(inj<=0){msgBox("Bu oyuncu sakat değil.");return}cost=SVC_PHYSIO*cnt}
-  else if(svcType==="rest"){if(((mine.fatigue||{})[p.id]||0)<REST_MIN_FAT){msgBox("Yorgunluk "+REST_MIN_FAT+" altındaki oyuncu dinlendirilemez.");return}cost=SVC_REST}
+  else if(svcType==="rest"){if(((mine.fatigue||{})[p.id]||0)<=REST_MIN_FAT){msgBox("Kondisyonu "+(100-REST_MIN_FAT)+" ve üstü olan oyuncu dinlendirilemez.");return}cost=SVC_REST}
   else{if((p.tb||0)>=trainMax(p)){msgBox("Bu oyuncu antrenman sınırına ulaştı (+"+trainMax(p)+").");return}if(p.r>=TRAIN_CAP){msgBox("Overall tavanına ulaştı.");return}cost=trainCost(p.r)}
   if(cost>availOf(myUid)){msgBox("Bakiyen yetersiz. Kullanılabilir bakiyen: "+fmtM(availOf(myUid)));return}
   if(liveRoundActive()){msgBox("Maçlar oynanırken hizmet alınamaz. Hafta bitince tekrar dene.");return}
@@ -21522,13 +21640,13 @@ function servicesHTML(mine){
     '<div class="pg" style="grid-template-columns:repeat(3,1fr)">'+Object.keys(SV).map(function(k){return '<button class="pb svcBtn" data-k="'+k+'"'+(svcType===k?' style="border-color:var(--ac);background:rgba(43,214,107,.16);color:var(--ac)"':'')+'>'+SV[k]+'</button>'}).join("")+'</div>';
   var ros=mine.roster||[],cands,desc;
   if(svcType==="physio"){cands=ros.filter(function(p){return ((mine.injuries||{})[p.id]||0)>0});desc="Sakat oyuncunun süresini maç başı <b>"+fmtM(SVC_PHYSIO)+"</b> karşılığında kısaltır."}
-  else if(svcType==="rest"){cands=ros.filter(function(p){return ((mine.fatigue||{})[p.id]||0)>=REST_MIN_FAT});desc="Yorgunluğu "+REST_MIN_FAT+" ve üstü olan oyuncunun yorgunluğunu <b>−"+REST_AMOUNT+"</b> azaltır: <b>"+fmtM(SVC_REST)+"</b>."}
+  else if(svcType==="rest"){cands=ros.filter(function(p){return ((mine.fatigue||{})[p.id]||0)>REST_MIN_FAT});desc="Kondisyonu "+(100-REST_MIN_FAT)+" altında olan oyuncunun kondisyonu <b>"+REST_AMOUNT+"</b> artırılır : <b>"+fmtM(SVC_REST)+"</b>"}
   else{cands=ros.filter(function(p){return (p.tb||0)<trainMax(p)&&p.r<TRAIN_CAP});desc="Oyuncunun overall'ını <b>+1</b> artırır, kalıcıdır.<br>Her +1 için fiyat: overall'ı 80 altı oyuncu <b>"+fmtM(trainCost(79))+"</b>, 80 ve üstü oyuncu <b>"+fmtM(trainCost(80))+"</b>.<br>Oyuncu başına limit: 80 altı +2, 80 üstü +1."}
   h+='<p class="slot">'+desc+'</p>';
   if(!cands.length)h+='<p class="msg">Bu hizmet için uygun oyuncu yok.</p>';
   else{
     h+='<label>Oyuncu</label><select class="svcPid"><option value="">— seç —</option>'+cands.map(function(p){
-      var extra=svcType==="physio"?' · '+((mine.injuries||{})[p.id])+' maç sakat':svcType==="rest"?' · yorgunluk '+Math.round((mine.fatigue||{})[p.id]):' · '+fmtM(trainCost(p.r));
+      var extra=svcType==="physio"?' · '+((mine.injuries||{})[p.id])+' maç sakat':svcType==="rest"?' · kondisyon %'+Math.round(100-((mine.fatigue||{})[p.id]||0)):' · '+fmtM(trainCost(p.r));
       return '<option value="'+p.id+'"'+(svcPid===p.id?' selected':'')+'>'+esc(p.n)+' ('+p.m+', '+p.r+')'+extra+'</option>'}).join("")+'</select>';
     var sp=svcPid&&ros.filter(function(p){return p.id===svcPid})[0];
     if(svcType==="physio"&&sp){var mx=(mine.injuries||{})[sp.id]||1;if(svcCnt>mx)svcCnt=mx;if(svcCnt<1)svcCnt=1;
@@ -21622,6 +21740,7 @@ function vHistory(){var gate=gateCard();if(gate)return gate;
     else h+='<div class="tbl"><div class="trow thead"><span class="c-name">Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>Pts</span></div>'+
       det.table.map(function(t,i){return '<div class="trow mgrLink" data-uid="'+esc(t.id)+'"><span class="c-name">'+(i+1)+'. '+esc(t.name)+'</span><span>'+t.p+'</span><span>'+t.w+'</span><span>'+t.d+'</span><span>'+t.l+'</span><span>'+t.gf+'</span><span>'+t.ga+'</span><span>'+(t.gf-t.ga)+'</span><span class="ptsCol">'+t.pts+'</span></div>'}).join("")+
       '</div>';
+    h+=posterBoxHTML(sid);
     h+='</details>'});
   return adminBtn+h}
 
@@ -21828,7 +21947,7 @@ function moneyItems(uid){var rs=leagueRounds(),items=[];
       sub=hn+" "+m.result.h+"-"+m.result.a+(m.pen?" ("+m.pen.h+"-"+m.pen.a+" pen.)":"")+" "+an}
     items.push({t:dms(rd),o:0,label:(i+1)+". hafta geliri · "+compTitle(rd,i),sub:sub,amt:inc})});
   aucKeys().forEach(function(k){var r=fbAuc[k];if(r.status==="done"&&r.result&&r.result.winner&&r.result.winner.uid===uid&&r.player)
-    items.push({t:dms(rs[r.idx])+1,o:1,label:"Açık artırma: "+r.player.n,sub:r.player.m+" · "+r.player.r+" · yerine "+(r.result.winner.outN||"?"),amt:-Math.round(r.result.winner.bid||0)})});
+    items.push({t:dms(rs[r.idx])+1,o:1,label:"İhale: "+r.player.n,sub:r.player.m+" · "+r.player.r+" · yerine "+(r.result.winner.outN||"?"),amt:-Math.round(r.result.winner.bid||0)})});
   Object.keys(fbBetRes||{}).forEach(function(wk){var x=fbBetRes[wk]&&fbBetRes[wk][uid];if(!x||x.void)return;var i=+wk.slice(1),d=x.refund?0:(x.won?(x.payout||0)-(x.stake||0):-(x.stake||0));
     items.push({t:dms(rs[i])+2,o:2,label:"Kupon · "+(i+1)+". hafta",sub:x.refund?"İade":x.won?"Kazandı ("+(x.odds||"")+"x)":"Kaybetti",amt:d})});
   var os=(uid===myUid)?fbMyOrders:{};Object.keys(os||{}).forEach(function(id){var o=os[id];if(!o||o.status!=="done"||!o.cost)return;
@@ -21994,10 +22113,13 @@ function submitSubOrder(ri,mi,outId,inId){
   var od=(m.orders&&m.orders[myUid])||{},n=!od["s"+k+"_1"]?1:(!od["s"+k+"_2"]?2:0);
   if(!n){msgBox("Aynı anda en fazla 2 değişiklik yapılabilir. Bir sonraki bölümü bekle.");return}
   var base="leagues/"+currentSeason+"/rounds/"+ri+"/matches/"+mi;
-  return fbDb.ref(base+"/orders/"+myUid+"/s"+k+"_"+n).set({out:outId,inn:inId}).then(function(){return resimMatch(ri,mi)}).catch(function(e){fbBadge("Değişiklik kaydedilemedi: "+e.message)})}
+  var up2={};up2["s"+k+"_"+n]={out:outId,inn:inId};if(!ctlManual(od))up2["g"+k]=true;
+  return fbDb.ref(base+"/orders/"+myUid).update(up2).then(function(){return resimMatch(ri,mi)}).catch(function(e){fbBadge("Değişiklik kaydedilemedi: "+e.message)})}
 function removeOrder(ri,mi,key){var rd=leagueRounds()[ri],m=rd&&rd.matches&&rd.matches[mi];if(!m||!m.sim||m.played)return;
   var base="leagues/"+currentSeason+"/rounds/"+ri+"/matches/"+mi;
-  return fbDb.ref(base+"/orders/"+myUid+"/"+key).set(null).then(function(){return resimMatch(ri,mi)}).catch(function(e){fbBadge("Emir silinemedi: "+e.message)})}
+  var od0=(m.orders&&m.orders[myUid])||{},up={};up[key]=null;
+  if(!Object.keys(od0).some(function(x){return x!==key&&/^[cs]/.test(x)}))Object.keys(od0).forEach(function(x){if(/^g\d+$/.test(x))up[x]=null}); // hic emri kalmadiysa kontrol bilgisayara doner
+  return fbDb.ref(base+"/orders/"+myUid).update(up).then(function(){return resimMatch(ri,mi)}).catch(function(e){fbBadge("Emir silinemedi: "+e.message)})}
 /* canli mudahale penceresi: ana ekrandan veya mac detayindan acilir; saniyelik yenilemede kapanmasin / acik liste bozulmasin diye
    sayfanin disinda, kendi kabugunda tutulur ve sadece ilgili veri degisince (secim yapilirken degil) yeniden cizilir */
 var MUD=null;UI.mud={v:{style:"",plan:"",tempo:""},so:"",si:""};
@@ -22033,8 +22155,11 @@ function mudBodyHTML(ri,mi,m,inf,side,k,od,ss){var teams=fbLeague.teams,hn=teams
   var chg=!!(UI.mud.v.style||UI.mud.v.plan||UI.mud.v.tempo);
   h+='<button class="btn" id="mudGo" style="margin-top:10px"'+(chg?'':' disabled')+'>Taktiği uygula</button>';
   var pend=Object.keys(od).filter(function(x){return x.charAt(0)==="c"}).map(function(c){return parseInt(c.slice(1))}).filter(function(c){return chunkBound(m,c)>inf.min}).sort(function(a,b){return a-b});
-  if(pend.length)h+='<p class="msg" style="margin-top:8px">Bekleyen taktik: '+pend.map(function(c){return displayMinute(chunkBound(m,c),inf.add1,m.etFrom)}).join(", ")+'</p>';
-  h+='<p class="slot" style="margin:18px 0 0">Oyuncu değişikliği <span class="avg">· yapmazsan otomatik · kalan hak '+Math.max(0,ss.rights)+'/5</span></p>';
+  if(pend.length)h+='<p class="slot" style="margin-top:12px">Bekleyen taktik değişiklikleri</p>'+pend.map(function(c){var t=od["c"+c]||{};
+    return '<div class="li"><span class="nm">'+displayMinute(chunkBound(m,c),inf.add1,m.etFrom)+' · '+['style','plan','tempo'].map(function(x){return t[x]?esc((TACTIC_UI.filter(function(g){return g[0]===x})[0]||[,,{}])[2][t[x]]||t[x]):''}).filter(Boolean).join(' · ')+'</span><button class="btn alt delO" data-key="c'+c+'" style="width:auto;padding:5px 12px">İptal</button></div>'}).join("");
+  var man=ctlManual(od);
+  h+='<p class="slot" style="margin:18px 0 0">Oyuncu değişikliği <span class="avg">· kalan hak '+Math.max(0,ss.rights)+'/5</span></p>';
+  h+=man?'<div class="li" style="margin-top:6px"><span class="nm">🧑‍💼 Kontrol sende. Bilgisayar değişiklik yapmaz (sakatlık ve kaleci kırmızısı hariç)</span><button class="btn alt" id="relCtl" style="width:auto;padding:6px 12px">Bilgisayara bırak</button></div>':'<p class="msg" style="margin:6px 0 0">🤖 Kontrol bilgisayarda: sen müdahale edene kadar değişiklikleri o yapar.</p>';
   if(ss.rights>0&&ss.bench.length){
     h+='<div><div><label>Çıkacak</label><select id="sOut"><option value="">Seç…</option>'+ss.on.map(function(x){return '<option value="'+x.id+'"'+(UI.mud.so===x.id?' selected':'')+'>'+x.slot+' · '+esc(x.p.n)+' ('+x.p.r+')</option>'}).join("")+'</select></div>'+
       '<div><label>Girecek</label><select id="sIn"><option value="">Seç…</option>'+ss.bench.map(function(p){return '<option value="'+p.id+'"'+(UI.mud.si===p.id?' selected':'')+'>'+p.m+' · '+esc(p.n)+' ('+p.r+')</option>'}).join("")+'</select></div></div>'+
@@ -22051,6 +22176,7 @@ function mudBind(){var el=$("mudModal");if(!el||!MUD)return;
   var g=gb("mudGo");if(g)g.onclick=function(){var m=leagueRounds()[MUD.ri].matches[MUD.mi],side=m.home===myUid?"home":"away",v=UI.mud.v,t=Object.assign({},currentTacticsOf(m,side,(m.nch||9)+1));
     ["style","plan","tempo"].forEach(function(k){if(v[k])t[k]=v[k]});UI.mud.v={style:"",plan:"",tempo:""};var p=submitTacticOrder(MUD.ri,MUD.mi,t);mudRefresh(true);if(p&&p.then)p.then(function(){mudRefresh(true)})};
   var sg=gb("subGo");if(sg)sg.onclick=function(){var o=UI.mud.so,i2=UI.mud.si;UI.mud.so="";UI.mud.si="";var p=submitSubOrder(MUD.ri,MUD.mi,o,i2);mudRefresh(true);if(p&&p.then)p.then(function(){mudRefresh(true)})};
+  var rc=gb("relCtl");if(rc)rc.onclick=function(){var p=releaseControl(MUD.ri,MUD.mi);if(p&&p.then)p.then(function(){mudRefresh(true)})};
   el.querySelectorAll(".delO").forEach(function(b){b.onclick=function(){var p=removeOrder(MUD.ri,MUD.mi,b.dataset.key);if(p&&p.then)p.then(function(){mudRefresh(true)})}})}
 
 /* ---- mac detayi ---- */
@@ -22166,23 +22292,52 @@ function vFixtureNew(){var gate=gateCard();if(gate)return gate;var h='';
   return h}
 
 /* ---- kupalar ekrani ---- */
+var CUPCSS=false;
+function cupCss(){if(CUPCSS)return;CUPCSS=true;var st=document.createElement("style");st.textContent=
+".cupBan{position:relative;overflow:hidden;border-radius:18px;padding:18px 16px;margin:12px 0;color:#fff;display:flex;align-items:center;gap:14px;border:1px solid var(--bd)}"+
+".cupBan .cl{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.14);flex:none}"+
+".cupBan small{display:block;font:700 11.5px Inter;opacity:.85;letter-spacing:.02em}.cupBan b{display:block;font:800 21px Inter;letter-spacing:-.02em;margin-top:2px}.cupBan i{font-style:normal;font:600 12.5px Inter;opacity:.85}"+
+".cupBan .tr{position:absolute;right:-8px;bottom:-18px;font-size:92px;opacity:.16;line-height:1;pointer-events:none}"+
+".bkt{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;margin:0 -2px}"+
+".bcol{flex:0 0 76%;max-width:300px;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:space-around;gap:10px}"+
+".bcol>h4{margin:0 0 2px;font:800 13px Inter;display:flex;justify-content:space-between;align-items:baseline}.bcol>h4 span{font:600 11.5px Inter;color:var(--mut)}"+
+".tie{background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;cursor:pointer}.tie.me{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset}.tie.ph{cursor:default;opacity:.6}"+
+".tie .tr2{display:flex;align-items:center;gap:8px;padding:8px 10px;font:600 13.5px Inter}.tie .tr2+.tr2{border-top:1px solid var(--bd)}"+
+".tie .tr2 .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tie .tr2 b{font:800 15px Inter;min-width:22px;text-align:right;font-variant-numeric:tabular-nums}"+
+".tie .tr2.w{background:color-mix(in srgb,var(--win) 13%,transparent)}.tie .tr2.w .n{font-weight:800}.tie .tr2.l{color:var(--mut)}.tie .tr2 small{font:600 10.5px Inter;color:var(--mut)}"+
+".tie .tag{display:flex;justify-content:space-between;padding:4px 10px;font:600 10.5px Inter;color:var(--mut);background:rgba(255,255,255,.03);border-top:1px solid var(--bd)}"+
+".jrn{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px}.jrn span{font:700 12px Inter;padding:6px 10px;border-radius:99px;background:var(--card);border:1px solid var(--bd)}.jrn .ok{border-color:var(--win);color:var(--win)}.jrn .no{border-color:var(--loss);color:var(--loss)}";
+  document.head.appendChild(st)}
+function cupTieHTML(ri,mi){var rd=leagueRounds()[ri],m=rd.matches[mi],T=fbLeague.teams,inf=liveInfo(ri,mi),started=inf.played||(inf.min!=null&&!!m.events),me=(m.home===myUid||m.away===myUid),w=m.played?koWinner(m):null;
+  function row(uid,gl,pe){var nm=(T[uid]||{}).name||"?",cls=w?(w===uid?" w":" l"):"";
+    return '<div class="tr2'+cls+'">'+avU(uid,22,nm)+'<span class="n">'+esc(nm)+'</span>'+(inf.penOn&&started?'<small>('+pe+')</small>':'')+'<b>'+(started?gl:'')+'</b></div>'}
+  var tag=inf.done||m.played?(m.etFrom&&!m.pen?'Uzatmada':m.pen?'Penaltılarla':''):(started?'<span class="livedot2"></span>Canlı '+inf.label:fmtTRDate(rd.date));
+  return '<div class="tie'+(me?' me':'')+'"'+(started?' data-md="'+ri+'_'+mi+'"':'')+'>'+row(m.home,inf.gh,inf.penOn?inf.pen.h:0)+row(m.away,inf.ga,inf.penOn?inf.pen.a:0)+(tag?'<div class="tag"><span>'+tag+'</span><span>'+(started?'Detay ›':'')+'</span></div>':'')+'</div>'}
 function vCups(){var gate=gateCard();if(gate)return gate;
   if(!fbLeague)return '<div class="card"><p class="msg">Lig henüz kurulmadı.</p></div>';
-  var rs=leagueRounds(),T=fbLeague.teams,h='';
-  ["super","cup","cl"].forEach(function(c){var list=[];rs.forEach(function(rd,i){if(compOf(rd)===c)list.push(i)});if(!list.length)return;
-    var lr=lastRoundOf(c),champ="";
-    if(lr>=0&&rdAll(rs[lr])&&c!=="super"){var w=T[koWinner(rs[lr].matches[0])];if(w)champ=w.name}
-    h+='<div class="secH"><h3>'+compIconHTML(c)+' '+COMP_NAME[c]+'</h3>'+(champ?'<a style="cursor:default">🏆 '+esc(champ)+'</a>':'')+'</div>';
-    list.forEach(function(ri){var rd=rs[ri];
-      h+='<p class="slot" style="margin:10px 0 4px">'+esc(rd.stage||"")+' · '+(ri+1)+'. hafta</p>';
-      if(rd.skip){h+='<p class="msg">Oynanmayacak.</p>';return}
-      if(!(rd.matches||[]).length){h+='<p class="msg">Eşleşmeler henüz belli değil.</p>';return}
-      rd.matches.forEach(function(m,mi){var inf=liveInfo(ri,mi),started=inf.played||(inf.min!=null&&!!m.events),me=(m.home===myUid||m.away===myUid);
-        var hn=(T[m.home]||{}).name||"?",an=(T[m.away]||{}).name||"?",w=m.played?koWinner(m):null;
-        h+='<div class="li'+(me?' me':'')+'"'+(started?' data-md="'+ri+'_'+mi+'" style="cursor:pointer"':'')+'><span class="nm" style="display:flex;align-items:center;gap:8px;'+(w===m.home?'font-weight:800':'')+'">'+avU(m.home,22,hn)+esc(hn)+'</span>'+
-          '<span class="r" style="min-width:74px;text-align:center;font-variant-numeric:tabular-nums">'+(started?inf.gh+' – '+inf.ga+(inf.penOn?'<small style="display:block;font-size:10.5px;color:var(--mut)">pen. '+inf.pen.h+'–'+inf.pen.a+'</small>':''):'vs')+'</span>'+
-          '<span class="nm" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;'+(w===m.away?'font-weight:800':'')+'">'+esc(an)+avU(m.away,22,an)+'</span></div>'})})});
-  return h||'<div class="card"><p class="msg">Kupa maçı yok.</p></div>'}
+  cupCss();
+  var rs=leagueRounds(),T=fbLeague.teams,avail=["cup","cl","super"].filter(function(c){return rs.some(function(rd){return compOf(rd)===c})});
+  if(!avail.length)return '<div class="card"><p class="msg">Kupa maçı yok.</p></div>';
+  if(avail.indexOf(UI.cupView)<0)UI.cupView=avail[0];
+  var c=UI.cupView,names={cup:"Ulusal Kupa",cl:"Şampiyonlar Ligi",super:"Süper Kupa"};
+  var h=segHTML("cupView",avail.map(function(x){return [x,x==="cl"?"Şamp. Ligi":names[x]]}),c);
+  var list=[];rs.forEach(function(rd,i){if(compOf(rd)===c&&!rd.skip)list.push(i)});
+  var lr=list[list.length-1],fin=lr!=null?rs[lr]:null,fm=fin&&fin.matches&&fin.matches[0],champ=fm&&fm.played?koWinner(fm):null;
+  var cu=champ?ticketCol(champ):null,started=list.some(function(ri){return (rs[ri].matches||[]).some(function(m){return m.played})}),cur=null;
+  list.some(function(ri){var rd=rs[ri];if(!(rd.matches||[]).length||!rd.matches.every(function(m){return m.played})){cur=rd;return true}return false});
+  h+='<div class="cupBan" style="background:linear-gradient(120deg,'+(cu||'#26405f')+',#0f1b2d 88%)"><div class="cl" style="font-size:30px">'+compIconHTML(c)+'</div><div style="flex:1;min-width:0">'+
+    (champ?'<small>'+names[c]+' şampiyonu</small><b>'+esc((T[champ]||{}).name||"?")+'</b>'+((T[champ]||{}).ai?'':'<i>'+esc((T[champ]||{}).ownerName||"")+'</i>'):'<small>'+names[c]+'</small><b>'+(started?'Şampiyon belli değil':'Henüz başlamadı')+'</b><i>'+(cur?(started?'Sırada: ':'İlk tur: ')+esc(c==="super"?fmtTRDate(cur.date):(cur.stage||"")+(started?'':' · '+fmtTRDate(cur.date))):'')+'</i>')+'</div><span class="tr">🏆</span></div>';
+  // takimimin yolu
+  var jr=[];list.forEach(function(ri){var rd=rs[ri];(rd.matches||[]).forEach(function(m,mi){if(m.home!==myUid&&m.away!==myUid)return;
+    if(!m.played){jr.push('<span>'+esc(rd.stage||"")+' · oynanacak</span>');return}
+    var w=koWinner(m);jr.push('<span class="'+(w===myUid?'ok':'no')+'">'+esc(rd.stage||"")+' · '+m.result.h+'–'+m.result.a+(m.pen?' ('+m.pen.h+'–'+m.pen.a+')':'')+(w===myUid?' ✓':' ✗')+'</span>')})});
+  if(jr.length)h+='<p class="slot" style="margin:12px 0 2px">Takımımın yolu</p><div class="jrn">'+jr.join("")+'</div>';
+  // eleme agaci
+  var prevN=0;
+  h+='<div class="bkt">'+list.map(function(ri){var rd=rs[ri],ms=rd.matches||[],n=ms.length||Math.max(1,Math.ceil(prevN/2));prevN=n;
+    var body=ms.length?ms.map(function(m,mi){return cupTieHTML(ri,mi)}).join(""):Array.apply(null,Array(n)).map(function(){return '<div class="tie ph"><div class="tr2"><span class="n">Belli değil</span></div><div class="tr2"><span class="n">Belli değil</span></div></div>'}).join("");
+    return '<div class="bcol"><h4>'+esc(rd.stage||"")+'<span>'+fmtTRDate(rd.date)+'</span></h4>'+body+'</div>'}).join("")+'</div>';
+  return h}
 
 /* ---- maclar ekrani ---- */
 function vMatches(){var gate=gateCard();if(gate)return gate;
@@ -22232,7 +22387,7 @@ function vHome(){var gate=gateCard();if(gate)return gate;var h="";
   else if(fbDraft&&fbDraft.order&&!fbDone&&signedIn){var tu=fbDraft.order[fbDraft.turn||0];rows+='<div class="hrow"><div class="ico2">⚽</div><div><div class="t">Kadro çekilişi</div><div class="s">'+(myTurn()?'Sıra sende':(tu?'Sırada: '+esc(userLabel(tu)):'Bekleniyor'))+'</div></div><button class="go'+(myTurn()?'':' q')+'" data-go="draw">'+(myTurn()?'Çek':'Aç')+'</button></div>'}
   var cur=curAuc(),mine=fbLeague&&fbLeague.teams&&fbLeague.teams[myUid];
   if(cur&&cur.player&&mine){var mb=fbMyBids["w"+cur.idx],st2=roundStarted(cur.idx);
-    rows+='<div class="hrow"><div class="ico2">🔨</div><div><div class="t">Açık artırma '+(st2?'kapandı':'açık')+'</div><div class="s">'+esc(cur.player.n)+' · '+cur.player.m+' '+cur.player.r+' · '+Object.keys(cur.bidders||{}).length+'/'+Object.keys(fbLeague.teams).length+' teklif</div></div>'+(st2?'':'<button class="go'+(mb?' q':'')+'" data-go="transfer">'+(mb?'Düzenle':'Teklif ver')+'</button>')+'</div>'}
+    rows+='<div class="hrow"><div class="ico2">🔨</div><div><div class="t">İhale '+(st2?'kapandı':'açık')+'</div><div class="s">'+esc(cur.player.n)+' · '+cur.player.m+' '+cur.player.r+' · '+Object.keys(cur.bidders||{}).length+'/'+Object.keys(fbLeague.teams).length+' teklif</div></div>'+(st2?'':'<button class="go'+(mb?' q':'')+'" data-go="transfer">'+(mb?'Düzenle':'Teklif ver')+'</button>')+'</div>'}
   var brH=betRoundIdx();if(brH>=0&&mine&&!(fbBets["w"+brH]&&fbBets["w"+brH][myUid])&&eligibleMatches(brH,myUid).length)
     rows+='<div class="hrow"><div class="ico2">🎫</div><div><div class="t">Bu haftanın kuponu</div><div class="s">Oranlar hazır · maçlar başlayınca kapanır</div></div><button class="go" data-go="fixture" data-set="fxView:bet">Kupon yap</button></div>';
   if(mine){var inj=Object.keys(mine.injuries||{}).filter(function(k){return (mine.injuries[k]||0)>0}).length;
@@ -22283,7 +22438,7 @@ function squadPitchHTML(){var gate=gateCard();if(gate)return gate;
   var bench=roster.filter(function(p){return !used[p.id]}).sort(function(a,b){return b.r-a.r});
   var weak="",posAvg={};roster.forEach(function(p){(posAvg[p.m]=posAvg[p.m]||[]).push(p.r)});
   var wk=Object.keys(posAvg).map(function(k){var v=posAvg[k].slice().sort(function(a,b){return b-a}).slice(0,2);return {m:k,v:v.reduce(function(s,x){return s+x},0)/v.length}}).sort(function(a,b){return a.v-b.v})[0];
-  if(wk)weak='<p class="slot" style="margin:6px 2px 0">En zayıf halka: <b style="color:var(--tx)">'+wk.m+'</b> (ort. '+Math.round(wk.v)+'). Antrenman veya açık artırma için aday.</p>';
+  if(wk)weak='<p class="slot" style="margin:6px 2px 0">En zayıf halka: <b style="color:var(--tx)">'+wk.m+'</b> (ort. '+Math.round(wk.v)+'). Antrenman veya ihale için aday.</p>';
   return '<div class="pitch2">'+field+chips+'</div>'+
     '<div class="kpis"><div><b>'+avgAll.toFixed(1).replace(".",",")+'</b><small>Takım ort.</small></div><div><b>'+avg11.toFixed(1).replace(".",",")+'</b><small>İlk 11 ort.</small></div><div><b style="color:var(--amber)">'+rank+'.</b><small>Lig gücü sırası</small></div></div>'+weak+
     '<div class="secH"><h3>Yedekler</h3><a>'+bench.length+' oyuncu</a></div><div style="display:flex;gap:10px;overflow-x:auto;scrollbar-width:none">'+bench.map(function(p){return '<div style="flex:none;width:86px;border:1px solid var(--bd);background:var(--card);border-radius:16px;padding:10px 6px;text-align:center"><div class="rb '+rbCls(p.r)+'" style="width:40px;height:40px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 15px Inter;color:#0b1017">'+p.r+'</div><div style="font:700 12.5px Inter;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(shortName(p.n))+'</div><div style="font-size:11px;color:var(--mut)">'+p.m+'</div></div>'}).join("")+'</div>'}
@@ -22493,8 +22648,8 @@ function betOddsHTML(ri,mi){var od=fbOdds["w"+ri],o=od&&od.matches&&od.matches[m
 
 /* ---- pazar ---- */
 function vMarket(){var gate=gateCard();if(gate)return gate;
-  if(!fbLeague||!fbLeague.teams)return '<div class="pgTitle">Pazar</div><div class="card"><p class="msg">Açık artırma lig kurulduktan sonra başlar.</p></div>';
-  var h='<div class="pgTitle">Pazar</div>'+segHTML("mkView",[["auc","Açık artırma"],["svc","Hizmetler"],["bal","Bakiyeler"]],UI.mkView);
+  if(!fbLeague||!fbLeague.teams)return '<div class="pgTitle">Pazar</div><div class="card"><p class="msg">Transfer ihalesi lig kurulduktan sonra başlar.</p></div>';
+  var h='<div class="pgTitle">Pazar</div>'+segHTML("mkView",[["auc","Transfer İhalesi"],["svc","Hizmetler"],["bal","Bakiyeler"]],UI.mkView);
   var mine=fbLeague.teams[myUid],teams=fbLeague.teams;
   if(UI.mkView==="svc")return h+(mine?servicesHTML(mine):'<p class="msg">Kadron henüz hazır değil.</p>');
   if(UI.mkView==="bal"){var ids=Object.keys(teams).sort(function(a,b){return budOf(b)-budOf(a)});
@@ -22508,11 +22663,11 @@ function vMarket(){var gate=gateCard();if(gate)return gate;
       else if(mb)h+='<div class="card" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:flex-end"><div><div class="slot" style="margin:0">Teklifin</div><div style="font:900 28px Inter;letter-spacing:-.03em">'+fmtM(mb.bid)+'</div></div><div style="text-align:right"><div class="slot" style="margin:0">Bırakacağın</div><div style="font:800 15px Inter">'+esc(mb.outN||"")+(mb.outR?' <span style="color:var(--mut)">('+mb.outR+')</span>':'')+'</div></div></div><div style="display:flex;gap:8px"><button class="btn" id="openBid" style="flex:1">Teklifi değiştir</button><button class="btn alt" id="aucDel" style="width:auto;padding:14px 18px">Geri çek</button></div></div>';
       else h+='<button class="btn" id="openBid">Teklif ver</button>'}}
   else{var pl=(fbAuc&&fbAuc.plan&&fbAuc.plan.tiers)||{},rem=Object.keys(pl).map(Number).filter(function(k){return !fbAuc["w"+k]}).sort(function(x,y){return x-y});
-    h+='<div class="card"><h2>Sıradaki açık artırma</h2><p class="msg">'+(rem.length?'Bir sonraki oyuncu <b>'+(rem[0]+1)+'. hafta</b> açık artırmaya çıkar. Bu sezon kalan: '+rem.length+' oyuncu.':'Şu an açık artırma yok. Sezonun 10 oyuncusu, yönetici uygulamayı açtığında takvime göre otomatik çıkar.')+'</p></div>'}
+    h+='<div class="card"><h2>Sıradaki ihale</h2><p class="msg">'+(rem.length?'Bir sonraki oyuncu <b>'+(rem[0]+1)+'. hafta</b> ihaleye çıkar. Bu sezon kalan: '+rem.length+' oyuncu.':'Şu an ihale yok. Sezonun 10 oyuncusu, yönetici uygulamayı açtığında takvime göre otomatik çıkar.')+'</p></div>'}
   var done=aucKeys().map(function(k){return fbAuc[k]}).filter(function(r){return r.status==="done"}).sort(function(a,b){return b.idx-a.idx});
   h+='<div class="secH"><h3>Geçen haftalar</h3></div>'+(done.length?'<div style="border-bottom:1px solid var(--bd)">'+done.map(function(r){var res=r.result||{},w=res.winner;
     return '<details class="aucd" style="border-top:1px solid var(--bd)"><summary style="list-style:none;display:flex;align-items:center;gap:12px;padding:11px 4px;cursor:pointer"><span style="width:44px;color:var(--mut);font-weight:700">'+(r.idx+1)+'. h.</span><div><div style="font-weight:700">'+(r.player?esc(r.player.n)+' <span style="color:var(--mut);font-weight:500">('+r.player.m+', '+r.player.r+')</span>':'oyuncu yok')+'</div><div class="slot" style="margin:0">'+(w?esc(w.team)+' aldı':'Alıcı çıkmadı')+'</div></div><span style="margin-left:auto;font:800 15px Inter">'+(w?fmtM(w.bid):'')+'</span></summary>'+
-      ((res.bids||[]).length?'<p class="slot" style="white-space:pre-line;padding:0 4px 10px">'+(res.bids||[]).map(function(b,i){return (i+1)+'. '+esc(b.team)+': '+fmtM(b.bid)+(b.why?' ('+esc(b.why)+')':'')}).join("\n")+(w?'\nAyrılan: '+esc(w.outN):'')+'</p>':'')+'</details>'}).join("")+'</div>':'<p class="msg">Henüz sonuçlanan açık artırma yok.</p>');
+      ((res.bids||[]).length?'<p class="slot" style="white-space:pre-line;padding:0 4px 10px">'+(res.bids||[]).map(function(b,i){return (i+1)+'. '+esc(b.team)+': '+fmtM(b.bid)+(b.why?' ('+esc(b.why)+')':'')}).join("\n")+(w?'\nAyrılan: '+esc(w.outN):'')+'</p>':'')+'</details>'}).join("")+'</div>':'<p class="msg">Henüz sonuçlanan ihale yok.</p>');
   return h}
 function openBidSheet(){var cur=curAuc();if(!cur||!cur.player||!fbLeague||!fbLeague.teams[myUid])return;var mine=fbLeague.teams[myUid],p=cur.player,mb=fbMyBids["w"+cur.idx];
   var bid=mb?mb.bid/1e6:Math.max(1,Math.round(Math.min(availOf(myUid)/1e6,10)*2)/2),out=mb?mb.outId:"";
@@ -22566,6 +22721,8 @@ function bind(){
   document.querySelectorAll("[data-md]").forEach(function(e){e.onclick=function(ev){ev.stopPropagation();UI.md=e.dataset.md;tab="fixture";render();window.scrollTo(0,0)}});
   document.querySelectorAll("[data-club]").forEach(function(e){e.onclick=function(){viewingClub=myUid;render();window.scrollTo(0,0)}});
   document.querySelectorAll("[data-prof]").forEach(function(e){e.onclick=function(){viewingProfile=myUid;render();window.scrollTo(0,0)}});
+  document.querySelectorAll(".posterShare").forEach(function(b){b.onclick=function(){posterShare(b.dataset.sid)}});
+  document.querySelectorAll(".posterDl").forEach(function(b){b.onclick=function(){posterShare(b.dataset.sid,true)}});
   document.querySelectorAll(".mudBtn").forEach(function(b){b.onclick=function(ev){ev.stopPropagation();var p=b.dataset.mud.split("_");mudOpen(+p[0],+p[1])}});
   on("mdBack",function(){UI.md=null;render();window.scrollTo(0,0)});
   on("goLive",function(){tab="fixture";UI.fxView="live";render()});
@@ -22645,5 +22802,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v19 · 20.10 17:16</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v29 · 21.10 00:30</div></body>
 </html>
