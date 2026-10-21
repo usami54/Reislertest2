@@ -19087,12 +19087,12 @@ var TACTIC_OPTS={
   hat:["geride","dengeli","onde"],
   genislik:["dar","dengeli","genis"],
   tempo:["dusuk","dengeli","yuksek"],
-  plan:["dengeli","kontra","topa","kanat","merkez","uzun","otobus"],
+  plan:["dengeli","kontra","topa","kanat","merkez","uzun","gpres","otobus"],
   ofsayt:["kapali","acik"]
 };
 var TACTIC_UI=[ // [anahtar, baslik, {deger:etiket}]
   ["style","Oyun tarzı",{tamdefans:"Tam defans",defansif:"Defans",dengeli:"Dengeli",hucum:"Hücum",tamhucum:"Tam hücum"}],
-  ["plan","Oyun planı",{dengeli:"Dengeli",kontra:"Kontra atak",topa:"Topa sahip olma",kanat:"Kanat oyunu",merkez:"Ortadan oyun",uzun:"Direkt / uzun top",otobus:"Otobüsü çek"}],
+  ["plan","Oyun planı",{dengeli:"Dengeli",kontra:"Kontra atak",topa:"Topa sahip olma",kanat:"Kanat oyunu",merkez:"Ortadan oyun",uzun:"Direkt / uzun top",gpres:"Yüksek pres",otobus:"Otobüsü çek"}],
   ["tempo","Tempo",{dusuk:"Düşük",dengeli:"Normal",yuksek:"Yüksek"}],
   ["press","Pres",{dusuk:"Düşük",dengeli:"Normal",yuksek:"Yüksek"}],
   ["pas","Pas tarzı",{kisa:"Kısa",dengeli:"Karışık",uzun:"Uzun"}],
@@ -19103,6 +19103,7 @@ var PLAN_TXT={dengeli:"Özel bir plan yok.",kontra:"Geri çekilip hızlı çıka
   topa:"Topu kontrol et: rakip az pozisyon bulur, maç daha az dalgalı. Rakip kontra oynuyorsa arkana atılır.",
   kanat:"Kanat oyuncuları gol ve asistte öne çıkar; ortadaki forvetler geri düşer.",merkez:"Ortadan oyun: forvet ve OOS gol/asistte öne çıkar, kanatlar geri düşer.",
   uzun:"Uzun toplarla forvete çıkış: hücum biraz artar, maç daha dalgalı, asistler azalır.",
+  gpres:"Rakibi kendi yarı sahasında boğ: ilk 65 dk hücum artar, rakip topa sahip olma oynuyorsa daha da etkili; savunma biraz açılır, kondisyon %15 fazla düşer.",
   otobus:"Tüm takım geride: hem atacağın hem yiyeceğin gol belirgin düşer (skor sürprizi artar), yorgunluk biraz azalır."};
 var TEMPO_TXT={dusuk:"Maç boyunca daha az koşu: hücum biraz düşer, yorgunluk %30 az birikir.",dengeli:"Normal yorgunluk.",yuksek:"İlk 65 dk hücum artar, sonra yorgunluktan düşer; kondisyon kaybı %35 artar."};
 function defaultTactics(){return {style:"dengeli",press:"dengeli",pas:"dengeli",hat:"dengeli",genislik:"dengeli",tempo:"dengeli",plan:"dengeli",ofsayt:"kapali"}}
@@ -19110,7 +19111,7 @@ function defaultTactics(){return {style:"dengeli",press:"dengeli",pas:"dengeli",
 function fullTactics(t){var d=defaultTactics();Object.keys(t||{}).forEach(function(k){if(t[k])d[k]=t[k]});return d}
 /* tempo + plan + pres: mac sonunda kondisyon kaybi carpani */
 function tacticFat(t){t=t||{};var f=1;if(t.tempo==="yuksek")f*=1.35;else if(t.tempo==="dusuk")f*=0.7;
-  if(t.press==="yuksek")f*=1.1;if(t.plan==="otobus")f*=0.9;else if(t.plan==="kontra")f*=0.95;return f}
+  if(t.press==="yuksek")f*=1.1;if(t.plan==="otobus")f*=0.9;else if(t.plan==="kontra")f*=0.95;else if(t.plan==="gpres")f*=1.15;return f}
 
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 /* tohumlu rastgele: mac simulasyonu tekrar uretilebilir (ayni tohum + ayni girdi = ayni mac). SIMRNG disinda Math.random kullanilir */
@@ -19263,6 +19264,7 @@ function tacticalMods(t,ctx){t=t||defaultTactics();
     else if(t.plan==="kanat"){m.wingW*=1.45;m.centW*=0.8;m.atk*=1.02;m.assist*=1.1}
     else if(t.plan==="merkez"){m.centW*=1.35;m.wingW*=0.8;m.assist*=1.1;m.atk*=0.99}
     else if(t.plan==="uzun"){m.centW*=1.3;m.assist*=0.9;m.atk*=0.99;m.jitter*=1.15}
+    else if(t.plan==="gpres"){m.atk*=(ctx.mid<=65?1.05:0.99);m.conc*=1.03;m.assist*=1.05;m.jitter*=1.1;if(oT.plan==="topa")m.atk*=1.04}
     else if(t.plan==="otobus"){m.atk*=0.72;m.conc*=0.74;m.jitter*=1.2}
     if(t.tempo==="yuksek"){m.atk*=(ctx.mid<=65?1.09:0.96);m.conc*=1.03}
     else if(t.tempo==="dusuk"){m.atk*=(ctx.mid<=65?0.97:1.01)}
@@ -20793,9 +20795,20 @@ function plSeason(){var S={};function g(id){return S[id]||(S[id]={s:0,c:0,g:0,a:
 function lsRowHTML(p,t,uid,noCond,S){var inj=(t.injuries||{})[p.id]||0,sus=(t.susp||{})[p.id]||0,f=(t.fatigue||{})[p.id]||0,fs=(t.form||{})[p.id],st=fs&&fs.state,c=condOf(f),col=f>=60?'var(--loss)':f>=40?'var(--amber)':'var(--win)';
   var fresh=p.tr!=null&&String(p.tr)===String(currentSeason),ps=S&&S[p.id];
   var badge=inj>0?'<span class="lsB r">🩹 '+inj+' hf</span>':sus>0?'<span class="lsB a">🟥 '+sus+' maç</span>':'';
-  var perf=S?'<div class="lsP">'+(ps&&ps.c?'<b>'+lsFmt(ps.s/ps.c)+'</b><small>'+(ps.g||ps.a?ps.g+'G '+ps.a+'A':ps.c+' maç')+'</small>':'<b class="mu">–</b>')+'</div>':'';
+  var perf=S?'<div class="lsP">'+(ps&&ps.c?'<b>'+lsFmt(ps.s/ps.c)+'</b><small>'+ps.c+' maç'+'</small>':'<b class="mu">–</b>')+'</div>':'';
   return '<div class="lsR plLink" data-pn="'+esc(p.n)+'"><span class="rb '+rbCls(p.r)+'">'+p.r+'</span><div class="mid"><b>'+esc(p.n)+(isIcon(uid,p)?' ⭐':'')+'</b><span>'+p.m+' · '+(NAMES[p.m]||"")+(fresh?' · <em>yeni transfer</em>':'')+'</span></div>'+badge+perf+
     (noCond?'':'<div class="lsC"><i><u style="width:'+Math.max(6,c)+'%;background:'+col+'"></u></i><small>%'+c+'</small></div>')+'<span class="lsF">'+formArrow(st)+'</span></div>'}
+function lsPerfTable(list,S,t){var col=UI.lsCol||"avg",dir=UI.lsDir||"desc",sg=dir==="asc"?1:-1;
+  function V(p){var x=S[p.id]||{s:0,c:0,g:0,a:0};return col==="ovr"?p.r:col==="mac"?x.c:col==="gol"?x.g:col==="ast"?x.a:x.c?x.s/x.c:null}
+  var L=list.slice().sort(function(a,b){
+    if(col==="name")return (dir==="asc"?1:-1)*a.n.localeCompare(b.n,"tr");
+    var va=V(a),vb=V(b);if(va===null&&vb===null)return b.r-a.r;if(va===null)return 1;if(vb===null)return -1;
+    return sg*(va-vb)||b.r-a.r});
+  var inj=t.injuries||{},sus=t.susp||{};
+  function hd(id,lbl,al){return '<button data-lscol="'+id+'" class="'+(col===id?'on':'')+'"'+(al?' style="text-align:'+al+'"':'')+'>'+lbl+(col===id?'<i>'+(dir==="asc"?'▲':'▼')+'</i>':'')+'</button>'}
+  return '<div class="lsBox lsT" style="margin-top:10px"><div class="lsTh">'+hd("ovr","OVR","center")+hd("name","Oyuncu","left")+hd("mac","Maç","center")+hd("gol","Gol","center")+hd("ast","Asist","center")+hd("avg","Puan","center")+'</div>'+
+    L.map(function(p){var x=S[p.id],c=x&&x.c,avg=c?x.s/c:null,st=(inj[p.id]||0)>0?'<em class="r">🩹 '+inj[p.id]+' hf</em>':(sus[p.id]||0)>0?'<em class="a">🟥 '+sus[p.id]+' maç</em>':'';
+      return '<div class="lsTr plLink" data-pn="'+esc(p.n)+'"><span class="rb '+rbCls(p.r)+'">'+p.r+'</span><div class="mid"><b>'+esc(p.n)+'</b><span>'+p.m+st+'</span></div><span class="n">'+(c||'–')+'</span><span class="n">'+(x&&x.g?x.g:'–')+'</span><span class="n">'+(x&&x.a?x.a:'–')+'</span><span class="n pv'+(avg===null?'':avg>=7?' hi':avg<6?' lo':'')+'">'+(avg===null?'–':lsFmt(avg))+'</span></div>'}).join("")+'</div>'}
 function lsPower(t){return (t.roster||[]).length?hkProfile(t).xi:0}
 function lsFmt(v){return v.toFixed(1).replace(".",",")}
 function vSquadList(){var gate=gateCard();if(gate)return gate;
@@ -20809,15 +20822,13 @@ function vSquadList(){var gate=gateCard();if(gate)return gate;
   var h='<div class="lsK"><div><small>Oyuncu</small><b>'+ro.length+'</b><em>takım ort. '+lsFmt(avg)+'</em></div><div><small>En yüksek reyting</small><b>'+best.r+'</b><em>'+esc(shortName(best.n))+'</em></div>'+
     '<div><small>En formda</small><b>'+(form?lsFmt(form.v):'–')+'</b><em>'+(form?esc(shortName(form.p.n))+' · ort. puan':'henüz maç oynanmadı')+'</em></div></div>';
   h+='<div class="lsFl">'+[["all","Hepsi",ro.length],["inj","Sakat",nI],["sus","Cezalı",nS],["tir","Yorgun",nT]].map(function(x){return '<button data-seg="lsFilter" data-v="'+x[0]+'" class="'+(f===x[0]?'on':'')+'">'+x[1]+' <i>'+x[2]+'</i></button>'}).join("")+'</div>';
-  h+=segHTML("lsSort",[["pos","Mevki"],["ovr","Overall"],["perf","Performans"],["ga","Gol+Asist"]],so);
+  h+=segHTML("lsSort",[["pos","Mevkiye göre"],["perf","Performans"]],so);
   var list=ro.filter(function(p){return f==="all"||(f==="inj"&&(inj[p.id]||0)>0)||(f==="sus"&&(sus[p.id]||0)>0)||(f==="tir"&&(fat[p.id]||0)>=60&&!((inj[p.id]||0)>0))});
   if(!list.length)return h+'<div class="card"><p class="msg">Bu filtrede oyuncu yok.</p></div>';
   if(so==="pos"){
     h+=ORDER.map(function(m){var g=list.filter(function(p){return p.m===m}).sort(function(a,b){return b.r-a.r});if(!g.length)return '';
       return '<div class="lsH"><b>'+m+' · '+NAMES[m]+'</b><span>'+g.length+' oyuncu · ort. '+lsFmt(g.reduce(function(s,p){return s+p.r},0)/g.length)+'</span></div><div class="lsBox">'+g.map(function(p){return lsRowHTML(p,t,myUid,false,S)}).join("")+'</div>'}).join("")}
-  else{var av=function(p){var x=S[p.id];return x&&x.c?x.s/x.c:-1},gaN=function(p){var x=S[p.id];return x?x.g+x.a:0},gN=function(p){var x=S[p.id];return x?x.g:0};
-    list.sort(function(a,b){return so==="perf"?av(b)-av(a)||b.r-a.r:so==="ga"?gaN(b)-gaN(a)||gN(b)-gN(a)||b.r-a.r:b.r-a.r});
-    h+='<div class="lsBox" style="margin-top:10px">'+list.map(function(p){return lsRowHTML(p,t,myUid,false,S)}).join("")+'</div>'}
+  else{h+=lsPerfTable(list,S,t)}
   return h}
 /* Herkes: kadrolar + kiyaslama raporu */
 function hkProfile(t){var ro=t.roster||[],xi=autoXI(ro,{},"4-3-3"),by={},inx={};ro.forEach(function(p){by[p.id]=p});
@@ -20834,7 +20845,6 @@ function hkReport(T,ids,rival){
   var sq=function(id){return fbSquads[id]||{}};
   var h='<div class="hkTb"><div class="hkTh"><span>Takım</span><span>En iyi 11</span><span>Defans</span><span>Orta</span><span>Forvet</span><span>Yedek</span></div>'+
     rows.map(function(id,i){return '<div class="hkTr'+(id===myUid?' me':'')+'"><span class="tn"><i>'+(i+1)+'</i>'+esc(shortName(teamOf(sq(id))))+'</span>'+K.map(function(k){var v=P[id][k];return '<span class="'+(v===mx[k]?'best':'')+'">'+lsFmt(v)+'</span>'}).join("")+'</div>'}).join("")+'</div>';
-  h+='<p class="slot" style="margin:6px 2px 0">Altın renk: o sütunda en güçlü takım. Defans kaleciyi içerir. Değerler her takımın kadrosundan otomatik seçilen en iyi 11\'den hesaplanır (4-3-3), o hafta seçtikleri 11\'e bağlı değildir. Yedek: en iyi 11 dışındakilerin ortalaması.</p>';
   // benimle kiyasla
   var others=ids.filter(function(id){return id!==myUid});
   if(P[myUid]&&others.length){var vs=UI.hkVs&&others.indexOf(UI.hkVs)>=0?UI.hkVs:(rival&&others.indexOf(rival)>=0?rival:others[0]),a=P[myUid],b=P[vs];
@@ -20867,6 +20877,9 @@ function vAll(){
 var LSCSS=false;
 function lsCss(){if(LSCSS)return;LSCSS=true;var st1=document.createElement("style");st1.textContent=
 '.lsK{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--bd);border-radius:16px;background:var(--card);margin-bottom:10px}.lsK div{padding:11px 10px 10px}.lsK div+div{border-left:1px solid var(--bd)}.lsK small{display:block;color:var(--mut);font-size:11px;font-weight:600;white-space:nowrap}.lsK b{display:block;font:900 24px Inter,sans-serif;margin:3px 0 1px}.lsK em{display:block;font-style:normal;color:var(--mut);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+'.lsTh,.lsTr{display:grid;grid-template-columns:38px minmax(0,1fr) 34px 34px 38px 44px;gap:6px;align-items:center;padding:9px 12px}.lsTh{padding-top:10px;padding-bottom:8px;border-bottom:1px solid var(--bd)}.lsTh button{background:none;border:0;color:var(--mut);font:700 11px Inter,sans-serif;cursor:pointer;padding:2px 0;white-space:nowrap}.lsTh button.on{color:var(--tx)}.lsTh button i{font-style:normal;font-size:8px;margin-left:2px}'+
+'.lsTr{cursor:pointer;text-decoration:none}.lsTr+.lsTr{border-top:1px solid var(--bd)}.lsTr .rb{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 14px Inter,sans-serif;color:#0b1017}.lsTr .mid{min-width:0}.lsTr .mid b{display:block;font:700 14px Inter,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lsTr .mid span{font-size:11px;color:var(--mut);white-space:nowrap}.lsTr .mid em{font-style:normal;margin-left:6px}.lsTr .mid em.r{color:#f87171}.lsTr .mid em.a{color:#fbbf24}'+
+'.lsTr .n{text-align:center;font:700 14px Inter,sans-serif;color:var(--tx)}.lsTr .n.pv{font-weight:900}.lsTr .n.pv.hi{color:var(--win)}.lsTr .n.pv.lo{color:var(--loss)}'+
 '.lsP{flex:none;width:46px;text-align:right}.lsP b{display:block;font:800 14px Inter,sans-serif}.lsP b.mu{color:var(--mut);font-weight:600}.lsP small{display:block;font-size:10.5px;color:var(--mut);white-space:nowrap}'+
 '.hkTb{border:1px solid var(--bd);background:var(--card);border-radius:16px;overflow:hidden;margin-top:10px}.hkTh,.hkTr{display:grid;grid-template-columns:minmax(0,2fr) repeat(5,minmax(0,1fr));gap:2px;align-items:center;padding:9px 10px;font:600 12.5px Inter,sans-serif}.hkTh{color:var(--mut);font-size:11px;border-bottom:1px solid var(--bd)}.hkTh span+span,.hkTr>span+span{text-align:center}'+
 '.hkTr+.hkTr{border-top:1px solid var(--bd)}.hkTr.me{background:rgba(230,57,70,.10)}.hkTr .tn{display:flex;align-items:center;gap:6px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hkTr .tn i{font-style:normal;color:var(--mut);font-size:11px;width:12px;flex:none}.hkTr .best{color:#f5c542;font-weight:800}'+
@@ -21005,14 +21018,10 @@ function saveLineup(){
   submitLineup(editingRound,editForm,xiArr,editTactics,cleanSP,seen[editCaptain]?editCaptain:null,Object.keys(editRest).filter(function(k){return editRest[k]&&!seen[k]}));
   editingRound=null;render()}
 
-var TAC_PRESETS=[
-  {id:"dengeli",n:"Dengeli",ic:"☯️",t:{}},
-  {id:"hucum",n:"Hücum baskısı",ic:"🔥",t:{style:"hucum",tempo:"yuksek",press:"yuksek",hat:"onde"}},
-  {id:"kontra",n:"Kontra",ic:"⚡",t:{plan:"kontra",hat:"geride",press:"dusuk",pas:"uzun"}},
-  {id:"topa",n:"Topa sahip ol",ic:"🎯",t:{plan:"topa",pas:"kisa",tempo:"dusuk"}},
-  {id:"kanat",n:"Kanat oyunu",ic:"🪽",t:{plan:"kanat",genislik:"genis"}},
-  {id:"otobus",n:"Otobüsü çek",ic:"🚌",t:{style:"defansif",plan:"otobus",hat:"geride",press:"dusuk",tempo:"dusuk"}}];
-function activePreset(){for(var i=0;i<TAC_PRESETS.length;i++){var f=fullTactics(TAC_PRESETS[i].t),ok=true;Object.keys(f).forEach(function(k){if(editTactics[k]!==f[k])ok=false});if(ok)return TAC_PRESETS[i].id}return ""}
+var TAC_PRESETS=[ // sadece "oyun plani": oyun tarzi ve detay ayarlari etkilemez
+  {id:"dengeli",n:"Dengeli",ic:"☯️"},{id:"kontra",n:"Kontra",ic:"⚡"},{id:"topa",n:"Topa sahip ol",ic:"🎯"},{id:"kanat",n:"Kanat oyunu",ic:"🪽"},
+  {id:"merkez",n:"Ortadan oyun",ic:"🧭"},{id:"uzun",n:"Uzun top",ic:"🏹"},{id:"gpres",n:"Yüksek pres",ic:"🔥"},{id:"otobus",n:"Otobüsü çek",ic:"🚌"}];
+function activePreset(){return editTactics&&editTactics.plan||"dengeli"}
 function edUnavail(){var un=unavailMap(myTeamInjuries(),myTeamSusp());Object.keys(editRest).forEach(function(k){un[k]=1});return un}
 function loadPrevLine(){var c=prevLineFor(myUid,editingRound);if(!c){msgBox("Daha önce kaydedilmiş bir 11'in yok.");return}
   editForm=c.formation;editTactics=fullTactics(c.tactics);var rIds={};myTeamRoster().forEach(function(p){rIds[p.id]=1});
@@ -21061,10 +21070,10 @@ function vLineupEditor(){
   if(sakat.length||cez.length)h+='<p class="slot" style="margin:2px 2px 0">'+(sakat.length?'🩹 Sakat: '+sakat.map(function(p){return esc(shortName(p.n))+' ('+injuries[p.id]+' hf)'}).join(", "):'')+(sakat.length&&cez.length?' · ':'')+(cez.length?'🟥 Cezalı: '+cez.map(function(p){return esc(shortName(p.n))+' ('+suspObj[p.id]+' maç)'}).join(", "):'')+'</p>';
   // taktik: hazir paketler + detayli ayarlar
   var ap=activePreset();
-  h+='<div class="secH"><h3>Taktik</h3><a>'+(ap?TAC_PRESETS.filter(function(x){return x.id===ap})[0].n:'Özel')+'</a></div><div class="edPre">'+TAC_PRESETS.map(function(x){return '<button class="preB'+(x.id===ap?' on':'')+'" data-p="'+x.id+'"><span>'+x.ic+'</span>'+x.n+'</button>'}).join("")+'</div>';
+  h+='<div class="secH"><h3>Oyun planı</h3></div><div class="edPre">'+TAC_PRESETS.map(function(x){return '<button class="preB'+(x.id===ap?' on':'')+'" data-p="'+x.id+'"><span>'+x.ic+'</span>'+x.n+'</button>'}).join("")+'</div>';
   var sg=TACTIC_UI.filter(function(g){return g[0]==="style"})[0];
   h+='<div class="edStyle"><label>Oyun tarzı</label><div class="tgSeg five">'+TACTIC_OPTS.style.map(function(v){var ch=function(y,up){return '<path d="M5 '+(up?y+5:y)+'L12 '+(up?y:y+5)+'L19 '+(up?y+5:y)+'"/>'},sv={tamdefans:ch(5,0)+ch(12,0),defansif:ch(8,0),dengeli:'<path d="M5 9H19M5 15H19"/>',hucum:ch(10,1),tamhucum:ch(5,1)+ch(12,1)},ic='<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'+sv[v]+'</svg>';return '<button class="tgB stB s_'+v+(editTactics.style===v?' on':'')+'" data-k="style" data-v="'+v+'"><span>'+ic+'</span>'+sg[2][v]+'</button>'}).join("")+'</div></div>';
-  h+='<details class="card sqCard tacDet"'+((!ap||UI.tacOpen)?' open':'')+'><summary><span class="sqHead">Detaylı ayarlar</span><span class="chev">›</span></summary>'+TACTIC_UI.filter(function(g){return g[0]!=="plan"&&g[0]!=="style"}).map(function(g){
+  h+='<details class="card sqCard tacDet"'+(UI.tacOpen?' open':'')+'><summary><span class="sqHead">Detaylı ayarlar</span><span class="chev">›</span></summary>'+TACTIC_UI.filter(function(g){return g[0]!=="plan"&&g[0]!=="style"}).map(function(g){
     return '<div class="tgRow"><label>'+g[1]+'</label><div class="tgSeg">'+TACTIC_OPTS[g[0]].map(function(v){return '<button class="tgB'+(editTactics[g[0]]===v?' on':'')+'" data-k="'+g[0]+'" data-v="'+v+'">'+g[2][v]+'</button>'}).join("")+'</div></div>'}).join("")+'</details>';
   // duran top + kaptan: 4 karo, dokununca secim sayfasi
   var autoCap=captainOf({xi:xiPs.map(function(p){return {id:p.id}})},roster),capP=byId[editCaptain]||null,autoP=byId[autoCap];
@@ -21122,7 +21131,7 @@ function edCss(){if(EDCSS)return;EDCSS=true;var st1=document.createElement("styl
 '.edAct{display:flex;gap:8px;margin-bottom:8px}.edQ{flex:1;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:12px;padding:9px 8px;font:700 13px Inter,sans-serif;cursor:pointer}'+
 '.edSlot{cursor:pointer}.edSlot .sl{font:700 9px Inter,sans-serif;opacity:.9;margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,.8)}'+
 '.edLg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:var(--mut);margin:0 2px 6px}.edLg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:2px solid #f59e0b}.edLg i.r{border-color:var(--loss)}.edLg .tp{margin-left:auto;color:var(--tx);font-weight:600}'+
-'.edPre{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}.preB{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:14px;padding:10px 4px;font:700 12.5px Inter,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}.preB span{font-size:20px}'+
+'.edPre{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}.preB{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:14px;padding:10px 2px 8px;font:700 11.5px Inter,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}.preB span{font-size:20px}'+
 '.preB.on{border-color:#e63946;background:rgba(230,57,70,.14);box-shadow:0 0 0 1px #e63946 inset}'+
 '.edStyle .stB{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 2px 9px;border-radius:14px;background:var(--card);color:var(--tx)}.edStyle .stB span{line-height:0;color:var(--mut);display:block}.edStyle .stB.on span{color:var(--tx)}.edStyle .stB.on.s_tamdefans span{color:#3b82f6}.edStyle .stB.on.s_defansif span{color:#60a5fa}.edStyle .stB.on.s_hucum span{color:#f97316}.edStyle .stB.on.s_tamhucum span{color:#ef4444}'+
 '.edStyle .stB.on.s_tamdefans{background:rgba(59,130,246,.22);border-color:#3b82f6;color:var(--tx)}.edStyle .stB.on.s_defansif{background:rgba(96,165,250,.16);border-color:#60a5fa;color:var(--tx)}.edStyle .stB.on.s_dengeli{background:rgba(255,255,255,.12);border-color:var(--tx);color:var(--tx)}.edStyle .stB.on.s_hucum{background:rgba(249,115,22,.18);border-color:#f97316;color:var(--tx)}.edStyle .stB.on.s_tamhucum{background:rgba(239,68,68,.24);border-color:#ef4444;color:var(--tx)}'+
@@ -23095,8 +23104,9 @@ function bind(){
   document.querySelectorAll(".lineupBtn").forEach(function(b){b.onclick=function(){openLineupEditor(+b.dataset.round)}});
   document.querySelectorAll(".fmB").forEach(function(b){b.onclick=function(){editForm=b.dataset.f;regenAutoXI();render()}});
   document.querySelectorAll(".tgB").forEach(function(b){b.onclick=function(){editTactics[b.dataset.k]=b.dataset.v;render()}});
-  document.querySelectorAll(".preB").forEach(function(b){b.onclick=function(){var p=TAC_PRESETS.filter(function(x){return x.id===b.dataset.p})[0];editTactics=fullTactics(p.t);render()}});
+  document.querySelectorAll(".preB").forEach(function(b){b.onclick=function(){editTactics.plan=b.dataset.p;render()}});
   document.querySelectorAll(".tacDet").forEach(function(d){d.ontoggle=function(){UI.tacOpen=d.open}});
+  document.querySelectorAll("[data-lscol]").forEach(function(b){b.onclick=function(){var c=b.dataset.lscol;if(UI.lsCol===c)UI.lsDir=UI.lsDir==="asc"?"desc":"asc";else{UI.lsCol=c;UI.lsDir=c==="name"?"asc":"desc"}render()}});
   document.querySelectorAll(".roleT").forEach(function(e){e.onclick=function(){openRoleSheet(e.dataset.k)}});
   document.querySelectorAll(".edSlot").forEach(function(e){e.onclick=function(){openSlotSheet(+e.dataset.slot)}});
   on("edAuto",function(){regenAutoXI();render()});on("edPrev",loadPrevLine);
@@ -23154,5 +23164,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v39 · 21.10 21:05</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v41 · 21.10 23:50</div></body>
 </html>
