@@ -18749,11 +18749,38 @@ var TEAM_LOGOS={"besiktas": "data:image/webp;base64,UklGRngNAABXRUJQVlA4WAoAAAAQ
 var LOGO_DARK=["juventus","besiktas","liverpool"];
 var _logoByName=null;
 function teamLogo(name){if(!_logoByName){_logoByName={};if(typeof AI_DB!=="undefined")AI_DB.forEach(function(t){if(TEAM_LOGOS[t.s])_logoByName[t.n]={u:TEAM_LOGOS[t.s],d:LOGO_DARK.indexOf(t.s)>=0}})}return _logoByName[name]||null}
+var CLUB_PATS=[["solid","Düz"],["hoops","Yatay"],["stripes","Dikey"],["half","Yarı"],["sash","Çapraz"]];
+var CLUB_SHAPES=[["circle","Daire"],["shield","Kalkan"],["hex","Altıgen"]];
+var CLUB_SYMS=["","⭐","🦁","🦅","🐺","🐻","🐯","🦈","⚡","🔥","👑","⚓","🛡️","🚀","🐍","💎"];
+var SHAPE_CLIP={shield:"polygon(0 0,100% 0,100% 58%,50% 100%,0 58%)",hex:"polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%)"};
+function patBg(c1,c2,pat){
+  if(pat==="solid")return c1;
+  if(pat==="hoops")return "linear-gradient(180deg,"+c1+" 0 20%,"+c2+" 20% 40%,"+c1+" 40% 60%,"+c2+" 60% 80%,"+c1+" 80%)";
+  if(pat==="stripes")return "linear-gradient(90deg,"+c1+" 0 20%,"+c2+" 20% 40%,"+c1+" 40% 60%,"+c2+" 60% 80%,"+c1+" 80%)";
+  if(pat==="half")return "linear-gradient(90deg,"+c1+" 50%,"+c2+" 50%)";
+  if(pat==="sash")return "linear-gradient(135deg,"+c1+" 0 34%,"+c2+" 34% 66%,"+c1+" 66%)";
+  return "linear-gradient(135deg,"+c1+" 50%,"+c2+" 50%)"}
+function badgeHTML(c1,c2,pat,shape,sym,ch,size){var shp=SHAPE_CLIP[shape]?';border-radius:0;clip-path:'+SHAPE_CLIP[shape]:'';
+  return '<span class="avatar" style="width:'+size+'px;height:'+size+'px;background:'+patBg(c1,c2,pat)+(sym?'':';text-shadow:0 0 3px #000,0 0 2px #000')+shp+';font-size:'+Math.round(size*(sym?0.55:0.46))+'px">'+(sym||esc(ch))+'</span>'}
+var KITN=0;
+function kitSVG(c1,c2,pat,w){var id="kc"+(++KITN),p=pat||"half",body="M30 12 L18 18 L6 38 L20 46 L26 39 L26 90 L74 90 L74 39 L80 46 L94 38 L82 18 L70 12 Q50 25 30 12 Z",f="",i;
+  if(p==="hoops"){for(i=0;i<7;i++)if(i%2)f+='<rect x="0" y="'+(12+i*13)+'" width="100" height="13" fill="'+c2+'"/>'}
+  else if(p==="stripes"){for(i=0;i<7;i++)if(i%2)f+='<rect x="'+(6+i*12.57).toFixed(1)+'" y="0" width="12.57" height="100" fill="'+c2+'"/>'}
+  else if(p==="half")f='<rect x="50" y="0" width="50" height="100" fill="'+c2+'"/>';
+  else if(p==="sash")f='<polygon points="20,10 46,10 92,92 66,92" fill="'+c2+'"/>';
+  else f='<polygon points="30,12 18,18 6,38 20,46 26,39 26,12" fill="'+c2+'"/><polygon points="70,12 82,18 94,38 80,46 74,39 74,12" fill="'+c2+'"/>';
+  return '<svg viewBox="0 0 100 100" width="'+w+'" height="'+w+'" style="display:block"><defs><clipPath id="'+id+'"><path d="'+body+'"/></clipPath></defs><g clip-path="url(#'+id+')"><rect width="100" height="100" fill="'+c1+'"/>'+f+'</g><path d="'+body+'" fill="none" stroke="rgba(0,0,0,.4)" stroke-width="1.3"/><path d="M38 13 Q50 26 62 13" fill="none" stroke="'+c2+'" stroke-width="3.4"/><path d="M38 13 Q50 26 62 13" fill="none" stroke="rgba(0,0,0,.3)" stroke-width=".8"/></svg>'}
+function titleStarsByName(name){try{if(!name||!fbLeague||!fbLeague.teams||!fbHistory)return 0;var uid=null;
+  Object.keys(fbLeague.teams).forEach(function(u){if(!uid&&fbLeague.teams[u].name===name)uid=u});if(!uid)return 0;
+  var n=0;Object.keys(fbHistory).forEach(function(k){if(fbHistory[k].uid===uid)n++});return Math.min(5,Math.floor(n/3))}catch(e){return 0}}
+function withStars(html,size,n){if(!n||size<34)return html;var fs=Math.max(11,Math.round(size*0.27)),st="";for(var i=0;i<n;i++)st+="★";
+  return '<span style="position:relative;display:inline-block;line-height:0;margin-top:'+Math.round(fs*0.55)+'px">'+html+'<span style="position:absolute;left:50%;top:-'+Math.round(fs*1.05)+'px;transform:translateX(-50%);white-space:nowrap;font-size:'+fs+'px;letter-spacing:1px;line-height:1;color:#f5c542;text-shadow:0 1px 2px rgba(0,0,0,.65),0 0 6px rgba(245,197,66,.45)">'+st+'</span></span>'}
 function avatarHTML(name,size){size=size||24;var lg=teamLogo(name);
   if(lg)return '<img class="avatar logoAv'+(lg.d?' logoLt':'')+'" src="'+lg.u+'" alt="" style="width:'+size+'px;height:'+size+'px">';
   var ch=(name||"?").trim().charAt(0).toUpperCase()||"?";
-  var cc=(typeof clubColorsByName==="function")?clubColorsByName(name):null,bg=cc?'linear-gradient(135deg,'+cc.c1+' 50%,'+cc.c2+' 50%)':hashColor(name||"?");
-  return '<span class="avatar" style="width:'+size+'px;height:'+size+'px;background:'+bg+(cc?';text-shadow:0 0 3px #000,0 0 2px #000':'')+';font-size:'+Math.round(size*0.46)+'px">'+esc(ch)+'</span>'}
+  var cc=(typeof clubColorsByName==="function")?clubColorsByName(name):null;
+  if(cc){var bd=cc.badge||{};return withStars(badgeHTML(cc.c1,cc.c2,cc.pat,bd.shape,bd.sym,ch,size),size,titleStarsByName(name))}
+  return withStars('<span class="avatar" style="width:'+size+'px;height:'+size+'px;background:'+hashColor(name||"?")+';font-size:'+Math.round(size*0.46)+'px">'+esc(ch)+'</span>',size,titleStarsByName(name))}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
 
@@ -20428,17 +20455,6 @@ function betStatsOf(uid){var st={n:0,w:0,l:0,refund:0,stake:0,pay:0,best:0,bestO
   Object.keys(fbHistory||{}).forEach(function(sid){if(String(sid)===String(currentSeason))return;
     var r=betResHist[sid];if(r===undefined){loadBetHist(sid);st.pending=true}else if(r==="loading")st.pending=true;else add(r)});
   return st}
-function betStatsHTML(uid){var b=betStatsOf(uid),h='<div class="card"><h2>🎫 Bahis istatistikleri</h2>';
-  if(!b.n&&!b.refund)return h+'<p class="msg">'+(b.pending?'Hesaplanıyor…':'Henüz sonuçlanmış kuponu yok.')+'</p></div>';
-  var net=b.pay-b.stake,sg=net>0?"+":net<0?"−":"";
-  function li(a,v){return '<div class="li"><span class="nm">'+a+'</span><span class="r">'+v+'</span></div>'}
-  h+=li('Oynadığı kupon (tuttu / yattı)',b.n+' ('+b.w+' / '+b.l+')')+li('İsabet oranı',b.n?Math.round(b.w/b.n*100)+'%':'—')+
-    li('Tek maç / Çoklu isabeti',(b.tekN?b.tekW+'/'+b.tekN:'—')+' · '+(b.cokN?b.cokW+'/'+b.cokN:'—'))+
-    li('Toplam yatırılan',fmtM(b.stake))+li('Toplam geri dönen',fmtM(b.pay))+
-    li('Net kâr / zarar','<b style="color:'+(net>0?'var(--win)':net<0?'var(--loss)':'var(--tx)')+'">'+sg+fmtM(Math.abs(net))+'</b>')+
-    li('En büyük kazanç',b.best?'+'+fmtM(b.best):'—')+li('Tutan en yüksek oran',b.bestOdd?fmtO(b.bestOdd)+'x':'—');
-  if(b.refund)h+=li('İade edilen kupon',b.refund);
-  return h+(b.pending?'<p class="slot">Önceki sezonlar yükleniyor…</p>':'')+'</div>'}
 
 var viewingProfile=null;
 function managerCareer(uid){
@@ -20464,15 +20480,13 @@ function managerCareer(uid){
   sids.forEach(function(sid){var H=fbHistory[sid];var sec2=H.top3?H.top3[1]:null;if(!sec2){var rw=historyRaw[sid];if(rw&&rw!=="loading"){var tb=computeStats(rw).table;if(tb[1])sec2=tb[1].id}}if(sec2===uid)tro.second++;if(H.cupWin===uid)tro.cup++;if(H.superWin===uid)tro.super++;if(H.clWin===uid)tro.cl++});
   return {champs:champs,agg:agg,seasons:seasons,name:name,tro:tro}}
 
-function vManagerProfile(uid){hsCss();
+function vManagerProfile(uid){hsCss();mpCss();
   var c=managerCareer(uid),name=c.name||userLabel(uid)||uid,agg=c.agg,acc=teamAcc(uid),tn=hsTname(uid);
   var h='<button class="btn alt" id="backProfile">‹ Geri</button><button class="btn clubOpen" data-uid="'+esc(uid)+'">🏛️ Kulüp tarihi</button>';
   h+='<div class="mgrCard" style="margin-top:12px;margin-bottom:0;background:linear-gradient(112deg,'+acc.c1+'cc,'+acc.c2+'f2)">'+avatarHTML(tn,46)+'<div style="min-width:0"><div style="font:800 18px Inter;letter-spacing:-.02em">'+esc(name)+'</div><div style="font-size:12.5px;opacity:.9">'+esc(tn)+' · '+c.seasons.filter(function(x){return !x.cur}).length+' sezon</div></div></div>';
   h+='<div class="hsTro">'+[["league",c.champs,"Lig"],["cup",c.tro.cup,"Kupa"],["super",c.tro.super,"Süper Kupa"],["cl",c.tro.cl,"Şamp. Ligi"]].map(function(x){return '<div>'+compIconHTML(x[0])+'<b'+(x[1]?'':' class="z"')+'>'+x[1]+'</b><small>'+x[2]+'</small></div>'}).join("")+'</div>';
   if(c.tro.second)h+='<p class="slot" style="margin:-4px 2px 12px">🥈 Lig ikinciliği: <b>'+c.tro.second+'</b></p>';
-  var ach=computeAchievements(),mine=ach.holdersByUid[uid]||[],mk={};mine.forEach(function(a){mk[a.key]=1});
-  h+='<div class="card"><h2>🏅 Rozetler <span class="avg">· '+mine.length+'/'+ACHIEVEMENTS.length+(ach.pending?' · hesaplanıyor…':'')+'</span></h2><div class="hsBd">'+
-    ACHIEVEMENTS.map(function(a){return '<div class="'+(mk[a.key]?'on':'')+'"><span>'+a.icon+'</span><b>'+esc(a.title)+'</b><small>'+esc(a.desc)+'</small></div>'}).join("")+'</div></div>';
+  h+=badgesCardHTML(uid,c);
   if(c.seasons.length){var pts=c.seasons.map(function(se){return 3*se.stats.w+se.stats.d}),mxp=Math.max.apply(null,pts.concat([1]));
     h+='<div class="card"><h2>📈 Sezon gidişatı <span class="avg">· lig puanı</span></h2><div class="hsBars">'+c.seasons.map(function(se,i){var s2=se.stats,hh=Math.max(6,Math.round(pts[i]/mxp*92));
       return '<div><b>'+pts[i]+'</b><div class="bar'+(se.rank===1?' g':'')+'" style="height:'+hh+'px"></div><small>'+(se.rank?se.rank+'. sıra':'—')+'<br>'+s2.w+'G '+s2.d+'B '+s2.l+'M<br>'+(se.cur?'Bu sezon':esc(se.label.replace(' sezon',' sez.')))+'</small></div>'}).join("")+'</div></div>'}
@@ -20482,8 +20496,7 @@ function vManagerProfile(uid){hsCss();
     '<div><b>'+agg.gf+'-'+agg.ga+'</b><small>Toplam gol</small></div><div><b>'+agg.bestStreak+'</b><small>En uzun galibiyet serisi</small></div><div><b>'+agg.bestUnbeaten+'</b><small>En uzun yenilmezlik</small></div></div>'+
     '<div class="hsHa"><span>İç saha</span>'+hsWdl(agg.home.w,agg.home.d,agg.home.l)+'<em>'+agg.home.w+'/'+agg.home.d+'/'+agg.home.l+'</em></div>'+
     '<div class="hsHa"><span>Deplasman</span>'+hsWdl(agg.away.w,agg.away.d,agg.away.l)+'<em>'+agg.away.w+'/'+agg.away.d+'/'+agg.away.l+'</em></div></div>';
-  h+='<div class="card"><h2>Kupa maçları</h2>'+[["cup",compIconHTML("cup")+" Ulusal Kupa"],["super",compIconHTML("super")+" Süper Kupa"],["cl",CL_LOGO+" Şampiyonlar Ligi"]].map(function(k){var q=agg.comps[k[0]];
-    return '<div class="li"><span class="nm">'+k[1]+'</span><span class="r">'+(q.p?q.p+' maç · '+q.w+'G '+q.l+'M · '+q.gf+'-'+q.ga:'—')+'</span></div>'}).join("")+'</div>';
+  h+=cupCardHTML(agg,c.tro,uid);
   h+=betStatsHTML(uid)+managerAwardsHTML(uid)+rivalryCardHTML(uid);
   if(!c.seasons.length)h+='<p class="msg">Bu menajerin tamamlanmış sezon kaydı henüz yok.</p>';
   return h}
@@ -20568,7 +20581,8 @@ var ACHIEVEMENTS=[
   {key:"deplasmanfatihi",title:"Deplasman Fatihi",icon:"✈️",desc:"Deplasmanda en yüksek galibiyet oranı"},
   {key:"parketustasi",title:"Park Et Ustası",icon:"🔒",desc:"Maç başı en az gol yiyen"},
   {key:"sondakikaci",title:"Son Dakikacı",icon:"⏱️",desc:"80. dakikadan sonra en çok gol"},
-  {key:"bombaci",title:"Bombacı",icon:"💣",desc:"En çok gol atan"}
+  {key:"bombaci",title:"Bombacı",icon:"💣",desc:"En çok gol atan"},
+  {key:"kupakrali",title:"Kupa Kralı",icon:"🏅",desc:"En çok kupa kazanan"}
 ];
 function computeAchievements(){
   var sids=Object.keys(fbHistory).sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)});
@@ -20583,7 +20597,7 @@ function computeAchievements(){
     seasons.push({raw:fbLeague,complete:!!allPlayed,champUid:(fbLeague.champion&&fbLeague.champion.uid)||null})}
   var per={};
   function ensure(uid,teamName,ownerName){if(!per[uid])per[uid]={uid:uid,teamName:teamName,ownerName:ownerName,champs:0,runnerUps:0,played:0,w:0,d:0,l:0,gf:0,ga:0,
-    home:{w:0,d:0,l:0},away:{w:0,d:0,l:0},lateGoals:0};
+    home:{w:0,d:0,l:0},away:{w:0,d:0,l:0},lateGoals:0,cups:0};
     if(teamName)per[uid].teamName=teamName;if(ownerName)per[uid].ownerName=ownerName}
   seasons.forEach(function(se){var raw=se.raw,teams=raw.teams||{};
     Object.keys(teams).forEach(function(uid){var t=teams[uid];ensure(uid,t.name,t.ownerName);
@@ -20598,6 +20612,7 @@ function computeAchievements(){
       if(se.champUid&&per[se.champUid])per[se.champUid].champs++;
       var stats=computeStats(raw);
       if(stats.table[1]){var ru=stats.table[1].id;if(per[ru])per[ru].runnerUps++}}});
+  Object.keys(fbHistory||{}).forEach(function(sid){var H=fbHistory[sid];[H.cupWin,H.superWin,H.clWin].forEach(function(u){if(u&&per[u])per[u].cups++})});
   var list=Object.keys(per).map(function(k){return per[k]});
   function bestHolders(getVal,minPlayed){
     var eligible=minPlayed?list.filter(function(p){return p.played>=minPlayed}):list;
@@ -20621,12 +20636,167 @@ function computeAchievements(){
     deplasmanfatihi:bestHolders(function(p){var t=p.away.w+p.away.d+p.away.l;return t?p.away.w/t:null},3),
     parketustasi:worstHolders(function(p){return p.played?p.ga/p.played:null},3),
     sondakikaci:bestHolders(function(p){return p.lateGoals},0),
-    bombaci:bestHolders(function(p){return p.gf},0)
+    bombaci:bestHolders(function(p){return p.gf},0),
+    kupakrali:bestHolders(function(p){return p.cups},0)
   };
   var holdersByUid={};
   ACHIEVEMENTS.forEach(function(a){var r=results[a.key];if(!r)return;
     r.uids.forEach(function(uid){holdersByUid[uid]=holdersByUid[uid]||[];holdersByUid[uid].push(a)})});
   return {holdersByUid:holdersByUid,pending:pending,per:per}}
+
+/* ================= menajer profili: genisletilmis rozetler + kartlar ================= */
+var MPCSS=false;
+function mpCss(){if(MPCSS)return;MPCSS=true;var st=document.createElement("style");st.textContent=
+'.bdSub{font:800 11.5px Inter,sans-serif;color:var(--mut);margin:2px 2px 8px;letter-spacing:.01em}.bdSub+.bdG{margin-bottom:14px}.bdG{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}'+
+'.bdg{--tc:#cd7f32;border:1px solid var(--bd);border-radius:14px;padding:11px 5px 9px;background:var(--bg2);text-align:center;min-width:0}.bdg.t2{--tc:#c4ccd8}.bdg.t3{--tc:#f2c14e}.bdg.t4{--tc:#6ee7ff}'+
+'.bdg .ic{width:44px;height:44px;border-radius:50%;margin:0 auto 7px;display:flex;align-items:center;justify-content:center;font-size:22px;background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.2),rgba(0,0,0,.28));border:2.5px solid var(--tc);box-shadow:0 0 14px -3px var(--tc)}'+
+'.bdg b{display:block;font:800 11.5px Inter,sans-serif;line-height:1.2;}.bdg small{display:block;color:var(--mut);font-size:10px;font-weight:600;margin-top:2px;line-height:1.25;min-height:25px}'+
+'.bdg .pp{display:flex;justify-content:center;gap:3px;margin-top:4px}.bdg .pp i{width:6px;height:6px;border-radius:50%;background:var(--bd)}.bdg .pp i.o{background:var(--tc)}'+
+'.bdg .pg{height:3px;border-radius:2px;background:var(--bd);margin:6px 8px 0;overflow:hidden}.bdg .pg i{display:block;height:100%;background:var(--tc);border-radius:2px}'+
+'.bdT{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.bdT .bdg{padding:9px 3px 7px}.bdT .bdg .ic{width:36px;height:36px;font-size:18px;margin-bottom:5px}.bdT .bdg b{font-size:10.5px}.bdT .bdg small{font-size:9px;min-height:0}'+
+'.bdg.ttl{--tc:#f2c14e;background:linear-gradient(160deg,rgba(242,193,78,.2),rgba(242,193,78,.04));border-color:rgba(242,193,78,.45)}.bdg.ttl small{min-height:0}'+
+'.kpR{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:11px;align-items:center;padding:11px 0}.kpR+.kpR{border-top:1px solid var(--bd)}.kpR .kpI{display:flex;justify-content:center}.kpR .kpI .compLg{height:30px;width:auto}.kpR .kpI .clLogo{height:30px;width:30px}'+
+'.kpR b{font-size:13.5px;display:block}.kpR small{color:var(--mut);font-size:11.5px;font-weight:600;display:block;margin-top:1px}.kpB{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--bg2);margin-top:7px;gap:2px}.kpB i{display:block;background:var(--win);height:100%}.kpB i.l{background:var(--loss)}'+
+'.kpR .kpT{text-align:center;min-width:46px;border-radius:12px;padding:6px 8px;background:var(--bg2);border:1px solid var(--bd)}.kpR .kpT b{font:800 20px "Baloo 2",sans-serif;line-height:1;color:var(--bd)}.kpR .kpT small{font-size:9.5px;margin:2px 0 0}.kpR .kpT.on{border-color:rgba(242,193,78,.5);background:rgba(242,193,78,.1)}.kpR .kpT.on b{color:var(--gold)}'+
+'.btHero{text-align:center;padding:6px 0 12px}.btHero small{color:var(--mut);font-size:11.5px;font-weight:700}.btHero b{display:block;font:800 30px "Baloo 2",sans-serif;line-height:1.15}'+
+'.btBar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;margin:12px 0 6px}.btBar i{display:block;height:100%;background:var(--win)}.btBar i.l{background:var(--loss)}.btLg{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--mut)}'+
+'.btPr{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.btPr>div{background:var(--bg2);border-radius:12px;padding:9px 11px}.btPr small{display:block;color:var(--mut);font-size:11px;font-weight:700}.btPr b{font:800 13px Inter,sans-serif}.btPr .pbr{height:5px;border-radius:3px;background:var(--bd);margin-top:6px;overflow:hidden}.btPr .pbr i{display:block;height:100%;background:var(--gold)}'+
+'.btCh{display:flex;gap:8px;margin-top:8px}.btCh>div{flex:1;border:1px solid var(--bd);border-radius:12px;padding:8px 10px;min-width:0}.btCh small{display:block;color:var(--mut);font-size:11px;font-weight:700}.btCh b{font:800 15px "Baloo 2",sans-serif;color:var(--gold)}'+
+'.awG{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.awG+.bdSub{margin-top:14px}.aw{position:relative;border:1px solid var(--bd);border-radius:14px;padding:10px 4px 8px;background:var(--bg2);text-align:center;min-width:0}.aw .ic{font-size:24px;line-height:1.1}.aw b{display:block;font:800 11.5px Inter,sans-serif;line-height:1.2;margin-top:4px}.aw small{display:block;color:var(--mut);font-size:10px;font-weight:600;margin-top:2px;line-height:1.25}.aw em{position:absolute;top:5px;right:6px;font:800 12px "Baloo 2",sans-serif;font-style:normal;color:var(--gold)}'+
+'.rvT{margin:0 -4px}.rvH,.rvW{display:grid;grid-template-columns:22px minmax(0,1fr) repeat(4,26px) 34px 30px;gap:3px;align-items:center;padding:8px 0;text-align:center;font-size:12.5px}.rvH{color:var(--mut);font-size:11px;font-weight:700;border-bottom:1px solid var(--bd)}.rvW+.rvW{border-top:1px solid var(--bd)}.rvW .k{color:var(--mut);font-weight:700}.rvT .nm{display:flex;align-items:center;gap:7px;text-align:left;min-width:0}.rvT .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;font-size:13px}.rvH .nm{font-weight:700}.rvW .p{font:800 14px "Baloo 2",sans-serif;color:var(--gold)}.rvW:first-of-type .k{color:var(--gold)}'+
+'.rvTop{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}.rvTop>div{border:1px solid var(--bd);border-radius:12px;padding:8px 10px;background:var(--bg2);min-width:0}.rvTop small{display:block;color:var(--mut);font-size:11px;font-weight:700}.rvTop b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}.rvTop em{font-style:normal;font-size:11px;color:var(--mut);font-weight:600}'+
+'.rvR{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0}.rvR+.rvR,.rvTop+.rvR{border-top:1px solid var(--bd)}.rvR b{font-size:13.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rvR small{color:var(--mut);font-size:11px;font-weight:600}.rvB{display:flex;height:5px;border-radius:3px;overflow:hidden;gap:2px;margin-top:6px;background:var(--bg2)}.rvB i{display:block;height:100%;background:var(--win)}.rvB i.d{background:#6b7585}.rvB i.l{background:var(--loss)}'+
+'.rvR .rvS{text-align:right;font:800 13px "Baloo 2",sans-serif;white-space:nowrap}.rvR .rvS span{color:var(--win)}.rvR .rvS u{text-decoration:none;color:var(--mut)}.rvR .rvS s{text-decoration:none;color:var(--loss)}.rvR .rvS small{display:block;font:600 10.5px Inter,sans-serif}';
+document.head.appendChild(st)}
+
+/* esik tabanli rozet ailesi: [anahtar, simge, baslik, tanim(#=esik), degerHesabi, esikler] */
+var BADGE_FAMS=[
+  ["w","⚽","Galibiyet Koleksiyoncusu","# lig galibiyeti",function(v){return v.w},[25,60,120]],
+  ["gf","🎯","Gol Yağmuru","# lig golü attı",function(v){return v.gf},[75,150,300]],
+  ["cs","🧱","Duvar","# maçta gol yemedi",function(v){return v.cs},[10,20,40]],
+  ["hw","🏟️","Kale","İç sahada # galibiyet",function(v){return v.hw},[15,30,60]],
+  ["aw","🚌","Gurbetçi","Deplasmanda # galibiyet",function(v){return v.aw},[12,25,50]],
+  ["streak","🔥","Seri Katil","# maç üst üste kazandı",function(v){return v.bestStreak},[5,8,12]],
+  ["unb","🛡️","Aşılmaz","# maç yenilmedi",function(v){return v.bestUnb},[8,12,18]],
+  ["titles","🏆","Şampiyon","# lig şampiyonluğu",function(v){return v.titles},[1,3,6]],
+  ["dyn","🏛️","Hanedan","Üst üste # şampiyonluk",function(v){return v.dyn},[2,3,4]],
+  ["cup","🥇","Kupa Avcısı","# Ulusal Kupa",function(v){return v.cup},[1,3,6]],
+  ["super","⚡","Süper Güç","# Süper Kupa",function(v){return v.super},[1,3,6]],
+  ["cl","⭐","Avrupa'nın Efendisi","# Şampiyonlar Ligi",function(v){return v.cl},[1,2,3]],
+  ["double","🎖️","Çifte Taç","Aynı sezon lig + kupa (#)",function(v){return v.doubles},[1,2]],
+  ["treble","🌠","Üçlü Taç","Lig + kupa + Şamp. Ligi (#)",function(v){return v.trebles},[1]],
+  ["come","🔄","Geri Dönüşçü","Geriye düşüp # maç kazandı",function(v){return v.comeback},[10,20,30]],
+  ["big","💥","Fark Atan","# maçı 5+ farkla kazandı",function(v){return v.bigN},[3,5,10]],
+  ["show","🎆","Gol Şov","# maçta 5+ gol attı",function(v){return v.showN},[5,10,15]],
+  ["hat","🎩","Hat-trick Fabrikası","Oyuncuları # hat-trick yaptı",function(v){return v.hat},[3,6,12]],
+  ["late","⏱️","Son Nefes","90. dk sonrası # gol",function(v){return v.late},[8,15,25]],
+  ["pen","🥅","Penaltı Ustası","Penaltılarla # eleme kazandı",function(v){return v.penW},[3,5,10]],
+  ["unbS","🦾","Yenilmez Sezon","Hiç kaybetmeden biten # sezon",function(v){return v.unbSeason},[1,2,3]],
+  ["perfH","🏰","Kusursuz Kale","İç sahada hiç kaybetmediği # sezon",function(v){return v.perfHome},[1,3,5]],
+  ["ppm","📈","Puan Makinesi","Bir sezonda maç başı # puan",function(v){return v.bestPpm},[2.3,2.5,2.6]],
+  ["betW","🍀","Şanslı El","# kupon tuttu",function(v){return v.betW},[5,15,30]],
+  ["betOdd","🎲","Sürpriz Avcısı","# oranlı kupon tuttu",function(v){return v.betOdd},[5,8,12]],
+  ["betBest","💰","Büyük Vurgun","Tek kuponda # kâr",function(v){return v.betBest},[10000000,15000000,20000000]],
+  ["betNet","🏦","Bahis Patronu","Toplamda # net kâr",function(v){return v.betNet},[10000000,15000000,20000000]],
+  ["yilmen","🧠","Yılın Menajeri","# kez Yılın Menajeri",function(v){return v.aw_yilmenajeri},[1,2,3]],
+  ["hafta","📅","Haftanın Yıldızı","# kez Haftanın Menajeri",function(v){return v.aw_haftamenajer},[15,30,50]],
+  ["fair","🕊️","Fair-Play","# kez Fair-Play ödülü",function(v){return v.aw_fairplay},[1,5,10]],
+  ["gk","👟","Gol Kralı Yetiştirici","# kez gol kralı oyuncusu",function(v){return v.aw_golkrali},[1,3,6]],
+  ["ak","🎁","Asist Kralı Yetiştirici","# kez asist kralı oyuncusu",function(v){return v.aw_asistkrali},[1,3,6]],
+  ["trf","💎","Transfer Dehası","# kez Sezonun Transferi",function(v){return v.aw_sezontransferi},[1,3,6]],
+  ["star","🌟","Yıldız Yetiştirici","# kez Sezonun Oyuncusu",function(v){return v.aw_sezonoyuncu},[1,3,6]],
+  ["glove","🧤","Altın Eldiven","# kez Altın Eldiven",function(v){return v.aw_altineldiven},[1,3,6]],
+  ["nem","😈","Kabus","Aynı rakibi # kez yendi",function(v){return v.maxWinsVs},[6,9,12]],
+  ["wolf","🐺","Boyun Eğmez","Bir rakibe karşı # maç yenilmedi",function(v){return v.unbVs},[8,12,16]]];
+function badgeVals(uid,c){
+  var v={seasons:0,played:0,w:0,d:0,l:0,gf:0,ga:0,cs:0,hw:0,aw:0,bestStreak:0,bestUnb:0,bigWin:0,maxGF:0,bigN:0,showN:0,nemName:"",comeback:0,hat:0,late:0,penW:0,unbSeason:0,perfHome:0,bestPpm:0,
+    titles:c.champs,cup:c.tro.cup,super:c.tro.super,cl:c.tro.cl,cupP:0,dyn:0,doubles:0,trebles:0,betW:0,betOdd:0,betBest:0,betNet:0,beaten:0,maxWinsVs:0,unbVs:0};
+  var ns=allSeasonLeagues();
+  ns.list.forEach(function(se){var raw=se.raw;if(!(raw.teams||{})[uid])return;
+    var ms=computeManagerSeason(raw,uid);if(!ms)return;
+    v.seasons++;v.played+=ms.played;v.w+=ms.w;v.d+=ms.d;v.l+=ms.l;v.gf+=ms.gf;v.ga+=ms.ga;v.hw+=ms.home.w;v.aw+=ms.away.w;
+    if(ms.bestStreak>v.bestStreak)v.bestStreak=ms.bestStreak;if(ms.bestUnbeaten>v.bestUnb)v.bestUnb=ms.bestUnbeaten;
+    ["cup","super","cl"].forEach(function(k){v.cupP+=ms.comps[k].p});
+    var lg=(raw.rounds||[]).filter(function(rd){return compOf(rd)==="league"&&!rd.skip}),full=lg.length&&lg.every(function(rd){return rdAll(rd)});
+    if(full&&ms.played>=8){if(ms.l===0)v.unbSeason++;if(ms.home.l===0&&ms.home.w>=2)v.perfHome++;
+      var ppm=(3*ms.w+ms.d)/ms.played;if(ppm>v.bestPpm)v.bestPpm=Math.round(ppm*100)/100}
+    (raw.rounds||[]).forEach(function(rd){var cmp=compOf(rd);(rd.matches||[]).forEach(function(m){
+      if(!m.played||!m.result||(m.home!==uid&&m.away!==uid))return;
+      var side=m.home===uid?"home":"away",gf=side==="home"?m.result.h:m.result.a,ga=side==="home"?m.result.a:m.result.h;
+      var evs=(m.events||[]).filter(function(e){return e.type==="goal"&&typeof e.min==="number"}).sort(function(a,b){return a.min-b.min});
+      var sc=0,sa=0,trail=false,cnt={};
+      evs.forEach(function(e){if(e.team===side){sc++;cnt[e.playerName]=(cnt[e.playerName]||0)+1}else{sa++}
+        if(sa>sc)trail=true});
+      Object.keys(cnt).forEach(function(k){if(cnt[k]>=3)v.hat++});
+      if(trail&&gf>ga)v.comeback++;
+      if(cmp!=="league"){if(m.result.h===m.result.a&&m.pen&&koWinner(m)===uid)v.penW++;return}
+      if(ga===0)v.cs++;if(gf-ga>=5)v.bigN++;if(gf>=5)v.showN++;
+      evs.forEach(function(e){if(e.team===side&&e.min>=90)v.late++})})})});
+  // sezon sonu unvanlari: ust uste sampiyonluk, duble, uclu
+  var sids=Object.keys(fbHistory).sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)}),run=0;
+  sids.forEach(function(sid){var H=fbHistory[sid];
+    if(H.uid===uid){run++;if(run>v.dyn)v.dyn=run;if(H.cupWin===uid){v.doubles++;if(H.clWin===uid)v.trebles++}}else run=0});
+  var b=betStatsOf(uid);v.betW=b.w;v.betOdd=b.bestOdd;v.betBest=b.best;v.betNet=b.pay-b.stake;if(b.n<5&&v.betNet>0&&b.w<1)v.betNet=0;
+  var aa=allAwards().list;aa.forEach(function(x){if(x.uid===uid)v["aw_"+x.key]=(v["aw_"+x.key]||0)+1});
+  var rv=rivalryAll()[uid]||{};Object.keys(rv).forEach(function(k){var r=rv[k];if(/^ai_/.test(r.uid))return;
+    if(r.w>0)v.beaten++;if(r.w>v.maxWinsVs){v.maxWinsVs=r.w;v.nemName=r.owner||r.name||""}if(r.l===0&&r.p>v.unbVs)v.unbVs=r.p});
+  return v}
+function badgeDesc(f,t){var s=f[3],n=t;if(f[0]==="betBest"||f[0]==="betNet")n=fmtM(t);else if(f[0]==="ppm")n=String(t).replace(".",",");return s.replace("#",n)}
+function ownedBadges(uid,c){var v=badgeVals(uid,c),out=[],total=0;
+  BADGE_FAMS.forEach(function(f){var val=f[4](v)||0,tiers=f[5],hit=0;tiers.forEach(function(t,i){if(val>=t)hit=i+1});
+    if(!hit)return;total+=hit;
+    var nxt=hit<tiers.length?tiers[hit]:null,prev=tiers[hit-1];
+    out.push({fam:f,hit:hit,max:tiers.length,tier:Math.max(1,Math.round(hit/tiers.length*4)),desc:badgeDesc(f,prev)+(f[0]==="nem"&&v.nemName?" · "+v.nemName:""),pct:nxt?Math.min(100,Math.round((val-prev)/(nxt-prev)*100)):100,done:!nxt})});
+  out.sort(function(a,b){return (b.hit/b.max)-(a.hit/a.max)||b.hit-a.hit});
+  return {list:out,total:total}}
+function badgesCardHTML(uid,c){var ach=computeAchievements(),ttl=ach.holdersByUid[uid]||[],ob=ownedBadges(uid,c),cnt=ob.total+ttl.length;
+  var h='<div class="card"><h2>🏅 Rozetler <span class="avg">· '+cnt+' kazanıldı'+(ach.pending?' · hesaplanıyor…':'')+'</span></h2>';
+  if(!cnt)return h+'<p class="msg">Henüz rozet yok. İlk rozetler maç oynadıkça gelir.</p></div>';
+  if(ttl.length)h+='<div class="bdSub">Unvanlar</div><div class="bdT">'+ttl.map(function(a){return '<div class="bdg ttl"><div class="ic">'+a.icon+'</div><b>'+esc(a.title)+'</b><small>'+esc(a.desc)+'</small></div>'}).join("")+'</div>';
+  if(ob.list.length)h+='<details class="hsDet" data-id="mp_bd"'+(dOpen("mp_bd",false)?' open':'')+'><summary><span>Başarımlar <span class="avg">· '+ob.total+'</span></span><span class="hBtn"><i>▼</i></span></summary><div class="bdG" style="margin-bottom:6px">'+ob.list.map(function(o){var pips="";for(var i=0;i<o.max;i++)pips+='<i'+(i<o.hit?' class="o"':'')+'></i>';
+    return '<div class="bdg t'+o.tier+'"><div class="ic">'+o.fam[1]+'</div><b>'+esc(o.fam[2])+'</b><small>'+esc(o.desc)+'</small><div class="pp">'+pips+'</div>'+(o.done?'':'<div class="pg"><i style="width:'+o.pct+'%"></i></div>')+'</div>'}).join("")+'</div></details>';
+  return h+'</div>'}
+function cupBest(uid){var best={cup:null,super:null,cl:null},ST={cup:CUP_STAGES,cl:CL_STAGES,super:["Süper Kupa"]};
+  allSeasonLeagues().list.forEach(function(se){(se.raw.rounds||[]).forEach(function(rd){var c=compOf(rd);if(!ST[c])return;
+    (rd.matches||[]).forEach(function(m){if(!m.played||!m.result||(m.home!==uid&&m.away!==uid))return;
+      var i=ST[c].indexOf(rd.stage);if(i<0)i=0;var last=i===ST[c].length-1,won=last&&koWinner(m)===uid,r=i+1+(won?1:0);
+      if(!best[c]||r>best[c].r)best[c]={r:r,label:won?"Şampiyon":last?"Finalist":ST[c][i]}})})});
+  return best}
+function cupCardHTML(agg,tro,uid){var cb=cupBest(uid);
+  return '<div class="card"><h2>Kupa maçları</h2>'+[["cup","Ulusal Kupa",tro.cup],["super","Süper Kupa",tro.super],["cl","Şampiyonlar Ligi",tro.cl]].map(function(k){var q=agg.comps[k[0]],t=k[2]||0,wp=q.p?Math.round(q.w/q.p*100):0,lp=q.p?100-wp:0;
+    return '<div class="kpR"><div class="kpI">'+compIconHTML(k[0])+'</div><div><b>'+k[1]+'</b><small>'+(q.p?q.p+' maç · '+q.w+' G '+q.l+' M · '+q.gf+' attı, '+q.ga+' yedi':'Henüz maç oynamadı')+'</small>'+(k[0]==='cl'&&cb.cl&&cb.cl.label!=='Şampiyon'?'<small style="color:var(--gold)">En ileri aşama: <b style="display:inline">'+cb[k[0]].label+'</b></small>':'')+
+      (q.p?'<div class="kpB"><i style="width:'+wp+'%"></i>'+(lp?'<i class="l" style="width:'+lp+'%"></i>':'')+'</div>':'')+'</div><div class="kpT'+(t?' on':'')+'"><b>'+t+'</b><small>kupa</small></div></div>'}).join("")+'</div>'}
+function betStatsHTML(uid){var b=betStatsOf(uid),h='<div class="card"><h2>🎫 Bahis istatistikleri</h2>';
+  if(!b.n&&!b.refund)return h+'<p class="msg">'+(b.pending?'Hesaplanıyor…':'Henüz sonuçlanmış kuponu yok.')+'</p></div>';
+  var net=b.pay-b.stake,sg=net>0?"+":net<0?"−":"",hit=b.n?Math.round(b.w/b.n*100):0,col=net>0?'var(--win)':net<0?'var(--loss)':'var(--tx)';
+  function pr(a,w,n){var p=n?Math.round(w/n*100):0;return '<div><small>'+a+'</small><b>'+(n?w+' / '+n+' · %'+p:'—')+'</b><div class="pbr"><i style="width:'+p+'%"></i></div></div>'}
+  h+='<div class="btHero"><small>Net kâr / zarar</small><b style="color:'+col+'">'+sg+fmtM(Math.abs(net))+'</b></div>'+
+    '<div class="hsSt" style="margin-top:0"><div><b>'+b.n+'</b><small>Kupon</small></div><div><b>%'+hit+'</b><small>İsabet</small></div><div><b>'+(b.n?fmtM(Math.round(b.stake/b.n)):'—')+'</b><small>Ort. yatırım</small></div></div>'+
+    '<div class="btBar">'+(b.w?'<i style="flex:'+b.w+'"></i>':'')+(b.l?'<i class="l" style="flex:'+b.l+'"></i>':'')+'</div><div class="btLg"><span style="color:var(--win)">'+b.w+' tuttu</span><span style="color:var(--loss)">'+b.l+' yattı</span></div>'+
+    '<div class="btPr">'+pr('Tek maç isabeti',b.tekW,b.tekN)+pr('Çoklu isabeti',b.cokW,b.cokN)+'</div>'+
+    '<div class="btPr"><div><small>Yatırılan</small><b>'+fmtM(b.stake)+'</b></div><div><small>Geri dönen</small><b>'+fmtM(b.pay)+'</b></div></div>'+
+    '<div class="btCh"><div><small>En büyük kazanç</small><b>'+(b.best?'+'+fmtM(b.best):'—')+'</b></div><div><small>Tutan en yüksek oran</small><b>'+(b.bestOdd?fmtO(b.bestOdd)+'x':'—')+'</b></div></div>'+
+    (b.refund?'<p class="slot" style="margin:10px 0 0">İade edilen kupon: <b>'+b.refund+'</b></p>':'');
+  return h+(b.pending?'<p class="slot">Önceki sezonlar yükleniyor…</p>':'')+'</div>'}
+function awSeasons(arr){var u=[];arr.forEach(function(s){var d=String(s).replace(/\D+/g,"");var t=d?d+".":"bu sez.";if(u.indexOf(t)<0)u.push(t)});return u.join(" ")+(u.length&&/\d/.test(u[0])?" sezon":"")}
+function managerAwardsHTML(uid){var aa=allAwards(),mine=aa.list.filter(function(x){return x.uid===uid});
+  var MO=["yilmenajeri","haftamenajer","fairplay"],PO=["golkrali","asistkrali","sezontransferi","sezonoyuncu","altineldiven"];
+  var srt=function(L){return function(x,y){return L.indexOf(x.key)-L.indexOf(y.key)}};
+  var own=groupAwards(mine.filter(function(x){return MO.indexOf(x.key)>=0}).sort(srt(MO))),sq=groupAwards(mine.filter(function(x){return PO.indexOf(x.key)>=0}).sort(srt(PO)));
+  var h='<div class="card"><h2>🏆 Sezon ödülleri</h2>';
+  if(aa.pending&&!aa.list.length)return h+'<p class="msg">Hesaplanıyor…</p></div>';
+  if(!own.length&&!sq.length)return h+'<p class="msg">Henüz sezon ödülü yok.</p></div>';
+  function tiles(L){return '<div class="awG">'+L.map(function(x){return '<div class="aw"><em>×'+x.n+'</em><div class="ic">'+x.icon+'</div><b>'+esc(x.title)+'</b>'+(x.key==='haftamenajer'?'':'<small>'+esc(awSeasons(x.seasons))+'</small>')+'</div>'}).join("")+'</div>'}
+  if(own.length)h+='<div class="bdSub">👔 Menajer</div>'+tiles(own);
+  if(sq.length)h+='<div class="bdSub">👕 Oyuncuları</div>'+tiles(sq);
+  return h+'</div>'}
+function rivalryCardHTML(uid){var rv=rivalryAll()[uid]||{},arr=Object.keys(rv).map(function(k){var r=rv[k];r.pts=3*r.w+r.d;return r}).filter(function(r){return !/^ai_/.test(r.uid)}).sort(function(a,b){return b.pts-a.pts||(b.gf-b.ga)-(a.gf-a.ga)||b.p-a.p});
+  var h='<div class="card"><h2>⚔️ Rekabet geçmişi</h2>';
+  if(!arr.length)return h+'<p class="msg">Henüz oynanmış maç yok.</p></div>';
+  h+='<div class="rvT"><div class="rvH"><span>#</span><span class="nm">Rakip</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AV</span><span>P</span></div>'+
+    arr.map(function(r,i){var d=r.gf-r.ga;return '<div class="rvW mgrLink" data-uid="'+esc(r.uid)+'"><span class="k">'+(i+1)+'</span><span class="nm">'+avatarHTML(r.name||"?",22)+'<span>'+esc(r.owner||r.name||"?")+'</span></span><span>'+r.p+'</span><span>'+r.w+'</span><span>'+r.d+'</span><span>'+r.l+'</span><span>'+(d>0?'+':'')+d+'</span><span class="p">'+r.pts+'</span></div>'}).join("")+'</div>'+
+    '<p class="slot" style="margin:8px 0 0">Sıralama: bu menajere karşı topladığı puan (G=3, B=1). AV: atılan − yenilen gol.</p>';
+  return h+'</div>'}
 
 function createLeague(){if(!isAdmin||!currentSeason||!fbDb)return;
   var ids=Object.keys(fbSquads).filter(function(id){return fbSquads[id]&&fbSquads[id].done});
@@ -21508,19 +21678,8 @@ function computeSeasonAwards(se){
 function allAwards(){var ns=allSeasonLeagues(),out=[];
   ns.list.forEach(function(se){out=out.concat(computeSeasonAwards(se))});
   return {list:out,pending:ns.pending}}
-function groupAwards(arr){var m={},order=[];arr.forEach(function(x){if(!m[x.key]){m[x.key]={icon:x.icon,title:x.title,n:0,seasons:[]};order.push(x.key)}m[x.key].n++;m[x.key].seasons.push(x.season)});
+function groupAwards(arr){var m={},order=[];arr.forEach(function(x){if(!m[x.key]){m[x.key]={key:x.key,icon:x.icon,title:x.title,n:0,seasons:[]};order.push(x.key)}m[x.key].n++;m[x.key].seasons.push(x.season)});
   return order.map(function(k){return m[k]})}
-function managerAwardsHTML(uid){var aa=allAwards(),mine=aa.list.filter(function(x){return x.uid===uid});
-  var MO=["yilmenajeri","haftamenajer","fairplay"],PO=["golkrali","asistkrali","sezontransferi"];
-  var srt=function(L){return function(x,y){return L.indexOf(x.key)-L.indexOf(y.key)}};
-  var own=groupAwards(mine.filter(function(x){return MO.indexOf(x.key)>=0}).sort(srt(MO))),sq=groupAwards(mine.filter(function(x){return PO.indexOf(x.key)>=0}).sort(srt(PO)));
-
-  var h='<div class="card"><h2>🏆 Sezon ödülleri</h2>';
-  if(aa.pending&&!aa.list.length)return h+'<p class="msg">Hesaplanıyor…</p></div>';
-  if(!own.length&&!sq.length)return h+'<p class="msg">Henüz sezon ödülü yok.</p></div>';
-  if(own.length)h+='<div class="sh"><span>👔 Menajer</span><span></span></div>'+own.map(function(x){return '<div class="li"><span class="nm">'+x.icon+' '+esc(x.title)+'</span><span class="r">×'+x.n+'</span></div>'}).join("");
-  if(sq.length)h+='<div class="sh"><span>👕 Oyuncuları</span><span></span></div>'+sq.map(function(x){return '<div class="li"><span class="nm">'+x.icon+' '+esc(x.title)+'</span><span class="r">×'+x.n+'</span></div>'}).join("");
-  return h+'</div>'}
 
 /* ================= sezon ozeti posteri (takim renklerinde, paylasilabilir PNG) ================= */
 var POSTER={},POSTER_BUSY={};
@@ -21650,12 +21809,6 @@ function rivalryAll(){var now=Date.now();if(rivCache.map&&now-rivCache.t<1500)re
       if(/^ai_/.test(m.home)||/^ai_/.test(m.away))return;
       bump(m.home,m.away,h,a,ta.name,ta.ownerName,rh);bump(m.away,m.home,a,h,th.name,th.ownerName,ra)})})});
   rivCache={t:now,map:map};return map}
-function rivalryCardHTML(uid){var rv=rivalryAll()[uid]||{},arr=Object.keys(rv).map(function(k){return rv[k]}).sort(function(a,b){return b.p-a.p||(b.gf-b.ga)-(a.gf-a.ga)});
-  var h='<div class="card"><h2>⚔️ Rekabet geçmişi</h2>';
-  if(!arr.length)return h+'<p class="msg">Henüz oynanmış maç yok.</p></div>';
-  h+='<div class="tbl rv"><div class="trow thead"><span class="c-name">Rakip</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span></div>'+
-    arr.map(function(r){return '<div class="trow"><span class="c-name'+(/^ai_/.test(r.uid)?'':' mgrLink')+'" data-uid="'+esc(r.uid)+'">'+esc(r.owner||r.name||"?")+'</span><span>'+r.p+'</span><span>'+r.w+'</span><span>'+r.d+'</span><span>'+r.l+'</span><span>'+r.gf+'</span><span>'+r.ga+'</span></div>'}).join("")+'</div>';
-  return h+'</div>'}
 var TR_ACC={1:"'ini",2:"'sini",3:"'ünü",4:"'ünü",5:"'ini",6:"'sını",7:"'sini",8:"'ini",9:"'unu"},TR_ACC_TENS={1:"'unu",2:"'sini",3:"'unu",4:"'ını",5:"'sini",6:"'ını",7:"'ini",8:"'ini",9:"'ını"};
 function trAcc(n){n=+n;if(n===0)return "0'ı";if(n>=100&&n%100===0)return n+"'ü";if(n%10===0)return n+(TR_ACC_TENS[n/10]||"'unu");return n+(TR_ACC[n%10]||"'ini")}
 function trNom(n){return trAcc(n).replace(/'(.*)$/,function(m,x){return "'"+({"ini":"i","sini":"si","ünü":"ü","unu":"u","ını":"ı","sını":"sı","ı":"ı","ü":"ü"}[x]||x)})}
@@ -21697,32 +21850,75 @@ function clubIcon(uid,season){season=season||currentSeason;
 function isIcon(uid,p){var ic=uid&&p?clubIcon(uid):null;return !!(ic&&ic.n===p.n&&ic.m===p.m)}
 function iconLocked(){return !!(fbLeague&&fbLeague.rounds&&roundStarted(0)&&clubIcon(myUid))}
 
-function saveClub(){if(!signedIn||!fbDb||!myUid)return;
-  var c1=($("clubC1")||{}).value,c2=($("clubC2")||{}).value;
-  if(!validColor(c1)||!validColor(c2)){msgBox("Geçerli iki renk seç.");return}
-  var o={c1:c1,c2:c2,stadium:String(($("clubStadium")||{}).value||"").trim().slice(0,30)};
-  fbDb.ref("users/"+myUid+"/club").set(o).then(function(){fbBadgeTemp("Kulüp kimliği kaydedildi")}).catch(function(e){fbBadge("Kulüp kimliği kaydedilemedi (Rules hatası): "+e.message)})}
-function saveIcon(){if(!signedIn||!fbDb||!myUid||!currentSeason)return;
+function saveClub(){if(!signedIn||!fbDb||!myUid||!editClub)return;
+  var e=editClub;
+  if(!validColor(e.c1)||!validColor(e.c2)){msgBox("Geçerli iki renk seç.");return}
+  var nm=String(e.name||"").trim().slice(0,30);
+  if(!nm){msgBox("Takım adı boş olamaz.");return}
+  var o={c1:e.c1,c2:e.c2,pat:e.pat||"half",badge:{shape:e.shape||"circle",sym:e.sym||""},stadium:String(e.stadium||"").trim().slice(0,30)};
+  if(nm!==myTeamName){myTeamName=nm;saveTeamName()}
+  fbDb.ref("users/"+myUid+"/club").set(o).then(function(){fbBadgeTemp("Kulüp kimliği kaydedildi")}).catch(function(er){fbBadge("Kulüp kimliği kaydedilemedi (Rules hatası): "+er.message)})}
+function saveIconIdx(i){if(!signedIn||!fbDb||!myUid||!currentSeason)return;
   if(iconLocked()){msgBox("Bu sezonun ilk maçı oynandı, ikon değiştirilemez.");return}
-  var s=$("iconSel");if(!s||!s.value){msgBox("Bir oyuncu seç.");return}
-  var pl=playersOf(myUid)[+s.value];if(!pl){msgBox("Oyuncu bulunamadı.");return}
-  fbDb.ref("users/"+myUid+"/icons/"+currentSeason).set({n:pl.n,m:pl.m,l:pl.l||"",r:pl.r}).then(function(){fbBadgeTemp("Kulüp ikonu: "+pl.n)}).catch(function(e){fbBadge("İkon kaydedilemedi (Rules hatası): "+e.message)})}
+  var pl=playersOf(myUid)[+i];if(!pl){msgBox("Oyuncu bulunamadı.");return}
+  fbDb.ref("users/"+myUid+"/icons/"+currentSeason).set({n:pl.n,m:pl.m,l:pl.l||"",r:pl.r}).then(function(){fbBadgeTemp("Kulüp ikonu: "+pl.n);if(viewingClub||tab==="clubid")render()}).catch(function(er){fbBadge("İkon kaydedilemedi (Rules hatası): "+er.message)})}
+function saveIcon(){var s=$("iconSel");if(s&&s.value)saveIconIdx(s.value)}
 
-function clubCardHTML(){
-  var c=clubInfo(myUid),c1=validColor(c.c1)?c.c1:"#2bd66b",c2=validColor(c.c2)?c.c2:"#0a1220";
-  var h='<div class="card"><h2>🎨 Kulüp kimliği</h2>'+
-    '<div class="clubRow"><span>'+avatarHTML(myTeamName||"?",34)+'</span><label>1. renk<input type="color" id="clubC1" value="'+c1+'"></label><label>2. renk<input type="color" id="clubC2" value="'+c2+'"></label></div>'+
-    '<label>Stadyum adı</label><input type="text" id="clubStadium" maxlength="30" placeholder="örn. Usame Arena" value="'+esc(c.stadium||"")+'">'+
+var editClub=null;
+function clubFounded(uid){var ns=allSeasonLeagues(),first="";
+  ns.list.forEach(function(se){if(!first&&se.raw&&se.raw.teams&&se.raw.teams[uid])first=se.label});
+  if(first==="Bu sezon")first=(Object.keys(fbHistory||{}).length+1)+". sezon";
+  return first}
+function initEditClub(){var c=clubInfo(myUid),b=c.badge||{};
+  editClub={c1:validColor(c.c1)?c.c1:"#2bd66b",c2:validColor(c.c2)?c.c2:"#0a1220",pat:c.pat||"half",shape:b.shape||"circle",sym:b.sym||"",stadium:c.stadium||"",name:myTeamName||""}}
+function clubPrevHTML(){var e=editClub,ic=clubIcon(myUid),f=clubFounded(myUid),ch=(e.name||"?").trim().charAt(0).toUpperCase()||"?";
+  return '<div class="cpv" style="background-image:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.32)),linear-gradient(112deg,'+e.c1+','+e.c2+')"><div class="cpvKit">'+kitSVG(e.c1,e.c2,e.pat,108)+'</div><div class="cpvTx"><div class="cpvN">'+withStars(badgeHTML(e.c1,e.c2,e.pat,e.shape,e.sym,ch,42),42,titleStarsByName(e.name))+'<b>'+esc(e.name||"Takım adı")+'</b></div>'+
+    '<div class="cpvL">🏟️ '+esc(e.stadium||"Stadyum adı belirlenmedi")+'</div>'+'<div class="cpvS">'+(ic?'⭐ İkon · <b>'+esc(ic.n)+'</b>':'⭐ İkon oyuncu seçilmedi')+'</div>'+
+    '<div class="cpvC">'+(f?'<span>Kuruluş · '+esc(f)+'</span>':'')+'</div></div></div>'}
+function clubPatsHTML(){var e=editClub;return CLUB_PATS.map(function(x){return '<button class="cpB'+(e.pat===x[0]?' on':'')+'" data-pat="'+x[0]+'">'+kitSVG(e.c1,e.c2,x[0],46)+'<span>'+x[1]+'</span></button>'}).join("")}
+function clubBdgHTML(){var e=editClub,ch=(e.name||"?").trim().charAt(0).toUpperCase()||"?";
+  return '<div class="cpRow">'+CLUB_SHAPES.map(function(x){return '<button class="cpB'+(e.shape===x[0]?' on':'')+'" data-shape="'+x[0]+'">'+badgeHTML(e.c1,e.c2,e.pat,x[0],e.sym,ch,40)+'<span>'+x[1]+'</span></button>'}).join("")+'</div>'+
+    '<div class="cpSym">'+CLUB_SYMS.map(function(x){return '<button class="'+(e.sym===x?'on':'')+'" data-sym="'+x+'">'+(x||ch)+'</button>'}).join("")+'</div>'}
+function refreshClubUI(){if(!editClub)return;var a=$("clubPrev"),b=$("clubPats"),c=$("clubBdg");if(a)a.innerHTML=clubPrevHTML();if(b)b.innerHTML=clubPatsHTML();if(c)c.innerHTML=clubBdgHTML();bindClubChoices()}
+function bindClubChoices(){
+  Array.prototype.forEach.call(document.querySelectorAll("#clubPats [data-pat]"),function(b){b.onclick=function(){editClub.pat=b.dataset.pat;refreshClubUI()}});
+  Array.prototype.forEach.call(document.querySelectorAll("#clubBdg [data-shape]"),function(b){b.onclick=function(){editClub.shape=b.dataset.shape;refreshClubUI()}});
+  Array.prototype.forEach.call(document.querySelectorAll("#clubBdg [data-sym]"),function(b){b.onclick=function(){editClub.sym=b.dataset.sym;refreshClubUI()}})}
+function bindClubEditor(){if(!editClub||!$("clubPrev"))return;
+  var m={clubC1:"c1",clubC2:"c2",clubName:"name",clubStadium:"stadium"};
+  Object.keys(m).forEach(function(id){var el=$(id);if(el)el.oninput=function(){editClub[m[id]]=el.value;refreshClubUI()}});
+  refreshClubUI()}
+function openIconSheet(){if(iconLocked()){msgBox("Bu sezonun ilk maçı oynandı, ikon değiştirilemez.");return}
+  edCss();var all=playersOf(myUid),cur=clubIcon(myUid);if(!all.length)return;
+  var list=all.map(function(p,i){return {p:p,i:i}}).sort(function(a,b){return b.p.r-a.p.r});
+  var sh=document.createElement("div");sh.className="sheet";sh.id="iconSheet";document.body.appendChild(sh);
+  function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
+  sh.innerHTML='<div class="in"><div class="grab"></div><div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px"><h2 style="margin:0;font-size:21px">⭐ Kulüp ikonu</h2></div><p class="slot" style="margin:0 0 10px">İkon oyuncu serbest kalma kurasından muaf olur ve ihalede bırakılamaz.</p>'+
+    list.map(function(x){var p=x.p,on=cur&&cur.n===p.n&&cur.m===p.m;return '<div class="slR'+(on?' on':'')+'" data-i="'+x.i+'"><span class="rb '+rbCls(p.r)+'">'+p.r+'</span><div class="mid"><b>'+esc(p.n)+'</b><span>'+esc(p.m)+'</span></div><div class="rt">'+(on?'⭐':'')+'</div></div>'}).join("")+'</div>';
+  Array.prototype.forEach.call(sh.querySelectorAll(".slR"),function(r){r.onclick=function(){saveIconIdx(r.dataset.i);close()}});
+  sh.onclick=function(ev){if(ev.target===sh)close()}}
+var CLCSS=false;
+function clCss(){if(CLCSS)return;CLCSS=true;var st=document.createElement("style");st.textContent=
+'.cpv{border-radius:20px;padding:16px;display:flex;align-items:center;gap:14px;border:1px solid var(--bd);color:#fff;margin-bottom:14px;text-shadow:0 1px 3px rgba(0,0,0,.55)}.cpvKit{flex:0 0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}.cpvTx{min-width:0;flex:1}.cpvN{display:flex;align-items:center;gap:9px}.cpvN b{font:800 19px Inter,sans-serif;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cpvL{font-size:12.5px;opacity:.92;margin-top:7px}.cpvS{font-size:12.5px;font-style:italic;margin-top:4px;opacity:.95}.cpvC{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.cpvC span{background:rgba(0,0,0,.35);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:700}'+
+'.cpRow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px}.cpB{border:1px solid var(--bd);background:var(--bg2);color:var(--tx);border-radius:14px;padding:8px 6px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font:700 11px Inter,sans-serif;cursor:pointer;min-width:62px}.cpB.on{border-color:var(--gold);background:rgba(240,180,74,.12)}.cpB .avatar{margin:0}#clubPats.cpRow{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}#clubBdg .cpRow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.cpB{min-width:0;width:100%}'+
+'.cpSym{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin:8px 0 12px}.cpSym button{border:1px solid var(--bd);background:var(--bg2);color:var(--tx);border-radius:10px;aspect-ratio:1;font-size:18px;cursor:pointer;padding:0}.cpSym button.on{border-color:var(--gold);background:rgba(240,180,74,.14)}'+
+'.cpIco{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:12px;margin:8px 0}.cpIco b{font-size:14px}.cpIco small{display:block;color:var(--mut);font-size:11.5px}';
+document.head.appendChild(st)}
+function iconRowHTML(){var ic=clubIcon(myUid),all=playersOf(myUid);
+  if(!all.length)return '<p class="msg" style="margin:6px 0 10px">Önce kadronu kur.</p>';
+  return '<div class="cpIco"><div><b>⭐ '+(ic?esc(ic.n):'Seçilmedi')+'</b><small>'+(ic?esc(ic.m)+' · reyting '+ic.r+' · hemen kaydedilir':'Serbest kalma kurasından muaf olur, ihalede bırakılamaz')+'</small></div>'+
+    (iconLocked()?'<small style="max-width:130px;text-align:right">İlk maç oynandı, değiştirilemez</small>':'<button class="btn alt" id="iconPick" style="width:auto;padding:8px 14px;margin:0">'+(ic?'Değiştir':'Seç')+'</button>')+'</div>'}
+function clubCardHTML(){clCss();if(!editClub)initEditClub();var e=editClub;
+  var h='<div id="clubPrev">'+clubPrevHTML()+'</div>';
+  h+='<div class="card"><h2>🎨 Kulüp kimliği</h2>'+
+    '<label>Takım adı</label><input type="text" id="clubName" maxlength="30" value="'+esc(e.name)+'">'+
+    '<label>Stadyum adı</label><input type="text" id="clubStadium" maxlength="30" placeholder="örn. Usame Arena" value="'+esc(e.stadium)+'">'+
+    '<label>⭐ Kulüp ikonu</label>'+iconRowHTML()+
+    '<div class="clubRow"><label>1. renk<input type="color" id="clubC1" value="'+e.c1+'"></label><label>2. renk<input type="color" id="clubC2" value="'+e.c2+'"></label></div>'+
+    '<label>Forma deseni</label><div id="clubPats" class="cpRow"></div>'+
+    '<label>Rozet şekli ve sembolü</label><div id="clubBdg"></div>'+
     '<button class="btn" id="clubSave">Kaydet</button></div>';
-  var ic=clubIcon(myUid),pl=playersOf(myUid).slice().sort(function(a,b){return b.r-a.r}),all=playersOf(myUid);
-  h+='<div class="card"><h2>⭐ Kulüp ikonu</h2>';
-  if(!all.length)return h+'<p class="msg">Önce kadronu kur.</p></div>';
-  h+='<p class="slot">İkon oyuncu serbest kalma kurasından muaf olur ve ihalede bırakılamaz. İlk maça kadar değiştirilebilir.</p>';
-  h+='<div class="li"><span class="nm">Şu anki ikon</span><span class="r">'+(ic?'⭐ '+esc(ic.n)+' ('+esc(ic.m)+')':'seçilmedi')+'</span></div>';
-  if(iconLocked())h+='<p class="msg">Bu sezonun ilk maçı oynandı, ikon değiştirilemez.</p>';
-  else h+='<label>İkon oyuncu</label><select id="iconSel"><option value="">— seç —</option>'+pl.map(function(p){var i=all.indexOf(p);
-      return '<option value="'+i+'"'+(ic&&ic.n===p.n&&ic.m===p.m?' selected':'')+'>'+esc(p.n)+' ('+esc(p.m)+', '+p.r+')</option>'}).join("")+'</select><button class="btn" id="iconSave">İkonu kaydet</button>';
-  return h+'</div>'}
+  return h}
 
 /* ---- kulup tarihi ---- */
 function loadHistoryAuc(sid){if(historyAuc[sid]||!fbDb)return;historyAuc[sid]="loading";
@@ -22044,12 +22240,13 @@ function vHistory(){var gate=gateCard();if(gate)return gate;
     counts[h.uid].n++;counts[h.uid].teamName=h.teamName;if(h.ownerName)counts[h.uid].ownerName=h.ownerName});
   var countArr=Object.keys(counts).map(function(k){return counts[k]}).sort(function(a,b){return b.n-a.n});
   hsCss();
-  var h='<div class="pgTitle" style="margin-bottom:12px">Geçmiş</div>'+
-    '<div class="secH"><h3>Kupa rafı</h3></div>'+hsShelfHTML(ids)+
+  var hv=UI.hsView==="recs"?"recs":"hist";
+  var h='<div class="pgTitle" style="margin-bottom:12px">Geçmiş</div>'+segHTML("hsView",[["hist","Geçmiş"],["recs","Rekorlar"]],hv);
+  if(hv==="recs"){var ar=computeAllTimeRecords();
+    h+=segHTML("recView",[["team","Takım"],["player","Oyuncu"],["bet","Bahis"]],UI.recView||"team")+hsRecordsHTML(ar,countArr,UI.recView||"team")}
+  else h+='<div class="secH"><h3>Kupa rafı</h3></div>'+hsShelfHTML(ids)+
     '<div class="secH"><h3>Sezon sonuçları</h3></div>'+hsSeasonsHTML(ids)+
     '<div class="secH"><h3>Sezon kartları</h3></div>'+hsCardsHTML(ids);
-  var ar=computeAllTimeRecords();
-  h+='<div class="secH"><h3>Tüm zamanların rekorları</h3></div>'+segHTML("recView",[["team","Takım"],["player","Oyuncu"],["bet","Bahis"]],UI.recView||"team")+hsRecordsHTML(ar,countArr,UI.recView||"team");
   return adminBtn+h}
 
 function vFixture(){var gate=gateCard();if(gate)return gate;
@@ -22234,6 +22431,13 @@ function shortRef(n){var p=String(n||"").split(" ");if(p.length<2)return n||"";r
 function lastName(n){var p=String(n||"").trim().split(" ");return p[p.length-1]}
 function fmt1(x){return (Math.round(x*10)/10).toFixed(1).replace(".",",")}
 function teamAcc(uid){return clubAccent(uid)}
+var AI_KITS={psg:["#0b1f4d","#e30613","solid"],"atletico-madrid":["#d4202a","#ffffff","stripes"],dortmund:["#fde100","#111111","solid"],milan:["#d1121b","#111111","stripes"],porto:["#0a3d91","#ffffff","stripes"],leicester:["#0053a0","#ffffff","solid"],juventus:["#111111","#ffffff","stripes"],inter:["#0a5fa8","#111111","stripes"],"manchester-united":["#d81920","#111111","solid"],chelsea:["#034694","#ffffff","solid"],"manchester-city":["#6cabdd","#ffffff","solid"],"bayern-munih":["#dc052d","#ffffff","solid"],"real-madrid":["#ffffff","#1a2a6c","solid"],barcelona:["#004d98","#a50044","stripes"],arsenal:["#ef0107","#ffffff","solid"],liverpool:["#c8102e","#ffffff","solid"],galatasaray:["#fdb913","#a90432","half"],fenerbahce:["#fcd116","#0b2a6b","stripes"],besiktas:["#111111","#ffffff","half"]};
+function avKit(uid,size,name){var c=clubInfo(uid)||{},kit=null;
+  if(/^ai_/.test(uid)){var k=AI_KITS[uid.slice(3)];if(k)kit={c1:k[0],c2:k[1],pat:k[2]}}
+  else if(validColor(c.c1)&&validColor(c.c2))kit={c1:c.c1,c2:c.c2,pat:c.pat||"half"};
+  if(!kit)return avU(uid,size,name);
+  var ks=Math.round(size*0.56);
+  return '<span style="position:relative;display:inline-block;line-height:0">'+avU(uid,size,name)+'<span style="position:absolute;right:-'+Math.round(ks*0.5)+'px;bottom:-3px;line-height:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))">'+kitSVG(kit.c1,kit.c2,kit.pat,ks)+'</span></span>'}
 function avU(uid,size,name){var nm=name||((fbLeague&&fbLeague.teams&&fbLeague.teams[uid])?fbLeague.teams[uid].name:userLabel(uid));return avatarHTML(nm,size)}
 function segHTML(key,items,cur){return '<div class="seg">'+items.map(function(it){return '<button data-seg="'+key+'" data-v="'+it[0]+'" class="'+(cur===it[0]?'on':'')+'">'+it[1]+'</button>'}).join("")+'</div>'}
 function rbCls(r){return r>=85?"t1":r>=80?"t2":"t3"}
@@ -22498,9 +22702,9 @@ function vMatchDetail(ri,mi){var rd=leagueRounds()[ri];if(!rd||!rd.matches[mi]){
     return '<div class="tk'+(j===mi?' cur':'')+'" data-md="'+ri+'_'+j+'">'+avU(mm.home,18)+'<b>'+(started||x.min!=null||x.played?x.gh+'–'+x.ga:'–')+'</b>'+avU(mm.away,18)+(x.label?'<i style="'+(x.done?'color:var(--mut)':'')+'">'+x.label+'</i>':'')+'</div>'}).join("")+'</div>';
   h+='<div class="score" style="background:linear-gradient(112deg,'+ticketCol(m.home)+' 0 49%,'+ticketCol(m.away)+' 49% 100%)">'+
     '<div style="position:relative;display:flex;justify-content:center;font:800 12px Inter;margin-bottom:10px">'+(inf.done?'MAÇ SONU':started?'<span class="livedot2"></span>CANLI · '+inf.label:fmtTRDate(rd.date))+'</div>'+
-    '<div style="position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:center"><div style="text-align:center">'+avU(m.home,44)+'<div style="font:800 14.5px Inter;margin-top:5px">'+esc(hn)+'</div><div style="font:700 11.5px Inter;opacity:.85">'+esc(formationFor(ri,mi,'home'))+'</div></div>'+
+    '<div style="position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:center"><div style="text-align:center">'+avKit(m.home,56)+'<div style="font:800 14.5px Inter;margin-top:5px">'+esc(hn)+'</div><div style="font:700 11.5px Inter;opacity:.85">'+esc(formationFor(ri,mi,'home'))+'</div></div>'+
     '<div class="big2">'+(started?inf.gh+'<span style="opacity:.6;font-size:32px"> – </span>'+inf.ga:'<span style="opacity:.6">vs</span>')+(inf.penOn?'<div style="font:800 13px Inter;opacity:.9;margin-top:2px">Penaltılar '+inf.pen.h+' – '+inf.pen.a+'</div>':'')+'</div>'+
-    '<div style="text-align:center">'+avU(m.away,44)+'<div style="font:800 14.5px Inter;margin-top:5px">'+esc(an)+'</div><div style="font:700 11.5px Inter;opacity:.85">'+esc(formationFor(ri,mi,'away'))+'</div></div></div>'+
+    '<div style="text-align:center">'+avKit(m.away,56)+'<div style="font:800 14.5px Inter;margin-top:5px">'+esc(an)+'</div><div style="font:700 11.5px Inter;opacity:.85">'+esc(formationFor(ri,mi,'away'))+'</div></div></div>'+
     (started&&!inf.played?'<div style="position:relative;margin-top:12px;height:4px;border-radius:2px;background:rgba(255,255,255,.25)"><i style="display:block;width:'+Math.round(inf.frac*100)+'%;height:100%;border-radius:2px;background:#fff"></i></div>':'')+'</div>';
   h+='<div class="ibox"><div><small>Hakem</small><b>'+(R?'⚖️ '+esc(R.name):'—')+'</b></div><div><small>Hava</small><b>'+(W?W.icon+' '+W.name:'—')+'</b></div>'+'<div style="grid-column:span 2"><small>Stadyum</small><b>🏟️ '+(venueNeutral(ri,m)?esc(neutralVenue(ri,mi)):esc(stadiumOf(m.home)||"—"))+'</b></div></div>';
   if(inf.done){var mo=motmOf(ri,mi);if(mo)h+='<div class="card" style="margin-top:12px;display:flex;align-items:center;gap:12px"><span style="font-size:26px">⭐</span><div style="flex:1;min-width:0"><div class="avg" style="font-size:12px">Maçın adamı</div><div style="font:800 15px Inter">'+plLink(mo.x.name)+' <span class="avg" style="font-weight:600">· '+esc(mo.side==="home"?hn:an)+'</span></div></div><span class="rb '+rbCls(mo.x.pr)+'" style="font:900 15px Inter;padding:6px 10px;border-radius:10px">'+mo.x.r.toFixed(1).replace(".",",")+'</span></div>'}
@@ -22679,7 +22883,7 @@ function vHome(){var gate=gateCard();if(gate)return gate;var h="";
     h+='<div class="ticket"><div class="top" style="background:linear-gradient(112deg,'+ticketCol(m.home)+' 0 49%,'+ticketCol(m.away)+' 49% 100%)">'+
       '<svg viewBox="0 0 358 250" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;opacity:.14" fill="none" stroke="#fff" stroke-width="2"><circle cx="179" cy="125" r="62"/><line x1="179" y1="0" x2="179" y2="250"/></svg>'+
       '<div style="position:relative;display:flex;justify-content:space-between;font:800 12.5px Inter;margin-bottom:12px"><span>'+(nm.ri+1)+'. hafta · '+esc(compTitle(nm.rd,nm.ri))+'</span><span>'+(started?'<span class="livedot2"></span>CANLI · '+inf.label:fmtTRDate(nm.rd.date))+'</span></div>'+
-      '<div class="vs"><div class="tm">'+avU(m.home,58)+'<div class="n">'+esc(hn)+'</div><div class="s">'+sub(m.home)+'</div></div><div class="d" style="font:900 '+(started?'40':'18')+'px Inter;opacity:'+(started?1:.8)+'">'+(started?inf.gh+' – '+inf.ga:'VS')+'</div><div class="tm">'+avU(m.away,58)+'<div class="n">'+esc(an)+'</div><div class="s">'+sub(m.away)+'</div></div></div>'+
+      '<div class="vs"><div class="tm">'+avKit(m.home,58)+'<div class="n">'+esc(hn)+'</div><div class="s">'+sub(m.home)+'</div></div><div class="d" style="font:900 '+(started?'40':'18')+'px Inter;opacity:'+(started?1:.8)+'">'+(started?inf.gh+' – '+inf.ga:'VS')+'</div><div class="tm">'+avKit(m.away,58)+'<div class="n">'+esc(an)+'</div><div class="s">'+sub(m.away)+'</div></div></div>'+
       '<div style="position:relative;display:flex;justify-content:center;gap:5px;margin-top:14px">'+formOf(myUid,5).map(function(r){return '<span class="fsq" style="background:'+(r==="G"?'var(--win)':r==="B"?'var(--amber)':'var(--loss)')+'">'+r+'</span>'}).join("")+'</div></div>'+
       '<div class="bot">';
     var hasLine=!!(fbLeague.lineups&&fbLeague.lineups[nm.ri]&&fbLeague.lineups[nm.ri][myUid]);
@@ -22725,7 +22929,7 @@ function vMore(){var gate=gateCard();if(gate)return gate;var a=teamAcc(myUid),c=
   h+='<div class="tile" id="signout" style="margin-top:14px;min-height:0;display:flex;align-items:center;gap:12px;color:var(--mut)"><div class="ic" style="margin:0">⎋</div><b style="color:var(--tx)">Çıkış yap</b></div>';
   return h}
 function vClubId(){var gate=gateCard();if(gate)return gate;
-  return '<button class="btn alt" data-go="more" style="margin-top:4px">‹ Daha fazla</button><div class="card"><h2>Takım adı <span class="avg">· '+esc(myTeamName||"isimsiz")+'</span></h2><button class="btn alt" id="teamname">Takım adını '+(myTeamName?"değiştir":"belirle")+'</button></div>'+clubCardHTML()}
+  return '<button class="btn alt" data-go="more" style="margin-top:4px">‹ Daha fazla</button>'+clubCardHTML()}
 
 /* ---- kadro: saha gorunumu ---- */
 function squadPitchHTML(){var gate=gateCard();if(gate)return gate;
@@ -23113,7 +23317,7 @@ var rcSeen={};
 function rcardHTML(p,anim){var cls=p.r>=85?"":(p.r>=80?"w":"b");return '<div class="rcard '+cls+'"'+(anim?'':' style="animation:none"')+'><div class="rt2">'+p.r+'</div><div class="d" style="font:800 20px Inter;margin-top:2px">'+p.m+'</div><div style="height:1px;background:rgba(26,20,6,.3);margin:16px 20px"></div><div class="d" style="font:900 24px Inter;letter-spacing:-.02em">'+esc(p.n)+'</div><div style="font-size:13.5px;opacity:.75;margin-top:4px">'+esc(p.l||"")+' · '+(NAMES[p.m]||p.m)+'</div></div>'}
 function vokHomeSubpage(){return ""}
 
-function goTab(t,set){editingRound=null;tab=t;viewingProfile=null;viewingPlayer=null;viewingClub=null;UI.md=null;if(set){var kv=set.split(":");UI[kv[0]]=kv[1]}render();window.scrollTo(0,0)}
+function goTab(t,set){if(t==="clubid")editClub=null;editingRound=null;tab=t;viewingProfile=null;viewingPlayer=null;viewingClub=null;UI.md=null;if(set){var kv=set.split(":");UI[kv[0]]=kv[1]}render();window.scrollTo(0,0)}
 function render(){
   if(tab==="db"&&!isAdmin)tab="home";
   applyTheme();renderTop();
@@ -23214,7 +23418,7 @@ function bind(){
   document.querySelectorAll(".sqCard,.hsSe,.hsDet").forEach(function(d){d.ontoggle=function(){openIds[d.dataset.id]=d.open}});
   on("backProfile",function(){viewingProfile=null;render()});
   on("backPlayer",function(){viewingPlayer=null;render()});
-  on("backClub",function(){viewingClub=null;render()});on("clubSave",saveClub);on("iconSave",saveIcon);
+  on("backClub",function(){viewingClub=null;render()});on("clubSave",saveClub);on("iconSave",saveIcon);on("iconPick",openIconSheet);bindClubEditor();
   document.querySelectorAll(".clubOpen").forEach(function(e){e.onclick=function(){viewingClub=e.dataset.uid;render()}});
   document.querySelectorAll(".plLink").forEach(function(e){e.onclick=function(ev){ev.preventDefault();ev.stopPropagation();viewingPlayer=e.dataset.pn;render();window.scrollTo(0,0)}});
   document.querySelectorAll(".svcBtn").forEach(function(b){b.onclick=function(){svcType=b.dataset.k;svcPid="";svcCnt=1;render()}});
@@ -23230,5 +23434,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v48 · 22.10 11:51</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v52 · 22.10 21:51</div></body>
 </html>
