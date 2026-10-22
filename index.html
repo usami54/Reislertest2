@@ -20394,7 +20394,7 @@ function historyStatsOf(seasonId){var raw=historyRaw[seasonId];
 function computeManagerSeason(league,uid){
   var team=(league.teams||{})[uid];if(!team)return null;
   var w=0,d=0,l=0,gf=0,ga=0,hw=0,hd=0,hl=0,aw=0,ad=0,al=0;
-  var curW=0,bestW=0,curUn=0,bestUn=0,matches=[];
+  var curW=0,bestW=0,curUn=0,bestUn=0,curL=0,bestL=0,matches=[];
   var comps={cup:{p:0,w:0,l:0,gf:0,ga:0},super:{p:0,w:0,l:0,gf:0,ga:0},cl:{p:0,w:0,l:0,gf:0,ga:0}}; // eleme maclari: penaltilarla kazanmak galibiyet sayilir
   (league.rounds||[]).forEach(function(rd){var c=compOf(rd);rd.matches.forEach(function(m){
     if(!m.played||!m.result)return;
@@ -20406,11 +20406,11 @@ function computeManagerSeason(league,uid){
   matches.forEach(function(mm){gf+=mm.gf;ga+=mm.ga;
     var res=mm.gf>mm.ga?"w":mm.gf<mm.ga?"l":"d";
     if(res==="w"){w++;curW++;if(curW>bestW)bestW=curW}else{curW=0;if(res==="d")d++;else l++}
-    if(res==="l"){curUn=0}else{curUn++;if(curUn>bestUn)bestUn=curUn}
+    if(res==="l"){curUn=0;curL++;if(curL>bestL)bestL=curL}else{curL=0;curUn++;if(curUn>bestUn)bestUn=curUn}
     if(mm.home){if(res==="w")hw++;else if(res==="d")hd++;else hl++}
     else{if(res==="w")aw++;else if(res==="d")ad++;else al++}});
   return {teamName:team.name,ownerName:team.ownerName||"",played:matches.length,w:w,d:d,l:l,gf:gf,ga:ga,
-    home:{w:hw,d:hd,l:hl},away:{w:aw,d:ad,l:al},bestStreak:bestW,bestUnbeaten:bestUn,comps:comps}}
+    home:{w:hw,d:hd,l:hl},away:{w:aw,d:ad,l:al},bestStreak:bestW,bestUnbeaten:bestUn,bestLoss:bestL,comps:comps}}
 
 /* ---- menajer bahis istatistikleri (gecmis sezonlarin kupon sonuclari gerektikce yuklenir) ---- */
 var betResHist={};
@@ -20447,10 +20447,10 @@ function managerCareer(uid){
   sids.forEach(function(sid,i){
     if(fbHistory[sid].uid===uid)champs++;
     var raw=historyRaw[sid];
-    if(raw&&raw!=="loading"){var s=computeManagerSeason(raw,uid);if(s)seasons.push({label:(i+1)+". sezon",stats:s})}
+    if(raw&&raw!=="loading"){var s=computeManagerSeason(raw,uid);if(s){var rk=0;try{computeStats(raw).table.forEach(function(t,ti){if(t.id===uid)rk=ti+1})}catch(e){}seasons.push({label:(i+1)+". sezon",stats:s,rank:rk})}}
     else loadHistoryRaw(sid)});
   if(fbLeague&&currentSeason!=null&&!fbHistory[currentSeason]){
-    var cs=computeManagerSeason(fbLeague,uid);if(cs)seasons.push({label:"Bu sezon",stats:cs})}
+    var cs=computeManagerSeason(fbLeague,uid);if(cs){var rk2=0;try{computeStats(fbLeague).table.forEach(function(t,ti){if(t.id===uid)rk2=ti+1})}catch(e){}seasons.push({label:"Bu sezon",stats:cs,rank:rk2,cur:true})}}
   var agg={played:0,w:0,d:0,l:0,gf:0,ga:0,home:{w:0,d:0,l:0},away:{w:0,d:0,l:0},bestStreak:0,bestUnbeaten:0,comps:{cup:{p:0,w:0,l:0,gf:0,ga:0},super:{p:0,w:0,l:0,gf:0,ga:0},cl:{p:0,w:0,l:0,gf:0,ga:0}}};
   seasons.forEach(function(se){var s=se.stats;
     if(s.comps)['cup','super','cl'].forEach(function(k){var a=agg.comps[k],b=s.comps[k];a.p+=b.p;a.w+=b.w;a.l+=b.l;a.gf+=b.gf;a.ga+=b.ga});
@@ -20464,32 +20464,28 @@ function managerCareer(uid){
   sids.forEach(function(sid){var H=fbHistory[sid];var sec2=H.top3?H.top3[1]:null;if(!sec2){var rw=historyRaw[sid];if(rw&&rw!=="loading"){var tb=computeStats(rw).table;if(tb[1])sec2=tb[1].id}}if(sec2===uid)tro.second++;if(H.cupWin===uid)tro.cup++;if(H.superWin===uid)tro.super++;if(H.clWin===uid)tro.cl++});
   return {champs:champs,agg:agg,seasons:seasons,name:name,tro:tro}}
 
-function vManagerProfile(uid){
-  var c=managerCareer(uid),name=c.name||uid,agg=c.agg;
+function vManagerProfile(uid){hsCss();
+  var c=managerCareer(uid),name=c.name||userLabel(uid)||uid,agg=c.agg,acc=teamAcc(uid),tn=hsTname(uid);
   var h='<button class="btn alt" id="backProfile">‹ Geri</button><button class="btn clubOpen" data-uid="'+esc(uid)+'">🏛️ Kulüp tarihi</button>';
-  var ach=computeAchievements(),mine=ach.holdersByUid[uid]||[];
-  if(mine.length)h+='<div class="card"><h2>🏅 Başarımlar</h2>'+
-    mine.map(function(a){return '<div class="li"><span class="nm">'+a.icon+' '+esc(a.title)+' <span class="avg">· '+esc(a.desc)+'</span></span></div>'}).join("")+'</div>';
-  else if(ach.pending)h+='<div class="card"><h2>🏅 Başarımlar</h2><p class="msg">Hesaplanıyor…</p></div>';
-  else h+='<div class="card"><h2>🏅 Başarımlar</h2><p class="msg">Henüz başarım yok.</p></div>';
-  h+='<div class="card"><h2>👔 '+esc(name)+' <span class="avg">· Menajer profili</span></h2>';
-  h+='<div class="li"><span class="nm">'+compIconHTML("league")+' Lig şampiyonluğu</span><span class="r">'+c.champs+'</span></div>';
-  h+='<div class="li"><span class="nm">'+compIconHTML("league")+' Lig ikinciliği</span><span class="r">'+c.tro.second+'</span></div><div class="li"><span class="nm">'+compIconHTML("cup")+' Ulusal Kupa şampiyonluğu</span><span class="r">'+c.tro.cup+'</span></div><div class="li"><span class="nm">'+compIconHTML("super")+' Süper Kupa şampiyonluğu</span><span class="r">'+c.tro.super+'</span></div><div class="li"><span class="nm">'+CL_LOGO+' Şampiyonlar Ligi şampiyonluğu</span><span class="r">'+c.tro.cl+'</span></div>';
-  h+='<p class="slot" style="margin:8px 0 0">Aşağıdaki lig istatistikleridir; kupa maçları ayrı kartta.</p>';
-  h+='<div class="li"><span class="nm">Oynadığı maç (O/G/B/M)</span><span class="r">'+agg.played+' / '+agg.w+' / '+agg.d+' / '+agg.l+'</span></div>';
-  h+='<div class="li"><span class="nm">Maç başı puan</span><span class="r">'+(agg.played?((3*agg.w+agg.d)/agg.played).toFixed(2):"-")+'</span></div>';
-  h+='<div class="li"><span class="nm">Maç başı gol ortalaması</span><span class="r">'+(agg.played?(agg.gf/agg.played).toFixed(2):"-")+'</span></div>';
-  h+='<div class="li"><span class="nm">Maç başı yenilen gol</span><span class="r">'+(agg.played?(agg.ga/agg.played).toFixed(2):"-")+'</span></div>';
-  h+='<div class="li"><span class="nm">İç saha (G/B/M)</span><span class="r">'+agg.home.w+'/'+agg.home.d+'/'+agg.home.l+'</span></div>';
-  h+='<div class="li"><span class="nm">Deplasman (G/B/M)</span><span class="r">'+agg.away.w+'/'+agg.away.d+'/'+agg.away.l+'</span></div>';
-  h+='<div class="li"><span class="nm">En uzun galibiyet serisi</span><span class="r">'+agg.bestStreak+'</span></div>';
-  h+='<div class="li"><span class="nm">En uzun yenilmezlik serisi</span><span class="r">'+agg.bestUnbeaten+'</span></div></div>';
+  h+='<div class="mgrCard" style="margin-top:12px;margin-bottom:0;background:linear-gradient(112deg,'+acc.c1+'cc,'+acc.c2+'f2)">'+avatarHTML(tn,46)+'<div style="min-width:0"><div style="font:800 18px Inter;letter-spacing:-.02em">'+esc(name)+'</div><div style="font-size:12.5px;opacity:.9">'+esc(tn)+' · '+c.seasons.filter(function(x){return !x.cur}).length+' sezon</div></div></div>';
+  h+='<div class="hsTro">'+[["league",c.champs,"Lig"],["cup",c.tro.cup,"Kupa"],["super",c.tro.super,"Süper Kupa"],["cl",c.tro.cl,"Şamp. Ligi"]].map(function(x){return '<div>'+compIconHTML(x[0])+'<b'+(x[1]?'':' class="z"')+'>'+x[1]+'</b><small>'+x[2]+'</small></div>'}).join("")+'</div>';
+  if(c.tro.second)h+='<p class="slot" style="margin:-4px 2px 12px">🥈 Lig ikinciliği: <b>'+c.tro.second+'</b></p>';
+  var ach=computeAchievements(),mine=ach.holdersByUid[uid]||[],mk={};mine.forEach(function(a){mk[a.key]=1});
+  h+='<div class="card"><h2>🏅 Rozetler <span class="avg">· '+mine.length+'/'+ACHIEVEMENTS.length+(ach.pending?' · hesaplanıyor…':'')+'</span></h2><div class="hsBd">'+
+    ACHIEVEMENTS.map(function(a){return '<div class="'+(mk[a.key]?'on':'')+'"><span>'+a.icon+'</span><b>'+esc(a.title)+'</b><small>'+esc(a.desc)+'</small></div>'}).join("")+'</div></div>';
+  if(c.seasons.length){var pts=c.seasons.map(function(se){return 3*se.stats.w+se.stats.d}),mxp=Math.max.apply(null,pts.concat([1]));
+    h+='<div class="card"><h2>📈 Sezon gidişatı <span class="avg">· lig puanı</span></h2><div class="hsBars">'+c.seasons.map(function(se,i){var s2=se.stats,hh=Math.max(6,Math.round(pts[i]/mxp*92));
+      return '<div><b>'+pts[i]+'</b><div class="bar'+(se.rank===1?' g':'')+'" style="height:'+hh+'px"></div><small>'+(se.rank?se.rank+'. sıra':'—')+'<br>'+s2.w+'G '+s2.d+'B '+s2.l+'M<br>'+(se.cur?'Bu sezon':esc(se.label.replace(' sezon',' sez.')))+'</small></div>'}).join("")+'</div></div>'}
+  var tw=agg.w+agg.d+agg.l;
+  h+='<div class="card"><h2>Lig istatistikleri</h2>'+hsWdl(agg.w,agg.d,agg.l)+'<p class="slot" style="margin:6px 0 0">'+agg.played+' maç · <b style="color:var(--win)">'+agg.w+' G</b> · '+agg.d+' B · <b style="color:var(--loss)">'+agg.l+' M</b>'+(tw?' · %'+Math.round(agg.w/tw*100)+' galibiyet':'')+'</p>'+
+    '<div class="hsSt"><div><b>'+(agg.played?((3*agg.w+agg.d)/agg.played).toFixed(2):"-")+'</b><small>Maç başı puan</small></div><div><b>'+(agg.played?(agg.gf/agg.played).toFixed(2):"-")+'</b><small>Atılan gol / maç</small></div><div><b>'+(agg.played?(agg.ga/agg.played).toFixed(2):"-")+'</b><small>Yenilen gol / maç</small></div>'+
+    '<div><b>'+agg.gf+'-'+agg.ga+'</b><small>Toplam gol</small></div><div><b>'+agg.bestStreak+'</b><small>En uzun galibiyet serisi</small></div><div><b>'+agg.bestUnbeaten+'</b><small>En uzun yenilmezlik</small></div></div>'+
+    '<div class="hsHa"><span>İç saha</span>'+hsWdl(agg.home.w,agg.home.d,agg.home.l)+'<em>'+agg.home.w+'/'+agg.home.d+'/'+agg.home.l+'</em></div>'+
+    '<div class="hsHa"><span>Deplasman</span>'+hsWdl(agg.away.w,agg.away.d,agg.away.l)+'<em>'+agg.away.w+'/'+agg.away.d+'/'+agg.away.l+'</em></div></div>';
   h+='<div class="card"><h2>Kupa maçları</h2>'+[["cup",compIconHTML("cup")+" Ulusal Kupa"],["super",compIconHTML("super")+" Süper Kupa"],["cl",CL_LOGO+" Şampiyonlar Ligi"]].map(function(k){var q=agg.comps[k[0]];
     return '<div class="li"><span class="nm">'+k[1]+'</span><span class="r">'+(q.p?q.p+' maç · '+q.w+'G '+q.l+'M · '+q.gf+'-'+q.ga:'—')+'</span></div>'}).join("")+'</div>';
   h+=betStatsHTML(uid)+managerAwardsHTML(uid)+rivalryCardHTML(uid);
-  if(c.seasons.length)h+='<div class="card"><h2>Sezonlar</h2>'+
-    c.seasons.map(function(se){var s=se.stats;return '<div class="sh"><span>'+esc(se.label)+' · '+esc(s.teamName)+'</span><span>'+s.w+'G '+s.d+'B '+s.l+'M · '+s.gf+'-'+s.ga+'</span></div>'}).join("")+'</div>';
-  else h+='<p class="msg">Bu menajerin tamamlanmış sezon kaydı henüz yok.</p>';
+  if(!c.seasons.length)h+='<p class="msg">Bu menajerin tamamlanmış sezon kaydı henüz yok.</p>';
   return h}
 
 /* ---- tum sezonlari kapsayan rekorlar (Gecmis sekmesi icin) ---- */
@@ -20502,7 +20498,9 @@ function computeAllTimeRecords(){
     seasons.push({label:(i+1)+". sezon",raw:raw,sid:sid,done:true})});
   if(currentSeason!=null&&fbLeague)seasons.push({label:"Bu sezon",raw:fbLeague,sid:currentSeason,done:false});
   var rec={bigWin:null,highScore:null,bestStreak:null,bestUnbeaten:null,mostPts:null,mostGoalsP:null,mostAssistsP:null,
-    careerGoals:null,careerAssists:null,bestDef:null,bestAtt:null,teamReds:null,careerReds:null,hatMatch:null,bestAvg:null,topTransfer:null};
+    careerGoals:null,careerAssists:null,bestDef:null,bestAtt:null,teamReds:null,careerReds:null,hatMatch:null,bestAvg:null,topTransfer:null,
+    mostWins:null,mostDraws:null,fewPts:null,titleGap:null,worstLoss:null,fastGoal:null,lateGoal:null,mostGA:null,careerHat:null,keeperCS:null};
+  var careerHat={};
   var careerReds={};
   var careerGoals={},careerAssists={}; // oyuncu ADINA gore (sezonlar arasi id sabit degil), tum sezonlar toplami
   function bumpCareer(map,name,team,n){if(!name)return;map[name]=map[name]||{team:team,n:0};map[name].n+=n;map[name].team=team||map[name].team}
@@ -20517,7 +20515,14 @@ function computeAllTimeRecords(){
     var complete=(raw.rounds||[]).length>0&&(raw.rounds||[]).every(function(rd){return rdAll(rd)});
     if(complete)stats.table.forEach(function(t){
       if(!rec.bestDef||t.ga<rec.bestDef.n)rec.bestDef={n:t.ga,team:t.name,season:se.label};
-      if(!rec.bestAtt||t.gf>rec.bestAtt.n)rec.bestAtt={n:t.gf,team:t.name,season:se.label}});
+      if(!rec.bestAtt||t.gf>rec.bestAtt.n)rec.bestAtt={n:t.gf,team:t.name,season:se.label};
+      if(!rec.mostWins||t.w>rec.mostWins.n)rec.mostWins={n:t.w,team:t.name,season:se.label};
+      if(!rec.mostDraws||t.d>rec.mostDraws.n)rec.mostDraws={n:t.d,team:t.name,season:se.label};
+      if(!rec.fewPts||t.pts<rec.fewPts.n)rec.fewPts={n:t.pts,team:t.name,season:se.label}});
+    if(complete&&stats.table[1]){var gp=stats.table[0].pts-stats.table[1].pts;if(!rec.titleGap||gp>rec.titleGap.n)rec.titleGap={n:gp,team:stats.table[0].name,sec:stats.table[1].name,season:se.label}}
+    if(stats.cleanSheets&&stats.cleanSheets[0]&&(!rec.keeperCS||stats.cleanSheets[0].n>rec.keeperCS.n))rec.keeperCS={n:stats.cleanSheets[0].n,name:stats.cleanSheets[0].name,team:stats.cleanSheets[0].team,season:se.label};
+    var gaM={};Object.keys(stats.rawGoals||{}).forEach(function(pid){var g=stats.rawGoals[pid];gaM[pid]={name:g.name,team:g.team,g:g.n,a:0}});Object.keys(stats.rawAssists||{}).forEach(function(pid){var a=stats.rawAssists[pid];if(!gaM[pid])gaM[pid]={name:a.name,team:a.team,g:0,a:0};gaM[pid].a=a.n});
+    Object.keys(gaM).forEach(function(pid){var x=gaM[pid],tt=x.g+x.a;if(!rec.mostGA||tt>rec.mostGA.n)rec.mostGA={n:tt,g:x.g,a:x.a,name:x.name,team:x.team,season:se.label}});
     var ptab=seasonPlayerTable(raw),teamRd={};
     Object.keys(ptab).forEach(function(nm){var e=ptab[nm];
       Object.keys(e.t).forEach(function(u){teamRd[u]=(teamRd[u]||0)+e.t[u].rd});
@@ -20525,7 +20530,11 @@ function computeAllTimeRecords(){
       if(e.app>=5&&(!rec.bestAvg||e.avg>rec.bestAvg.avg))rec.bestAvg={avg:e.avg,name:nm,team:((raw.teams||{})[e.uid]||{}).name||"",season:se.label}});
     Object.keys(teamRd).forEach(function(u){if(teamRd[u]>0&&(!rec.teamReds||teamRd[u]>rec.teamReds.n))rec.teamReds={n:teamRd[u],team:((raw.teams||{})[u]||{}).name||"",season:se.label}});
     (raw.rounds||[]).forEach(function(rd){if(compOf(rd)!=="league")return;rd.matches.forEach(function(m){if(!m.played)return;var cnt={};
-      (m.events||[]).forEach(function(ev){if(ev.type==="goal"&&ev.playerName){var k=ev.team+"|"+ev.playerName;cnt[k]=(cnt[k]||0)+1}});
+      (m.events||[]).forEach(function(ev){if(ev.type==="goal"&&ev.playerName){var k=ev.team+"|"+ev.playerName;cnt[k]=(cnt[k]||0)+1;
+        if(typeof ev.min==="number"){var gtu=ev.team==="home"?m.home:m.away,gtn=((raw.teams||{})[gtu]||{}).name||"",gtx=(((raw.teams||{})[m.home]||{}).name||"?")+" "+m.result.h+"-"+m.result.a+" "+(((raw.teams||{})[m.away]||{}).name||"?");
+          if(!rec.fastGoal||ev.min<rec.fastGoal.min)rec.fastGoal={min:ev.min,name:ev.playerName,team:gtn,txt:gtx,season:se.label};
+          if(!rec.lateGoal||ev.min>rec.lateGoal.min)rec.lateGoal={min:ev.min,name:ev.playerName,team:gtn,txt:gtx,season:se.label}}}});
+      Object.keys(cnt).forEach(function(k){if(cnt[k]>=3){var nm3=k.slice(k.indexOf("|")+1),sd3=k.split("|")[0],tu3=sd3==="home"?m.home:m.away;careerHat[nm3]=careerHat[nm3]||{n:0,team:""};careerHat[nm3].n++;careerHat[nm3].team=((raw.teams||{})[tu3]||{}).name||careerHat[nm3].team}});
       Object.keys(cnt).forEach(function(k){if(cnt[k]>=2&&(!rec.hatMatch||cnt[k]>rec.hatMatch.n)){var sd=k.split("|")[0],tu=sd==="home"?m.home:m.away;
         rec.hatMatch={n:cnt[k],name:k.slice(k.indexOf("|")+1),team:((raw.teams||{})[tu]||{}).name||"",season:se.label,
           txt:(((raw.teams||{})[m.home]||{}).name||"?")+" "+m.result.h+"-"+m.result.a+" "+(((raw.teams||{})[m.away]||{}).name||"?")}}})})});
@@ -20540,7 +20549,9 @@ function computeAllTimeRecords(){
     Object.keys(stats.rawAssists||{}).forEach(function(pid){var a=stats.rawAssists[pid];bumpCareer(careerAssists,a.name,a.team,a.n)});
     Object.keys(raw.teams||{}).forEach(function(uid){var ms=computeManagerSeason(raw,uid);if(!ms)return;
       if(!rec.bestStreak||ms.bestStreak>rec.bestStreak.n)rec.bestStreak={n:ms.bestStreak,owner:ms.ownerName||ms.teamName,team:ms.teamName,season:se.label};
-      if(!rec.bestUnbeaten||ms.bestUnbeaten>rec.bestUnbeaten.n)rec.bestUnbeaten={n:ms.bestUnbeaten,owner:ms.ownerName||ms.teamName,team:ms.teamName,season:se.label}})});
+      if(!rec.bestUnbeaten||ms.bestUnbeaten>rec.bestUnbeaten.n)rec.bestUnbeaten={n:ms.bestUnbeaten,owner:ms.ownerName||ms.teamName,team:ms.teamName,season:se.label};
+      if(ms.bestLoss&&(!rec.worstLoss||ms.bestLoss>rec.worstLoss.n))rec.worstLoss={n:ms.bestLoss,owner:ms.ownerName||ms.teamName,team:ms.teamName,season:se.label}})});
+  Object.keys(careerHat).forEach(function(nm){var c=careerHat[nm];if(!rec.careerHat||c.n>rec.careerHat.n)rec.careerHat={name:nm,team:c.team,n:c.n}});
   Object.keys(careerReds).forEach(function(nm){var c=careerReds[nm];if(!rec.careerReds||c.n>rec.careerReds.n)rec.careerReds={name:nm,team:c.team,n:c.n}});
   Object.keys(careerGoals).forEach(function(name){var g=careerGoals[name];
     if(!rec.careerGoals||g.n>rec.careerGoals.n)rec.careerGoals={name:name,team:g.team,n:g.n}});
@@ -21921,6 +21932,93 @@ function resetHistory(){if(!isAdmin||!fbDb)return;
   cfm("Tüm geçmiş (şampiyonluklar dahil) silinsin mi? Bu geri alınamaz.",function(){
     fbDb.ref("history").set(null).catch(function(e){fbBadge("Geçmiş silinemedi (Rules hatası): "+e.message)})})}
 
+var HSCSS=false;
+function hsCss(){if(HSCSS)return;HSCSS=true;var st=document.createElement("style");st.textContent=
+'.hsKpi{display:flex;gap:8px;margin:12px 0}.hsKpi>div{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px 12px;min-width:0}.hsKpi b{display:block;font:800 19px "Baloo 2",sans-serif;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hsKpi small{color:var(--mut);font-size:11px;font-weight:700}'+
+'.hsTh,.hsTr{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,40px);gap:4px;align-items:center;padding:9px 12px}.hsTh{border-bottom:1px solid var(--bd);padding-top:10px;padding-bottom:8px}.hsTh span{display:flex;justify-content:center}.hsTh .compLg{height:20px;width:auto}.hsTh .clLogo{height:20px;width:20px}'+
+'.hsTr+.hsTr{border-top:1px solid var(--bd)}.hsTr .n{display:flex;align-items:center;gap:8px;min-width:0;font-weight:700;font-size:13.5px}.hsTr .n span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hsTr i{font-style:normal;text-align:center;font:800 16px "Baloo 2",sans-serif;color:var(--tx)}.hsTr i.z{color:var(--bd);font-weight:600}.hsTr i.top{color:var(--gold)}.hsTr.me{background:rgba(255,255,255,.04);border-radius:10px}'+
+'.hsSe{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:12px 14px 6px;margin-bottom:12px}.hsSe h4{margin:0 0 4px;font:800 15px Inter,sans-serif;display:flex;align-items:baseline;gap:0}.hsSe h4 .no{font:inherit}.hsSe h4 small{margin-left:auto;color:var(--mut);font-weight:600;font-size:11.5px}'+
+'.hsLi{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--bd)}.hsLi .l{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:12.5px;font-weight:600;white-space:nowrap}.hsLi .l .compLg,.hsLi .l .clLogo{height:18px;width:18px;object-fit:contain}.hsLi .w{display:flex;align-items:center;gap:7px;min-width:0}.hsLi .w b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hsLi .w.z{color:var(--mut)}.hsLi.gold .w b{color:var(--gold)}'+
+'.hsDet{border-top:1px solid var(--bd);margin-top:2px}.hsDet summary{display:flex;justify-content:space-between;align-items:center;padding:11px 0;font-weight:700;font-size:13px;cursor:pointer;list-style:none}.hsDet summary::-webkit-details-marker{display:none}.hsDet[open] .chev{transform:rotate(90deg)}.hsDet .chev{transition:transform .15s;color:var(--mut)}.hsDet .tbl{margin:0 -4px;font-size:12px}.hsDet .tbl .trow{gap:3px;min-width:0;padding:7px 0}.hsDet .tbl .trow .c-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:none}.hsDet .tbl .trow span:nth-child(8){display:none}.hsDet .tbl .trow{grid-template-columns:minmax(0,1fr) repeat(7,28px)}'+
+'.hsRc{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px}.hsRc+.hsRc{border-top:1px solid var(--bd)}.hsRc .ic{font-size:20px;text-align:center}.hsRc small{display:block;color:var(--mut);font-size:11px;font-weight:700}.hsRc b{display:block;font-size:13px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hsRc em{display:block;font-style:normal;color:var(--mut);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hsRc .v{font:800 18px "Baloo 2",sans-serif;color:var(--gold);text-align:right;white-space:nowrap}'+
+'.hsTro{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}.hsTro>div{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px 2px 8px;text-align:center}.hsTro .compLg{height:22px;width:auto}.hsTro .clLogo{height:22px;width:22px}.hsTro b{display:block;font:800 22px "Baloo 2",sans-serif;line-height:1.1;margin-top:4px}.hsTro b.z{color:var(--bd)}.hsTro small{color:var(--mut);font-size:10.5px;font-weight:700}'+
+'.hsBd{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hsBd>div{border:1px solid var(--bd);border-radius:14px;padding:10px;background:var(--bg2);opacity:.42;min-width:0}.hsBd>div.on{opacity:1;background:linear-gradient(135deg,rgba(240,180,74,.18),rgba(240,180,74,.04));border-color:rgba(240,180,74,.55)}.hsBd span{font-size:22px}.hsBd b{display:block;font-size:12.5px;margin-top:3px}.hsBd small{display:block;color:var(--mut);font-size:10.5px;line-height:1.25;margin-top:1px}'+
+'.hsBars{display:flex;align-items:flex-end;gap:10px;height:150px;padding:4px 2px 0;overflow-x:auto}.hsBars>div{flex:1;min-width:48px;max-width:92px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.hsBars .bar{width:100%;border-radius:8px 8px 3px 3px;background:var(--ac);min-height:6px}.hsBars .bar.g{background:var(--gold)}.hsBars b{font:800 14px "Baloo 2",sans-serif;margin-bottom:3px}.hsBars small{color:var(--mut);font-size:10.5px;margin-top:5px;text-align:center;line-height:1.25}'+
+'.hsWdl{display:flex;height:10px;border-radius:6px;overflow:hidden;gap:2px}.hsWdl i{display:block;height:100%;min-width:3px}.hsWdl .w{background:var(--win)}.hsWdl .d{background:#6b7a8f}.hsWdl .l{background:var(--loss)}'+
+'.hsSt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.hsSt>div{background:var(--bg2);border-radius:12px;padding:9px 4px;text-align:center}.hsSt b{display:block;font:800 17px "Baloo 2",sans-serif}.hsSt small{color:var(--mut);font-size:10.5px;font-weight:700}'+
+'.hsHa{display:grid;grid-template-columns:70px minmax(0,1fr) 54px;gap:10px;align-items:center;margin-top:10px;font-size:12px}.hsHa span{color:var(--mut);font-weight:700}.hsHa em{font-style:normal;text-align:right;font-weight:700}';
+document.head.appendChild(st)}
+function hsWdl(w,d,l){var t=w+d+l;if(!t)return '<div class="hsWdl"><i style="flex:1;background:var(--bd)"></i></div>';return '<div class="hsWdl">'+(w?'<i class="w" style="flex:'+w+'"></i>':'')+(d?'<i class="d" style="flex:'+d+'"></i>':'')+(l?'<i class="l" style="flex:'+l+'"></i>':'')+'</div>'}
+function hsTname(uid){var ids=Object.keys(fbHistory||{});for(var i=ids.length-1;i>=0;i--){if(fbHistory[ids[i]].uid===uid&&fbHistory[ids[i]].teamName)return fbHistory[ids[i]].teamName}
+  return (fbLeague&&fbLeague.teams&&fbLeague.teams[uid]&&fbLeague.teams[uid].name)||userLabel(uid)}
+function hsShelfHTML(ids){var T={};
+  ids.forEach(function(id){var H=fbHistory[id];[["l",H.uid],["c",H.cupWin],["s",H.superWin],["e",H.clWin]].forEach(function(x){var u=x[1];if(!u||/^ai_/.test(u))return;T[u]=T[u]||{l:0,c:0,s:0,e:0};T[u][x[0]]++})});
+  var us=Object.keys(T).sort(function(a,b){var A=T[a],B=T[b];return B.l-A.l||(B.l+B.c+B.s+B.e)-(A.l+A.c+A.s+A.e)});
+  var mx={l:0,c:0,s:0,e:0};us.forEach(function(u){Object.keys(mx).forEach(function(k){if(T[u][k]>mx[k])mx[k]=T[u][k]})});
+  var h='<div class="card" style="padding:0"><div class="hsTh"><span style="justify-content:flex-start;color:var(--mut);font-size:11px;font-weight:700;align-items:center">Menajer</span><span title="Lig">'+compIconHTML("league")+'</span><span title="Ulusal Kupa">'+compIconHTML("cup")+'</span><span title="Süper Kupa">'+compIconHTML("super")+'</span><span title="Şampiyonlar Ligi">'+CL_LOGO+'</span></div>';
+  if(!us.length)return h+'<p class="msg" style="padding:10px 12px">Henüz kupa kazanan yok.</p></div>';
+  h+=us.map(function(u){var t=T[u];return '<div class="hsTr mgrLink'+(u===myUid?' me':'')+'" data-uid="'+esc(u)+'"><div class="n">'+avatarHTML(hsTname(u),22)+'<span>'+esc(userLabel(u))+(u===myUid?' · sen':'')+'</span></div>'+
+    ['l','c','s','e'].map(function(k){return '<i class="'+(t[k]?(t[k]===mx[k]?'top':''):'z')+'">'+(t[k]||'·')+'</i>'}).join("")+'</div>'}).join("");
+  return h+'</div>'}
+function hsSeasonsHTML(ids){var sorted=ids.slice().sort(function(a,b){return (fbHistory[b].finishedAt||0)-(fbHistory[a].finishedAt||0)}),no={};
+  ids.slice().sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)}).forEach(function(sid,i){no[sid]=i+1});
+  return sorted.map(function(sid){var x=fbHistory[sid],t3=x.top3||[],sec=t3[1]?(x.secondName||(fbLeague&&fbLeague.teams&&fbLeague.teams[t3[1]]?fbLeague.teams[t3[1]].name:userLabel(t3[1]))):"";
+    loadHistoryDetail(sid);
+    function row(ic,lbl,v,cls){return '<div class="hsLi'+(cls?' '+cls:'')+'"><span class="l">'+ic+'<span>'+lbl+'</span></span>'+(v?'<span class="w">'+avatarHTML(v,20)+'<b>'+esc(v)+'</b></span>':'<span class="w z">—</span>')+'</div>'}
+    var det=historyStatsOf(sid),open=dOpen("hs_"+sid,false),tb;
+    if(!det||det==="loading")tb='<p class="msg">Yükleniyor…</p>';
+    else tb='<div class="tbl"><div class="trow thead"><span class="c-name">Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>Pts</span></div>'+
+      det.table.map(function(t,i){return '<div class="trow mgrLink" data-uid="'+esc(t.id)+'"><span class="c-name">'+(i+1)+'. '+esc(t.name)+'</span><span>'+t.p+'</span><span>'+t.w+'</span><span>'+t.d+'</span><span>'+t.l+'</span><span>'+t.gf+'</span><span>'+t.ga+'</span><span>'+(t.gf-t.ga)+'</span><span class="ptsCol">'+t.pts+'</span></div>'}).join("")+'</div>';
+    return '<div class="hsSe"><h4><span class="no">'+no[sid]+'</span><span>. Sezon</span><small>'+fmtTRDate(trDateStr(new Date(x.finishedAt||Date.now())))+'</small></h4>'+
+      row(compIconHTML("league"),'Lig şampiyonu',x.teamName,'gold')+row('🥈','Lig ikincisi',sec)+row(compIconHTML("cup"),'Ulusal Kupa',x.cupWinName)+row(compIconHTML("super"),'Süper Kupa',x.superWinName)+row(CL_LOGO,'Şampiyonlar Ligi',x.clWinName)+
+      '<details class="hsDet" data-id="hs_'+sid+'"'+(open?' open':'')+'><summary><span>📊 Puan durumu</span><span class="chev">›</span></summary>'+tb+posterBoxHTML(sid)+'</details></div>'}).join("")}
+function hsRec(ic,t,main,holder,sub){return '<div class="hsRc"><div class="ic">'+ic+'</div><div style="min-width:0"><small>'+t+'</small><b'+(holder?'':' style="color:var(--mut);font-weight:600"')+'>'+(holder||'—')+'</b>'+(sub?'<em>'+sub+'</em>':'')+'</div><div class="v">'+(main||'')+'</div></div>'}
+function hsBetRecs(){var u=Object.keys((fbLeague&&fbLeague.teams)||{}).filter(function(x){return !/^ai_/.test(x)}),R={big:null,odd:null,net:null,hit:null,cnt:null},pend=false;
+  u.forEach(function(id){var b=betStatsOf(id);if(b.pending)pend=true;var nm=userLabel(id),net=b.pay-b.stake;
+    if(b.best&&(!R.big||b.best>R.big.v))R.big={v:b.best,nm:nm};if(b.bestOdd&&(!R.odd||b.bestOdd>R.odd.v))R.odd={v:b.bestOdd,nm:nm};
+    if(b.n&&(!R.net||net>R.net.v))R.net={v:net,nm:nm};if(b.n>=5&&(!R.hit||b.w/b.n>R.hit.v))R.hit={v:b.w/b.n,nm:nm,n:b.n};if(b.n&&(!R.cnt||b.n>R.cnt.v))R.cnt={v:b.n,nm:nm}});
+  return {R:R,pending:pend}}
+function hsRecordsHTML(ar,countArr,view){var r=ar.rec,h='<div class="card" style="padding:0">';
+  function own(o){return esc(o.owner)+' ('+esc(o.team)+')'}
+  function X(ic,t,o,f){if(!o)return hsRec(ic,t,'','','');var a=f(o);return hsRec(ic,t,a[0],a[1],a[2])}
+  if(view==="player"){
+    h+=X('👟','Bir sezonda en çok gol',r.mostGoalsP,function(o){return [o.n+' gol',esc(o.name),esc(o.team)+' · '+o.season]})+
+      X('🎯','Bir sezonda en çok asist',r.mostAssistsP,function(o){return [o.n+' asist',esc(o.name),esc(o.team)+' · '+o.season]})+
+      X('⚡','Bir sezonda en çok gol + asist',r.mostGA,function(o){return [o.n,esc(o.name),o.g+' gol + '+o.a+' asist · '+esc(o.team)+' · '+o.season]})+
+      X('🎩','Tek maçta en çok gol',r.hatMatch,function(o){return [o.n+' gol',esc(o.name),esc(o.txt)+' · '+o.season]})+
+      X('🎩','Kariyerde en çok hat-trick',r.careerHat,function(o){return [o.n+' kez',esc(o.name),esc(o.team)]})+
+      X('📈','En iyi sezon puan ortalaması',r.bestAvg,function(o){return [o.avg.toFixed(2),esc(o.name),esc(o.team)+' · '+o.season]})+
+      X('🧤','Bir sezonda en çok kalesini kapatan kaleci',r.keeperCS,function(o){return [o.n+' maç',esc(o.name),esc(o.team)+' · '+o.season]})+
+      X('⏱️','En erken gol',r.fastGoal,function(o){return [o.min+'. dk',esc(o.name),esc(o.txt)+' · '+o.season]})+
+      X('🔔','En geç gol',r.lateGoal,function(o){return [(o.min>90?'90+'+(o.min-90):o.min+'.')+' dk',esc(o.name),esc(o.txt)+' · '+o.season]})+
+      X('🌟','Kariyerde en çok gol',r.careerGoals,function(o){return [o.n+' gol',esc(o.name),esc(o.team)]})+
+      X('🌟','Kariyerde en çok asist',r.careerAssists,function(o){return [o.n+' asist',esc(o.name),esc(o.team)]})+
+      X('🟥','Kariyerde en çok kırmızı kart',r.careerReds,function(o){return [o.n+' kart',esc(o.name),esc(o.team)]})+
+      X('🔨','En pahalı transfer',r.topTransfer,function(o){return [fmtM(o.bid),esc(o.name||"?"),'→ '+esc(o.team)+' · '+o.season]})}
+  else if(view==="bet"){var B=hsBetRecs(),R=B.R;
+    h+=X('💰','En büyük kupon kazancı',R.big,function(o){return ['+'+fmtM(o.v),esc(o.nm),'']})+
+      X('🎰','Tutan en yüksek oran',R.odd,function(o){return [fmtO(o.v)+'x',esc(o.nm),'']})+
+      X('📊','En yüksek net kâr',R.net,function(o){return [(o.v>0?'+':o.v<0?'−':'')+fmtM(Math.abs(o.v)),esc(o.nm),'']})+
+      X('🎯','En yüksek isabet oranı',R.hit,function(o){return ['%'+Math.round(o.v*100),esc(o.nm),'en az 5 kupon · '+o.n+' kupon']})+
+      X('🎫','En çok kupon oynayan',R.cnt,function(o){return [o.v+' kupon',esc(o.nm),'']});
+    if(B.pending)h+='<p class="msg" style="padding:8px 12px">Önceki sezonlar yükleniyor…</p>'}
+  else{
+    h+=X('👑','En çok lig şampiyonluğu',countArr[0],function(o){return [o.n+' kez',esc(o.ownerName||userLabel(o.uid)),esc(o.teamName)]})+
+      X('🔥','En farklı galibiyet',r.bigWin,function(o){return [o.diff+' fark',esc(o.txt),o.season]})+
+      X('⚽','En gollü maç',r.highScore,function(o){return [o.tot+' gol',esc(o.txt),o.season]})+
+      X('🏆','Bir sezonda en çok puan',r.mostPts,function(o){return [o.pts+' puan',esc(o.team),o.season]})+
+      X('🔁','En uzun galibiyet serisi',r.bestStreak,function(o){return [o.n+' maç',own(o),o.season]})+
+      X('🛡️','En uzun yenilmezlik serisi',r.bestUnbeaten,function(o){return [o.n+' maç',own(o),o.season]})+
+      X('🥶','En uzun yenilgi serisi',r.worstLoss,function(o){return [o.n+' maç',own(o),o.season]})}+
+      X('✅','Bir sezonda en çok galibiyet',r.mostWins,function(o){return [o.n+' maç',esc(o.team),o.season]})+
+      X('🤝','Bir sezonda en çok beraberlik',r.mostDraws,function(o){return [o.n+' maç',esc(o.team),o.season]})+
+      X('📉','Bir sezonda en az puan',r.fewPts,function(o){return [o.n+' puan',esc(o.team),o.season]})+
+      X('🚀','Şampiyonluk farkı (ilk ile ikinci)',r.titleGap,function(o){return [o.n+' puan',esc(o.team),'ikinci: '+esc(o.sec)+' · '+o.season]})+
+      X('💥','Bir sezonda en çok gol',r.bestAtt,function(o){return [o.n+' gol',esc(o.team),o.season]})+
+      X('🧱','Bir sezonda en az gol yiyen',r.bestDef,function(o){return [o.n+' gol',esc(o.team),o.season]})+
+      X('🟥','Bir sezonda en çok kırmızı kart',r.teamReds,function(o){return [o.n+' kart',esc(o.team),o.season]})
+  return h+(ar.pending?'<p class="msg" style="padding:8px 12px">Bazı sezonlar yükleniyor, birazdan tamamlanacak…</p>':'')+'</div>'}
+
 function vNews(){var gate=gateCard();if(gate)return gate;
   var adminBtn=isAdmin?'<button class="btn alt" id="resetnews">Haberleri sıfırla</button>':'';
   var ids=Object.keys(fbNews);
@@ -21939,51 +22037,13 @@ function vHistory(){var gate=gateCard();if(gate)return gate;
   ids.forEach(function(id){var h=fbHistory[id];counts[h.uid]=counts[h.uid]||{uid:h.uid,teamName:h.teamName,ownerName:h.ownerName,n:0};
     counts[h.uid].n++;counts[h.uid].teamName=h.teamName;if(h.ownerName)counts[h.uid].ownerName=h.ownerName});
   var countArr=Object.keys(counts).map(function(k){return counts[k]}).sort(function(a,b){return b.n-a.n});
-  var h='<details class="card sqCard" open><summary><span class="sqHead">🏆 Şampiyonluklar</span><span class="chev">›</span></summary>'+
-    countArr.map(function(c,i){var owner=c.ownerName||userLabel(c.uid);
-      return '<div class="li mgrLink" data-uid="'+esc(c.uid)+'"><span class="mv">'+(i+1)+'</span><span class="nm">'+avatarHTML(c.teamName,22)+' '+esc(c.teamName)+' <span class="avg">('+esc(owner)+')</span>'+(c.uid===myUid?' <span class="avg">· sen</span>':'')+'</span><span class="r">'+c.n+'</span></div>'}).join("")+
-    '</details>';
-  var sorted=ids.slice().sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)});
-  h+='<details class="card sqCard" open><summary><span class="sqHead">🏆 Sezon sonuçları</span><span class="chev">›</span></summary>'+
-    sorted.map(function(sid,i){var x=fbHistory[sid],t3=x.top3||[],sec=t3[1]?(x.secondName||(fbLeague&&fbLeague.teams&&fbLeague.teams[t3[1]]?fbLeague.teams[t3[1]].name:userLabel(t3[1]))):"";
-      function row(t,v){return v?'<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0"><span class="avg">'+t+'</span><b style="text-align:right">'+esc(v)+'</b></div>':''}
-      return '<div class="li" style="display:block"><b>'+(i+1)+'. sezon</b>'+
-        row(compIconHTML('league')+' Lig şampiyonu',x.teamName)+row('🥈 Lig ikincisi',sec)+row(compIconHTML('cup')+' Ulusal Kupa şampiyonu',x.cupWinName)+row(compIconHTML('super')+' Süper Kupa şampiyonu',x.superWinName)+row(CL_LOGO+' Şampiyonlar Ligi şampiyonu',x.clWinName)+'</div>'}).join("")+'</details>';
+  hsCss();
+  var h='<div class="pgTitle" style="margin-bottom:12px">Geçmiş</div>'+
+    '<div class="secH"><h3>Kupa rafı</h3></div>'+hsShelfHTML(ids)+
+    '<div class="secH"><h3>Sezon sonuçları</h3></div>'+hsSeasonsHTML(ids);
   var seasonNumber={};ids.slice().sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)}).forEach(function(sid,i){seasonNumber[sid]=i+1});
   var ar=computeAllTimeRecords();
-  h+='<details class="card sqCard" open><summary><span class="sqHead">📊 Tüm Zamanların Rekorları</span><span class="chev">›</span></summary>'+
-    '<div class="sh"><span>👥 Takım rekorları</span><span></span></div>'+
-    recRow("🔥 En farklı galibiyet",ar.rec.bigWin&&(ar.rec.bigWin.txt+" ("+ar.rec.bigWin.diff+" fark) · "+ar.rec.bigWin.season))+
-    recRow("⚽ En gollü maç",ar.rec.highScore&&(ar.rec.highScore.txt+" ("+ar.rec.highScore.tot+" gol) · "+ar.rec.highScore.season))+
-    recRow("🏆 Bir sezonda en çok puan",ar.rec.mostPts&&(esc(ar.rec.mostPts.team)+" · "+ar.rec.mostPts.pts+" puan · "+ar.rec.mostPts.season))+
-    recRow("💥 Bir sezonda en çok gol (takım)",ar.rec.bestAtt&&(esc(ar.rec.bestAtt.team)+" · "+ar.rec.bestAtt.n+" gol · "+ar.rec.bestAtt.season))+
-    recRow("🧱 Bir sezonda en az gol yiyen (takım)",ar.rec.bestDef&&(esc(ar.rec.bestDef.team)+" · "+ar.rec.bestDef.n+" gol · "+ar.rec.bestDef.season))+
-    recRow("🟥 Bir sezonda en çok kırmızı kart (takım)",ar.rec.teamReds&&(esc(ar.rec.teamReds.team)+" · "+ar.rec.teamReds.n+" kart · "+ar.rec.teamReds.season))+
-    recRow("🔁 En uzun galibiyet serisi",ar.rec.bestStreak&&(esc(ar.rec.bestStreak.owner)+" ("+esc(ar.rec.bestStreak.team)+") · "+ar.rec.bestStreak.n+" maç · "+ar.rec.bestStreak.season))+
-    recRow("🛡️ En uzun yenilmezlik serisi",ar.rec.bestUnbeaten&&(esc(ar.rec.bestUnbeaten.owner)+" ("+esc(ar.rec.bestUnbeaten.team)+") · "+ar.rec.bestUnbeaten.n+" maç · "+ar.rec.bestUnbeaten.season))+
-    recRow("👑 En çok şampiyonluk",countArr[0]&&(esc(countArr[0].teamName)+" ("+esc(countArr[0].ownerName||userLabel(countArr[0].uid))+") · "+countArr[0].n+" kez"))+
-    '<div class="sh"><span>👕 Oyuncu rekorları</span><span></span></div>'+
-    recRow("👟 Bir sezonda en çok gol",ar.rec.mostGoalsP&&(esc(ar.rec.mostGoalsP.name)+" ("+esc(ar.rec.mostGoalsP.team)+") · "+ar.rec.mostGoalsP.n+" gol · "+ar.rec.mostGoalsP.season))+
-    recRow("🎯 Bir sezonda en çok asist",ar.rec.mostAssistsP&&(esc(ar.rec.mostAssistsP.name)+" ("+esc(ar.rec.mostAssistsP.team)+") · "+ar.rec.mostAssistsP.n+" asist · "+ar.rec.mostAssistsP.season))+
-    recRow("🎩 Tek maçta en çok gol",ar.rec.hatMatch&&(esc(ar.rec.hatMatch.name)+" ("+esc(ar.rec.hatMatch.team)+") · "+ar.rec.hatMatch.n+" gol · "+esc(ar.rec.hatMatch.txt)+" · "+ar.rec.hatMatch.season))+
-    recRow("📈 En iyi sezon puan ortalaması",ar.rec.bestAvg&&(esc(ar.rec.bestAvg.name)+" ("+esc(ar.rec.bestAvg.team)+") · "+ar.rec.bestAvg.avg.toFixed(2)+" · "+ar.rec.bestAvg.season))+
-    recRow("🌟 Kariyerde en çok gol",ar.rec.careerGoals&&(esc(ar.rec.careerGoals.name)+" ("+esc(ar.rec.careerGoals.team)+") · "+ar.rec.careerGoals.n+" gol"))+
-    recRow("🌟 Kariyerde en çok asist",ar.rec.careerAssists&&(esc(ar.rec.careerAssists.name)+" ("+esc(ar.rec.careerAssists.team)+") · "+ar.rec.careerAssists.n+" asist"))+
-    recRow("🟥 Kariyerde en çok kırmızı kart",ar.rec.careerReds&&(esc(ar.rec.careerReds.name)+" ("+esc(ar.rec.careerReds.team)+") · "+ar.rec.careerReds.n+" kart"))+
-    recRow("🔨 En pahalı transfer",ar.rec.topTransfer&&(esc(ar.rec.topTransfer.name||"?")+" → "+esc(ar.rec.topTransfer.team)+" · "+fmtM(ar.rec.topTransfer.bid)+" · "+ar.rec.topTransfer.season))+
-    (ar.pending?'<p class="msg">Bazı sezonlar yükleniyor, birazdan tamamlanacak…</p>':'')+
-    '</details>';
-  var seasonIds=ids.sort(function(a,b){return (fbHistory[b].finishedAt||0)-(fbHistory[a].finishedAt||0)});
-  seasonIds.forEach(function(sid){var rec=fbHistory[sid];
-    loadHistoryDetail(sid);
-    h+='<details class="card sqCard"><summary><span class="sqHead">🏆 '+(seasonNumber[sid]||"?")+'. Sezon <span class="avg">· '+fmtTRDate(trDateStr(new Date(rec.finishedAt||Date.now())))+'</span></span><span class="chev">›</span></summary>';
-    var det=historyStatsOf(sid);
-    if(!det||det==="loading")h+='<p class="msg">Yükleniyor…</p>';
-    else h+='<div class="tbl"><div class="trow thead"><span class="c-name">Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>Pts</span></div>'+
-      det.table.map(function(t,i){return '<div class="trow mgrLink" data-uid="'+esc(t.id)+'"><span class="c-name">'+(i+1)+'. '+esc(t.name)+'</span><span>'+t.p+'</span><span>'+t.w+'</span><span>'+t.d+'</span><span>'+t.l+'</span><span>'+t.gf+'</span><span>'+t.ga+'</span><span>'+(t.gf-t.ga)+'</span><span class="ptsCol">'+t.pts+'</span></div>'}).join("")+
-      '</div>';
-    h+=posterBoxHTML(sid);
-    h+='</details>'});
+  h+='<div class="secH"><h3>Tüm zamanların rekorları</h3></div>'+segHTML("recView",[["team","Takım"],["player","Oyuncu"],["bet","Bahis"]],UI.recView||"team")+hsRecordsHTML(ar,countArr,UI.recView||"team");
   return adminBtn+h}
 
 function vFixture(){var gate=gateCard();if(gate)return gate;
@@ -23164,5 +23224,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v41 · 21.10 23:50</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v44 · 22.10 09:17</div></body>
 </html>
