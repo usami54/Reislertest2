@@ -241,6 +241,7 @@ nav button .dot{position:absolute;top:2px;right:calc(50% - 25px);width:9px;heigh
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mgrCard{border-radius:20px;padding:16px;display:flex;align-items:center;gap:14px;border:1px solid var(--bd);margin-bottom:14px;color:#fff}
 .cmBar{margin-top:12px;border-radius:12px;padding:10px 14px;background:#fff;color:#111;border:2px solid #111;text-align:center;font:600 13.5px/1.3 Inter;min-height:20px}
+.cmSm{margin:8px 0 2px;padding:6px 10px;border-width:1.5px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cmSm.cmFlash{font-size:13px}.cmSm .cmTx{display:block;overflow:hidden;text-overflow:ellipsis}
 .cmMin{font-weight:800;opacity:.6}
 .cmNew{animation:cmIn .4s ease-out}
 @keyframes cmIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -19677,7 +19678,7 @@ function simulateMatchCore(homeRoster,awayRoster,homeLineup,awayLineup,homeInj,a
     var ok=e.team==="home"?"away":"home",os=ok==="home"?H:A,st=activeXIAt(os,ok==="home"?hSubs:aSubs,ok==="home"?hReds:aReds,e.min),pool=st.list;if(!pool.length)return;
     var OGW={KL:0.6,STP:3,SLB:2,SGB:2,DOS:1.2},ws=pool.map(function(p){return OGW[p.slot]||0.35}),tot=ws.reduce(function(a,b){return a+b},0),t=rr()*tot,pk=pool[pool.length-1];
     for(var wi=0;wi<pool.length;wi++){t-=ws[wi];if(t<=0){pk=pool[wi];break}}
-    e.og=true;e.playerId=pk.id;e.playerName=pk.player.n;e.assistId=null;e.assistName=null;e.xg=0});
+    e.shooterName=e.playerName;e.og=true;e.playerId=pk.id;e.playerName=pk.player.n;e.assistId=null;e.assistName=null;e.xg=0});
 
   // kartlar: sarilar ve kirmizilar tek zar atisindan geliyor (rollPlayerEvents), bu yuzden
   // kirmizi gören ya da sakatlanip cikan oyuncuya baska bir kart/sakatlik gelmiyor
@@ -23024,6 +23025,7 @@ function matchCardHTML(ri,mi,opts){opts=opts||{};var rd=leagueRounds()[ri],m=rd.
   var nm=matchNumbers(ri,mi),best=bestOf(ri,mi,3);
   return '<div class="mcard'+(me?' me':'')+'" data-md="'+ri+'_'+mi+'" style="cursor:pointer"><div class="meta">'+(venueNeutral(ri,m)?'<span>🏟️ '+esc(neutralVenue(ri,mi).replace("Tarafsız saha","Tarafsız"))+'</span><span>·</span>':'')+'<span>'+(W?W.icon+' '+W.name:'')+'</span>'+(R?'<span>·</span><span>⚖️ '+esc(shortRef(R.name))+'</span>':'')+(me?'<span class="tag" style="background:color-mix(in srgb,var(--club) 22%,transparent);color:#fff;padding:2px 8px;border-radius:999px;font:800 11px Inter">Sen</span>':'')+'<span class="st" style="'+(inf.done?'color:var(--mut)':'')+'">'+(inf.done?'':'● ')+inf.label+'</span></div>'+
     '<div class="sc"><div class="tn">'+avU(m.home,28)+'<div><b>'+esc(hn)+'</b><small>'+esc(formationFor(ri,mi,'home'))+'</small></div></div><div class="g" style="'+(flash?'color:var(--amber)':'')+'">'+inf.gh+' – '+inf.ga+(inf.penOn?'<small style="display:block;font-size:11px;color:var(--mut)">pen. '+inf.pen.h+'–'+inf.pen.a+'</small>':'')+'</div><div class="tn r"><div><b>'+esc(an)+'</b><small>'+esc(formationFor(ri,mi,'away'))+'</small></div>'+avU(m.away,28)+'</div></div>'+
+    (inf.min!=null&&!inf.played?cmBarHTML(ri,mi,inf,true):'')+
     '<div class="evs">'+(evs.length?evs.map(function(e){return evLineV(e,inf,teams,m)}).join(""):'<div class="ev" style="color:var(--mut)">Henüz olay yok</div>')+'</div>'+
     '<div class="strip"><span><span>Şut</span> <b>'+nm.shots[0]+'-'+nm.shots[1]+'</b></span><span><span>xG</span> <b>'+nm.xg[0].toFixed(2).replace(".",",")+'-'+nm.xg[1].toFixed(2).replace(".",",")+'</b></span><span><span>Top</span> <b>'+nm.poss[0]+'%-'+nm.poss[1]+'%</b></span><span><span>Korner</span> <b>'+nm.corners[0]+'-'+nm.corners[1]+'</b></span></div>'+
     (best.length?'<div class="best">⭐ En iyiler: '+best.map(function(b,i){return (i===0?'<b>':'')+esc(lastName(b.name))+' '+fmt1(b.r)+(i===0?'</b>':'')}).join(" · ")+'</div>':'')+(me&&mudEligible(ri,mi)?mudBtnHTML(ri,mi,false):'')+'</div>'}
@@ -23151,33 +23153,37 @@ var CM_LAST={};
 function cmHash(str){var x=2166136261;for(var i=0;i<str.length;i++){x^=str.charCodeAt(i);x=Math.imul(x,16777619)}return x>>>0}
 function cmPick(a,seed){return a[cmHash(seed)%a.length]}
 function cmSur(n){var p=String(n||"").trim().split(/\s+/);return p[p.length-1]||""}
-function cmLines(inf,hn,an){
+function cmLines(inf,hn,an,refName){
   var out=[],gh=0,ga=0,evs=inf.shown;
   evs.forEach(function(e,i){
     var tn=e.team==="home"?hn:an,on=e.team==="home"?an:hn,p=cmSur(e.playerName),sd=e.min+"|"+(e.playerId||"")+"|"+e.type+"|"+i,t=null,k="chance";
     if(e.type==="goal"){var mine=e.team==="home"?gh:ga,theirs=e.team==="home"?ga:gh;
-      if(e.og){if(e.team==="home")gh++;else ga++;t="GOL! "+p+" topu kendi ağlarına gönderdi, "+tn+" bu golü kabul etti.";k="goal"}
+      if(e.og){if(e.team==="home")gh++;else ga++;var sh=cmSur(e.shooterName);
+        t=cmPick(["GOL! "+p+" topu kendi ağlarına yolladı.","GOL! Yapılan ortada "+p+" ters bir vuruşla topu ağlara yolladı.",sh?"GOOOL! Uzaktan şutu "+sh+" çekti, top "+p+" üzerinden dönüp ağlara gitti.":"GOOOL! Uzaktan gelen şut "+p+" üzerinden dönüp ağlara gitti.","GOL! "+p+" geri pasta kaleciyi şaşırttı, top kendi kalesine gitti."],sd);k="goal"}
       else{if(e.team==="home")gh++;else ga++;mine++;
         var st=mine>theirs+1?cmPick([tn+" farkı açtı!",tn+" skor üstünlüğünü büyüttü!"],sd):mine>theirs?cmPick([tn+" öne geçti!",tn+" skorda öne geçti!"],sd):mine===theirs?cmPick([tn+" beraberliği yakaladı!","Skor eşitlendi, "+tn+" geri döndü!"],sd):tn+" farkı azalttı!";
-        t=e.pen?"GOL! "+p+" penaltıyı çaprazlayarak çevirdi. "+st:
+        t=e.pen?(cmHash(sd+"pn")%7===0?"GOL! "+p+" Panenka vurdu, kaleci yerinde kaldı! "+st:cmPick(["GOL! "+p+" penaltıyı gole çevirdi. "+st,"GOL! "+p+" kaleciyi bir köşeye, topu öbür köşeye gönderdi. "+st,"GOL! "+p+" vuruyor, direğe çarpan top ağlara gidiyor! "+st],sd)):
           cmPick(["GOL! "+p+" ağları havalandırdı! "+st,"GOOOL! "+p+" bekletmedi, top ağlarda! "+st,"GOL! "+p+" topu köşeye gönderdi! "+st],sd);k="goal"}}
     else if(e.type==="chance"&&e.pen&&e.missed){t="PENALTI KAÇTI! "+p+" topu "+cmPick(["üstten auta yolladı","kalecinin kollarına bıraktı","direğin yanından dışarı attı"],sd)+"!";k="pen"}
     else if(e.type==="chance"&&e.varNo){t="Top ağlarda! "+p+" sevinirken hakem VAR odasından bilgi bekliyor...";k="pen"}
     else if(e.type==="chance"){var big=e.xg>=0.2;
-      t=e.onTarget?(big?cmPick([p+" çok net pozisyonda vurdu, kaleci inanılmaz kurtardı!",tn+" büyük fırsat! "+p+"'ın şutu kaleciden döndü!",p+" ceza sahasında boşta kaldı, plasesi kalecide kaldı!"],sd):cmPick([p+" sert vurdu, kaleci uzanıp çeldi.",p+"'ın şutunu kaleci yerinden çıkarmadan tuttu.","Kaleci "+p+"'ın uzaktan şutunu kornere çeldi."],sd))
-        :(big?cmPick([p+" kaleyle baş başa kaldı ama topu dışarı attı!",p+" tek başına kaleye gidiyordu, topu üstten auta yolladı!","Kaçan fırsat! "+p+" yakın mesafeden vuramadı."],sd):cmPick([p+" uzaktan denedi, top auta gitti.",p+"'ın vuruşu üst direğin yanından dışarı.",tn+" atağında "+p+" şutunu çekti, top yön bulamadı."],sd));
+      t=e.onTarget?(big?cmPick([p+" çok net pozisyonda vurdu, kaleci inanılmaz kurtardı!",tn+" büyük fırsat! "+p+" vurdu, top kaleciden döndü!",p+" ceza sahasında boşta kaldı, plasesi kalecide kaldı!"],sd):cmPick([p+" sert vurdu, kaleci uzanıp çeldi.",p+" müsait pozisyonda kalecinin üzerine vurdu.",p+" uzaktan vurdu, kaleci topu kornere çeldi."],sd))
+        :(big?cmPick([p+" kaleyle baş başa kaldı ama topu dışarı attı!",p+" tek başına kaleye gidiyordu, topu üstten auta yolladı!","Kaçan fırsat! "+p+" yakın mesafeden vuramadı."],sd):cmPick([p+" uzaktan denedi, top auta gitti.",p+" vurdu, top üst direğin yanından dışarı.",tn+" atağında "+p+" şutunu çekti, top az farkla dışarı gitti."],sd));
       k=big?"big":"chance"}
     else if(e.type==="red"){t=e.second?"İkinci sarı! "+p+" oyun dışı, "+tn+" 10 kişi kaldı.":"KIRMIZI KART! "+p+" doğrudan atıldı, "+tn+" 10 kişi kaldı.";k="red"}
     else if(e.type==="var"){
-      t=e.ok?(e.kind==="red"?"VAR kırmızı kartı inceliyor... Karar onaylandı, "+p+" oyundan çıkıyor.":e.kind==="pen"?"VAR penaltıyı kontrol ediyor... Penaltı geçerli.":"VAR devrede, gol kontrol ediliyor... Karar: gol geçerli!")
-        :"VAR incelemesi bitti: "+["ofsayt var","pozisyonda el var","öncesinde faul var"][e.why||0]+", gol iptal! ("+p+")";k="var"}
+      var rf=cmSur(refName),rs=rf?" "+rf+" ":"",rk=rf?cmPick(["Hakem "+rf,rf],sd):"Hakem";
+      t=e.ok?(e.kind==="red"?cmPick(["VAR kırmızı kartı inceliyor... Karar onaylandı, "+p+" oyundan çıkıyor.",rk+" monitörde pozisyonu izledi, kırmızı kart geçerli, "+p+" oyundan çıkıyor.","VAR'dan uyarı geldi, "+rk+" tekrar izledi: kırmızı kart kalıyor."],sd)
+        :e.kind==="pen"?cmPick(["VAR penaltıyı kontrol ediyor... Penaltı geçerli.",rk+" ekranı izledi, penaltı noktasını gösterdi, karar geçerli.","VAR penaltı pozisyonunu inceledi, karar değişmedi."],sd)
+        :cmPick(["VAR devrede, gol kontrol ediliyor... Karar: gol geçerli!",rk+" monitöre gitmedi, VAR 'gol geçerli' dedi.","Kısa bir VAR kontrolü sonrası "+rk+" santrayı gösterdi: gol geçerli!","VAR pozisyonu inceledi, ofsayt yok, gol geçerli!"],sd))
+        :cmPick(["VAR incelemesi bitti: "+["ofsayt var","pozisyonda el var","öncesinde faul var"][e.why||0]+", gol iptal! ("+p+")",rk+" monitörde pozisyonu izledi ve golü iptal etti: "+["ofsayt var","el var","faul var"][e.why||0]+". ("+p+")","VAR devreye girdi, "+rk+" golü geçersiz saydı: "+["ofsayt","el","faul"][e.why||0]+"! ("+p+")"],sd);k="var"}
     if(t)out.push({min:e.min,t:t,k:k,team:e.team,score:gh+"–"+ga})});
   return out}
 function cmDominance(inf){var recent=inf.shown.filter(function(e){return e.min>inf.min-20&&(e.type==="chance"||e.type==="goal")}),w={home:0,away:0};
   recent.forEach(function(e){if(e.type==="chance"||e.type==="goal"){var s=e.team==="home"?"home":"away";if(e.type==="goal"&&e.og)s=s==="home"?"away":"home";w[s]+=(e.xg||0.1)+(e.type==="goal"?0.1:0)}});
   var tot=w.home+w.away;return {h:w.home,a:w.away,share:tot>0.001?w.home/tot:0.5,tot:tot}}
-function cmBarHTML(ri,mi,inf){var rd=inf.rd,m=inf.m,teams=fbLeague.teams,hn=teams[m.home].name,an=teams[m.away].name;
-  var lines=cmLines(inf,hn,an),dm=cmDominance(inf),last=lines[lines.length-1],ago=last?inf.min-last.min:99;
+function cmBarHTML(ri,mi,inf,sm){var rd=inf.rd,m=inf.m,teams=fbLeague.teams,hn=teams[m.home].name,an=teams[m.away].name;
+  var R0=REFEREES[m.referee],lines=cmLines(inf,hn,an,R0?R0.name:""),dm=cmDominance(inf),last=lines[lines.length-1],ago=last?inf.min-last.min:99;
   var fresh=last&&ago<=2&&!inf.done,flash=fresh&&last.k==="goal";
   var idle;
   if(inf.done)idle="Maç sona erdi. Skor "+inf.gh+"–"+inf.ga+".";
@@ -23187,9 +23193,9 @@ function cmBarHTML(ri,mi,inf){var rd=inf.rd,m=inf.m,teams=fbLeague.teams,hn=team
   else if(dm.share>0.68)idle=cmPick([hn+" baskıyı artırdı, top rakip yarı sahada.",hn+" üstün oynuyor, "+an+" savunmada kaldı.",hn+" sürekli atakta."],ri+"|"+mi+"|"+Math.floor(inf.min/3));
   else if(dm.share<0.32)idle=cmPick([an+" baskıyı artırdı, top rakip yarı sahada.",an+" üstün oynuyor, "+hn+" savunmada kaldı.",an+" sürekli atakta."],ri+"|"+mi+"|"+Math.floor(inf.min/3));
   else idle=cmPick(["Oyun dengede, iki takım da pozisyon arıyor.","Karşılıklı atak var, maç açık.","Orta sahada denge sürüyor."],ri+"|"+mi+"|"+Math.floor(inf.min/3));
-  var top=fresh?{t:last.t,k:last.k,team:last.team}:{t:idle,k:"idle"};var cmNew=CM_LAST[ri+"_"+mi]!==top.t;CM_LAST[ri+"_"+mi]=top.t;
+  var top=fresh?{t:last.t,k:last.k,team:last.team}:{t:idle,k:"idle"};var cmNew=CM_LAST[ri+"_"+mi+(sm?"s":"")]!==top.t;CM_LAST[ri+"_"+mi+(sm?"s":"")]=top.t;
   var ICON={goal:"⚽",chance:"🎯",big:"🔥",pen:"🥅",red:"🟥",var:"📺",idle:""};
-  var h='<div class="cmBar cm-'+top.k+(flash?' cmFlash':'')+'"><span class="cmTx'+(cmNew?' cmNew':'')+'">'+(top.k==="idle"?'':'<b class="cmMin">'+displayMinute(last.min,inf.add1,m.etFrom)+'</b> ')+(ICON[top.k]?ICON[top.k]+' ':'')+esc(top.t)+'</span></div>';
+  var h='<div class="cmBar cm-'+top.k+(flash?' cmFlash':'')+(sm?' cmSm':'')+'"><span class="cmTx'+(cmNew?' cmNew':'')+'">'+(top.k==="idle"?'':'<b class="cmMin">'+displayMinute(last.min,inf.add1,m.etFrom)+'</b> ')+(ICON[top.k]?ICON[top.k]+' ':'')+esc(top.t)+'</span></div>';
   return h}
 function vMatchDetail(ri,mi){var rd=leagueRounds()[ri];if(!rd||!rd.matches[mi]){UI.md=null;return vMatches()}
   var m=rd.matches[mi],teams=fbLeague.teams,inf=liveInfo(ri,mi),hn=teams[m.home].name,an=teams[m.away].name,ha=teamAcc(m.home),aa=teamAcc(m.away);
@@ -23955,5 +23961,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v67 · 24.10 20:55</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v68 · 24.10 21:38</div></body>
 </html>
