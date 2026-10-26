@@ -20711,8 +20711,12 @@ function adminIncomeTick(){
   fbDb.ref("budgets/"+currentSeason).once("value").then(function(bs){var bv=bs.val()||{},upd={},inc,teams=fbLeague.teams;
     if(idx>=0){inc=roundIncome(idx);upd["leagues/"+currentSeason+"/rounds/"+idx+"/paid"]=true}
     else{inc=fbLeague.champion.prizes;upd["leagues/"+currentSeason+"/champion/paid"]=true;upd["history/"+currentSeason+"/paid"]=true}
-    var taxes={};
+    var taxes={},bons={};
+    if(champPay){var stB=computeStats(fbLeague),rg=stB.rawGoals||{},ra=stB.rawAssists||{};
+      Object.keys(teams).forEach(function(u){var c=0,ds=[];(teams[u].roster||[]).forEach(function(p){if(!(p.bg||p.ba))return;var g=(rg[p.id]&&rg[p.id].n)||0,a=(ra[p.id]&&ra[p.id].n)||0,x=(g*(p.bg||0)+a*(p.ba||0))*1000;if(x>0){c+=x;ds.push(p.n+" "+g+"G "+a+"A")}});
+        if(c>0){bons[u]=c;upd["leagues/"+currentSeason+"/champion/bonus/"+u]=c;txPush(upd,currentSeason,u,"Gol/asist primleri",ds.join(" · "),-c,Date.now())}})}
     Object.keys(inc).forEach(function(u){if(!teams[u])return;var cur=(bv[u]!==undefined&&bv[u]!==null)?bv[u]:START_BUDGET,nb=cur+inc[u];
+      if(champPay&&bons[u])nb-=bons[u];
       if(champPay){var tx=taxOf(nb);if(tx>0){taxes[u]=tx;nb-=tx;upd["leagues/"+currentSeason+"/champion/tax/"+u]=tx}}
       upd["budgets/"+currentSeason+"/"+u]=nb});
     return fbDb.ref().update(upd).then(function(){var ks=Object.keys(taxes);if(ks.length)pushNews({type:"vergi",title:"💸 Gelir vergisi",body:"Sezon sonu bakiyesi 50 M€ üstünde olan kulüplerden gelir vergisi kesildi (50–80 M€ %20, 80–120 M€ %23, 120 M€ üstü %26):\n"+ks.map(function(u){return "• "+teams[u].name+": −"+fmtM(taxes[u])}).join("\n")},"son_vergi")})}).then(function(){betBusy=false}).catch(function(e){betBusy=false;fbBadge("Gelirler yazılamadı (Rules hatası): "+e.message)})}
@@ -22126,6 +22130,8 @@ function faDecide(e,c0){var s=0.5,pn=e.pn;
 function faEntry(p,from,src,pf,pn){var f=(pf===undefined)?perfOf(p):{pf:pf,pn:pn},e={n:p.n,m:p.m,l:p.l||"",r:p.r,pn:f.pn||0,from:from||"",src:src||"",tot:0,ak:Math.round((0.30+Math.random()*0.15)*1000)/1000,at:Date.now()};
   if(f.pf!=null)e.pf=Math.round(f.pf*100)/100;return faDecide(e,faCompleted())}
 function faKey(p){return pkey(p)}
+var BON_POS=["ST","SLK","SGK","OOS","OS"],BON_MAX=20;
+function faBonusAsk(e){if(BON_POS.indexOf(e.m)<0)return null;var h=0,k=e.n+"|"+e.m;for(var i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))>>>0;return {g:1+h%10,a:1+((h>>>7)%10)}}
 function faDesired(e,c,N){var c0=e.c0||0,den=Math.max(1,N-c0);return Math.round((e.tgt||0)*Math.max(0,Math.min(1,(c-c0)/den)))}
 /* yonetici: her hafta serbest oyuncularin reytingini kararlastirilan hedefe dogru yurutur */
 function adminFaTick(){
@@ -22229,13 +22235,14 @@ function adminMarketTick(){
   }).catch(function(e){mkBusy=false;fbBadge("Transfer uygulanamadı (Rules hatası): "+e.message)})}
 setInterval(adminMarketTick,4000);
 /* ---- serbest oyuncu teklifi (haftalik, gizli) ---- */
-function faBidSubmit(key,amtM,outId){var e=fbFaPool[key];if(!e||!signedIn||!fbDb||!fbLeague)return;var t=fbLeague.teams[myUid];if(!t)return;
+function faBidSubmit(key,amtM,outId,bg,ba){var e=fbFaPool[key];if(!e||!signedIn||!fbDb||!fbLeague)return;var t=fbLeague.teams[myUid];if(!t)return;
   var ni=nextRoundIdx();if(ni<0||roundStarted(ni)){msgBox("Bu haftanın maçları başladı, teklif süresi doldu.");return}
   var amt=Math.round(amtM*10)*1e5,ask=faAsk(e);
   if(amt<ask){msgBox("Teklif imza parasının ("+fmtM(ask)+") altında olamaz.");return}
   if(amt>availOf(myUid)){msgBox("Bakiyen yetersiz. Kullanılabilir: "+fmtM(availOf(myUid)));return}
   var chk=mkBuyerCheck(myUid,t,e.m,outId);if(chk){msgBox(chk);return}
-  fbDb.ref("fa/bids/"+currentSeason+"/"+myUid+"/"+key).set({bid:amt,outId:outId||null,ask:ask,at:Date.now(),idx:ni,n:e.n,m:e.m,r:e.r}).catch(function(er){fbBadge("Teklif kaydedilemedi (Rules hatası): "+er.message)})}
+  var bq=faBonusAsk(e),bo={};if(bq){bg=Math.round(+bg||0);ba=Math.round(+ba||0);if(bg<bq.g||ba<bq.a){msgBox("Gol ve asist primi oyuncunun talebinin altında olamaz.");return}if(bg>BON_MAX||ba>BON_MAX){msgBox("Prim en fazla "+BON_MAX+" bin € olabilir.");return}bo={bg:bg,ba:ba}}
+  fbDb.ref("fa/bids/"+currentSeason+"/"+myUid+"/"+key).set({bg:bo.bg||null,ba:bo.ba||null,bid:amt,outId:outId||null,ask:ask,at:Date.now(),idx:ni,n:e.n,m:e.m,r:e.r}).catch(function(er){fbBadge("Teklif kaydedilemedi (Rules hatası): "+er.message)})}
 function faBidWithdraw(key){var ni=nextRoundIdx();if(ni>=0&&roundStarted(ni)){msgBox("Bu haftanın maçları başladı, teklif geri çekilemez.");return}fbDb.ref("fa/bids/"+currentSeason+"/"+myUid+"/"+key).set(null).catch(function(){})}
 var faResolving={};
 function adminFaResolveTick(){
@@ -22248,12 +22255,12 @@ function adminFaResolveTick(){
     Object.keys(all).forEach(function(u){if(!T[u])return;Object.keys(all[u]||{}).forEach(function(k){var b=all[u][k];if(!b||!(b.idx<=idx))return;(byKey[k]=byKey[k]||[]).push({uid:u,b:b})})});
     var W=mkWork(),upd={},lines=[],used={},now=Date.now();
     shuffle(Object.keys(byKey)).forEach(function(k){var e=fbFaPool[k];if(!e)return;
-      var cs=byKey[k].map(function(x){return {uid:x.uid,b:x.b,sc:x.b.bid/(inCL(x.uid)?0.9:1)}}).sort(function(a,b){return b.sc-a.sc||(a.b.at||0)-(b.b.at||0)});
+      var cs=byKey[k].map(function(x){return {uid:x.uid,b:x.b,sc:(x.b.bid+10*1000*((x.b.bg||0)+(x.b.ba||0)))/(inCL(x.uid)?0.9:1)}}).sort(function(a,b){return b.sc-a.sc||(a.b.at||0)-(b.b.at||0)});
       for(var q=0;q<cs.length;q++){var c=cs[q],u=c.uid,t=wTeam(W,u),ro=t.roster||[],bid=Math.round(c.b.bid),ask=Math.min(c.b.ask||0,faAsk(e)+0);
         if(bid<(c.b.ask||0))continue;
         if(bid>bud[u]-reservedOf(u))continue;
         var out=null;if(openAt(ro,e.m)<=0){out=ro.filter(function(x){return x.id===c.b.outId&&!used[x.id]})[0];if(!out||out.m!==e.m||isIcon(u,out))continue}
-        var np={id:mkNewId(u),n:e.n,m:e.m,l:e.l||"",r:e.r};
+        var np={id:mkNewId(u),n:e.n,m:e.m,l:e.l||"",r:e.r};if(c.b.bg||c.b.ba){np.bg=c.b.bg||0;np.ba=c.b.ba||0}
         rosterChange(W,upd,S,u,out,np,e.from||"serbest");if(out)used[out.id]=1;
         bud[u]-=bid;upd["budgets/"+S+"/"+u]=bud[u];upd["fa/pool/"+k]=null;
         if(out)upd["fa/pool/"+faKey(out)]=faEntry(out,t.name,"bırakılan");
@@ -22266,28 +22273,76 @@ function adminFaResolveTick(){
 setInterval(adminFaResolveTick,5000);
 /* ---- arayuz ---- */
 var MKCSS2=false;
-function mkCss2(){if(MKCSS2)return;MKCSS2=true;var s=document.createElement("style");s.textContent=
+function mkCss2(){if(MKCSS2)return;MKCSS2=true;try{var lk=document.createElement("link");lk.rel="stylesheet";lk.href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Caveat:wght@600&family=Mrs+Saint+Delafield&display=swap";document.head.appendChild(lk)}catch(e){}var s=document.createElement("style");s.textContent=
 ".mkRow{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;border:1px solid var(--bd);background:var(--card);margin-bottom:8px}.mkRow .rb{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font:900 14px Inter;color:#0b1017;flex:none}.mkRow .mid{flex:1;min-width:0}.mkRow .mid b{display:block;font:800 14px Inter;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mkRow .mid span{font:600 11.5px Inter;color:var(--mut)}.mkRow .rt{text-align:right;font:800 13px Inter;white-space:nowrap}.mkRow .rt small{display:block;font:600 11px Inter;color:var(--mut)}"+
+".mkRow.plLink,.mkRow.plLink *{text-decoration:none!important}.sheet .in.mkPaper{background:#e3e6ea;color:#14181d;border:7px solid #14171b;border-radius:10px 10px 0 0;padding:14px 16px 18px;max-height:94vh;overflow-y:auto;font-family:'Barlow Condensed','Oswald','Arial Narrow',sans-serif}.mkPaper *{font-family:inherit}.cHead{display:flex;align-items:center;gap:14px;border-bottom:2px solid #14181d;padding-bottom:10px}.cHead .hex{width:62px;height:70px;background:#fff;clip-path:polygon(50% 0,100% 22%,100% 78%,50% 100%,0 78%,0 22%);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none}.cHead .hex b{font:700 26px/1 'Barlow Condensed',sans-serif}.cHead .hex small{font:600 12px/1 'Barlow Condensed',sans-serif;color:#555;margin-top:2px}.cHead h3{margin:0;font:700 25px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;text-transform:uppercase}.cHead .ti span{font:600 17px 'Barlow Condensed',sans-serif;color:#444}.cCom{margin:12px 0 10px;border-top:1px solid #9aa0a8}.cCom small{display:block;font:600 14px 'Barlow Condensed',sans-serif;color:#333;margin:6px 0 2px}.cCom p{margin:0;font:500 17px/1.3 'Barlow Condensed',sans-serif}.cBud{display:flex;gap:10px;background:#d4d8dd;border:1px solid #bcc1c8;padding:8px 10px;margin-bottom:10px}.cBud>div{flex:1}.cBud span{display:block;font:500 14px 'Barlow Condensed',sans-serif;color:#444}.cBud b{font:700 19px 'Barlow Condensed',sans-serif}.cTh{display:grid;grid-template-columns:96px 1fr 1.25fr;gap:6px;font:600 13px 'Barlow Condensed',sans-serif;color:#555;padding:0 8px 3px;text-transform:uppercase;letter-spacing:.04em}.cRow{display:grid;grid-template-columns:96px 1fr 1.25fr;gap:6px;align-items:center;padding:7px 8px;border-top:1px solid #aab0b7;cursor:pointer}.cRow:last-of-type{border-bottom:1px solid #aab0b7}.cRow b{font:700 18px 'Barlow Condensed',sans-serif}.cRow .rq{font:600 18px 'Barlow Condensed',sans-serif;color:#444}.cRow .of{display:flex;align-items:center;justify-content:space-between;gap:4px}.cRow .of button{border:0;background:#14181d;color:#fff;width:30px;height:30px;font:700 12px sans-serif;cursor:pointer}.cRow .of em{font:700 21px 'Barlow Condensed',sans-serif;font-style:normal}.cRow .of em i{font:600 13px 'Barlow Condensed',sans-serif;font-style:normal;color:#555}.cRow.on{background:#ffd60a}.cRow.on .rq,.cRow.on .of em i{color:#222}.cQ{display:flex;gap:6px;padding:6px 8px;background:#f2e08a}.cQ button{flex:1;border:1px solid #14181d;background:transparent;font:700 14px 'Barlow Condensed',sans-serif;padding:5px 0;cursor:pointer;color:#14181d}.cSc{display:flex;justify-content:space-between;align-items:center;padding:8px;border-top:1px solid #aab0b7;font:600 16px 'Barlow Condensed',sans-serif}.cSc small{display:block;font:500 12px 'Barlow Condensed',sans-serif;color:#555}.cSc b{font:700 20px 'Barlow Condensed',sans-serif}.cOut{display:flex;justify-content:space-between;gap:8px;padding:8px;border-top:1px solid #aab0b7;border-bottom:1px solid #aab0b7;font:600 16px 'Barlow Condensed',sans-serif}.cOut span{color:#444;text-align:right}.cList{max-height:150px;overflow-y:auto;margin:4px 0}.cc{display:flex;align-items:center;gap:10px;padding:6px 8px;cursor:pointer;font:600 17px 'Barlow Condensed',sans-serif}.cc span{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#fff;font:700 14px 'Barlow Condensed',sans-serif}.cc b{flex:1;font-weight:600}.cc.on{background:#ffd60a}.cc.off{opacity:.4;cursor:default}.cGo{display:block;margin:14px auto 4px;background:#14181d;color:#fff;border:0;padding:11px 34px;font:700 19px 'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}.cGo.dim{opacity:.5}.signing .cSv path{animation:cPen 1.5s ease-in-out forwards}.signing .cGo{opacity:.4;pointer-events:none}@keyframes cSign{from{clip-path:inset(-10% 100% -10% 0)}to{clip-path:inset(-10% 0 -10% 0)}}@keyframes cPen{to{stroke-dashoffset:0}}.cSig>div{position:relative}.cPen{position:absolute;left:0;bottom:16px;width:100%;height:30px;pointer-events:none}.cPen path{fill:none;stroke:#14181d;stroke-width:1.8;stroke-linecap:round;stroke-dasharray:420;stroke-dashoffset:420}.cSig .sgn{}.cSig{display:flex;gap:26px;margin-top:14px}.cSig>div{flex:1;text-align:center;border-bottom:0}.cSig i.ln{display:block;height:0;border-bottom:1px solid #14181d;margin-top:46px;min-height:0;line-height:0;transform:none}.cSv{position:absolute;left:0;top:0;width:100%;height:52px;pointer-events:none;overflow:visible}.cSv path{fill:none;stroke:#14181d;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}.cSig span{font:600 14px 'Barlow Condensed',sans-serif;white-space:nowrap}.cSig{gap:14px}.mkSh{padding-bottom:22px}.mkSec{font:800 13px Inter;margin:14px 2px 8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.mkSec small{font:600 11px Inter;color:var(--mut)}.mkHero .pos.fr{margin-left:6px;background:transparent;padding-left:0;color:var(--mut);font-weight:600}.mkBn{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:var(--card2);margin-bottom:6px}.mkBn>div{flex:1;min-width:0}.mkBn b{display:block;font:800 14px Inter}.mkBn small{font:600 11px Inter;color:var(--mut)}.mkBn button{width:36px;height:36px;border-radius:11px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:700 20px Inter;cursor:pointer}.mkBn span{min-width:70px;text-align:center;font:900 18px Inter}.mkBn span i{font:600 11px Inter;font-style:normal;color:var(--mut)}.mkScore{display:flex;justify-content:space-between;align-items:center;margin:8px 0 2px;padding:10px 12px;border-radius:12px;border:1px dashed var(--bd);font:700 13px Inter}.mkScore small{display:block;font:600 10.5px Inter;color:var(--mut)}.mkScore b{font:900 17px Inter}.mkCt{max-height:92vh;overflow-y:auto;border-top:3px solid var(--ac)}.mkSign{display:flex;align-items:flex-end;gap:10px;margin:16px 2px 12px;font:600 12px Inter;color:var(--mut)}.mkSign i{flex:1;border-bottom:1px solid var(--mut);padding:0 4px 2px;font:italic 400 19px Georgia,serif;color:var(--tx)}.mkHero{display:flex;align-items:center;gap:14px;margin:4px 0 14px}.mkSh .rb{background:#fff;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:900 13px Inter;color:#0b1017;flex:none}.mkSh .rb.big{width:64px;height:64px;font-size:26px;box-shadow:0 6px 18px rgba(0,0,0,.35)}.mkHero .hm{min-width:0}.mkHero small{display:block;font:700 11.5px Inter;color:var(--mut)}.mkHero .hm b{display:block;font:800 21px/1.15 Inter;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mkHero .pos{display:inline-block;margin-top:5px;font:800 11.5px Inter;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.09)}"+
+".mkFacts{display:flex;gap:8px;margin-bottom:14px}.mkFacts div{flex:1;background:var(--card2);border-radius:12px;padding:9px 11px}.mkFacts small{display:block;font:600 11px Inter;color:var(--mut)}.mkFacts b{font:800 15px Inter}"+
+".mkAmt{display:flex;align-items:center;gap:10px;margin-bottom:8px}.mkAmt button{width:52px;height:52px;border-radius:16px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:700 26px Inter;cursor:pointer}.mkAmt>div{flex:1;text-align:center}.mkAmt small{display:block;font:600 11.5px Inter;color:var(--mut)}.mkAmt b{font:900 38px/1.1 Inter;letter-spacing:-.04em}.mkAmt b i{font:700 18px Inter;color:var(--mut);font-style:normal}"+
+".mkQ{display:flex;gap:6px;margin-bottom:14px}.mkQ button{flex:1;padding:9px 0;border-radius:11px;border:1px solid var(--bd);background:transparent;color:var(--tx);font:700 12.5px Inter;cursor:pointer}"+
+".mkLb{font:700 12.5px Inter;color:var(--mut);margin:2px 2px 8px}.mkNote{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--card2);font:600 13px Inter;color:var(--mut)}.mkOuts{max-height:210px;overflow-y:auto;margin-bottom:12px}.mkOut{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid var(--bd);background:var(--card);margin-bottom:6px;cursor:pointer}.mkOut b{flex:1;font:700 14px Inter;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mkOut.on{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 13%,var(--card))}.mkOut.off{opacity:.4;cursor:default}.mkOut .ck{font:900 15px Inter;color:var(--ac);font-style:normal;width:16px;text-align:right}.mkOut .rg{display:grid;place-items:center;border-radius:50%;color:#0b1017;flex:none}"+
+".mkLeft{display:flex;justify-content:space-between;align-items:center;padding:12px 2px 0;font:600 13.5px Inter;color:var(--mut)}.mkLeft b{font:800 16px Inter}"+
 ".mkOf{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-top:6px;border-radius:12px;background:var(--card2);font:700 13px Inter}.mkOf span{flex:1;min-width:0}.mkOf button,.mkBtn{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:7px 12px;font:800 12.5px Inter;cursor:pointer}.mkOf button.ok,.mkBtn.ok{background:var(--win);color:#06140d;border-color:var(--win)}";
   document.head.appendChild(s)}
-function mkRowHTML(p,mid2,rt,rt2,act){return '<div class="mkRow"><span class="rb '+rbCls(p.r)+'">'+p.r+'</span><div class="mid"><b>'+esc(p.n)+'</b><span>'+esc(p.m)+(p.l?' · '+esc(p.l):'')+(mid2?' · '+mid2:'')+'</span></div><div class="rt">'+rt+(rt2?'<small>'+rt2+'</small>':'')+'</div>'+(act||'')+'</div>'}
-function openMkSheet(cfg){var mine=fbLeague.teams[myUid],ro=mine.roster||[],open=openAt(ro,cfg.p.m)>0,bid=cfg.amt,out=cfg.out||"",cands=ro.filter(function(x){return x.m===cfg.p.m});
+function mkRowHTML(p,mid2,rt,rt2,act,posOnly){return '<div class="mkRow'+(posOnly?' plLink" data-pn="'+esc(p.n)+'" style="cursor:pointer':'')+'"><span class="rb '+rbCls(p.r)+'">'+p.r+'</span><div class="mid"><b>'+(posOnly?esc(p.n):plLink(p.n))+'</b><span>'+esc(p.m)+(posOnly?'':(p.l?' · '+esc(p.l):'')+(mid2?' · '+mid2:''))+'</span></div><div class="rt">'+rt+(rt2?'<small>'+rt2+'</small>':'')+'</div>'+(act||'')+'</div>'}
+function openMkSheet(cfg){var mine=fbLeague.teams[myUid],ro=mine.roster||[],open=openAt(ro,cfg.p.m)>0,bid=cfg.amt,out=cfg.out||"",cands=ro.filter(function(x){return x.m===cfg.p.m}).sort(function(a,b){return b.r-a.r}),bq=cfg.bq||null,bg=bq?bq.g:0,ba=bq?bq.a:0;
   var sh=document.createElement("div");sh.className="sheet";document.body.appendChild(sh);var first=true;
   function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
-  function draw(){var left=availOf(myUid)-bid*1e6;
-    sh.innerHTML='<div class="in"'+(first?'':' style="animation:none"')+'><div class="grab"></div><div style="display:flex;align-items:baseline;gap:10px"><h2 style="margin:0;font-size:22px">'+esc(cfg.title)+'</h2><span style="color:var(--mut);font-size:13px">'+esc(cfg.p.n)+' · '+cfg.p.m+' '+cfg.p.r+'</span></div>'+
-      '<p class="slot" style="margin:8px 0 0">'+cfg.info+'</p>'+
-      '<div class="step"><button id="bm">−</button><div class="v">'+String(Math.round(bid*10)/10).replace(".",",")+'<span style="font-size:20px;color:var(--mut)"> M€</span></div><button id="bp">+</button></div>'+
-      '<div class="chips"><button data-a="-1">−1 M€</button><button data-a="-0.1">−0,1</button><button data-a="0.1">+0,1</button><button data-a="1">+1 M€</button></div>'+
-      (open?'<p class="slot" style="margin:6px 2px">'+cfg.p.m+' mevkisinde boş yerin var, oyuncu bırakman gerekmiyor.</p>':
-        '<div style="color:var(--mut);font-size:13px;margin-bottom:8px">Bırakacağın oyuncu ('+cfg.p.m+')</div>'+cands.map(function(x){var ico=isIcon(myUid,x);return '<div class="cand'+(out===x.id?' on':'')+(ico?' off':'')+'" data-o="'+x.id+'"'+(ico?' data-ico="1"':'')+'><span class="rb '+rbCls(x.r)+'" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 13px Inter;color:#0b1017">'+x.r+'</span><span style="font-weight:700">'+esc(x.n)+(ico?' ⭐':'')+'</span></div>'}).join(""))+
-      '<div style="display:flex;justify-content:space-between;margin:12px 2px 0;font-size:13.5px"><span style="color:var(--mut)">'+esc(cfg.leftLabel)+'</span><b style="color:'+(left<0?'var(--loss)':'var(--tx)')+'">'+fmtM(Math.max(left,0))+(left<0?' (yetersiz)':'')+'</b></div>'+
-      '<button class="btn" id="bSend">'+esc(cfg.btn)+'</button></div>';
+  function fm(v){return String(Math.round(v*10)/10).replace(".",",")}
+  function bonRow(id,lab,v,ask){return '<div class="mkBn"><div><b>'+lab+'</b><small>Talep '+ask+' bin € · en fazla '+BON_MAX+'</small></div><button data-b="'+id+'-" aria-label="Azalt">−</button><span>'+v+'<i> bin €</i></span><button data-b="'+id+'+" aria-label="Artır">+</button></div>'}
+  function draw(){var left=availOf(myUid)-bid*1e6,outP=cands.filter(function(x){return x.id===out})[0];
+    var score=bid+(bq?(bg+ba)*10*1000/1e6:0);
+    sh.innerHTML='<div class="in mkSh'+(cfg.contract?' mkCt':'')+'"'+(first?'':' style="animation:none"')+'><div class="grab"></div>'+
+      '<div class="mkHero"><span class="rb big '+rbCls(cfg.p.r)+'">'+cfg.p.r+'</span><div class="hm"><small>'+esc(cfg.title)+'</small><b>'+esc(cfg.p.n)+'</b><span class="pos">'+esc(cfg.p.m)+'</span>'+(cfg.from?'<span class="pos fr">Eski takım: '+esc(cfg.from)+'</span>':'')+'</div></div>'+
+      '<div class="mkFacts">'+cfg.facts.map(function(f){return '<div><small>'+esc(f[0])+'</small><b>'+esc(f[1])+'</b></div>'}).join("")+'</div>'+
+      (bq?'<div class="mkFacts"><div><small>Gol primi talebi</small><b>'+bq.g+' bin €</b></div><div><small>Asist primi talebi</small><b>'+bq.a+' bin €</b></div></div>':'')+
+      '<div class="mkSec">'+(cfg.contract?'İmza parası':'Teklif')+'</div>'+
+      '<div class="mkAmt"><button id="bm" aria-label="Azalt">−</button><div><small>Teklifin</small><b>'+fm(bid)+'<i> M€</i></b></div><button id="bp" aria-label="Artır">+</button></div>'+
+      '<div class="mkQ"><button data-a="-1">−1</button><button data-a="-0.1">−0,1</button><button data-set="'+cfg.amt+'">'+esc(cfg.setLabel||"Başlangıç")+'</button><button data-a="0.1">+0,1</button><button data-a="1">+1</button></div>'+
+      (bq?'<div class="mkSec">Performans primi <small>sezon sonu, gol ve asist sayısına göre tek seferde bakiyenden düşer</small></div>'+bonRow("g","Gol başına",bg,bq.g)+bonRow("a","Asist başına",ba,bq.a)+'<div class="mkScore"><span>Teklif puanı <small>imza + 10 × (gol primi + asist primi)</small></span><b>'+fm(Math.round(score*100)/100).replace(/^(\d+)$/,"$1")+' M€</b></div>':'')+
+      (open?'<div class="mkNote">'+esc(cfg.p.m)+' mevkisinde boş yerin var, oyuncu bırakman gerekmiyor.</div>':
+        '<div class="mkSec">Bırakacağın oyuncu <small>'+esc(cfg.p.m)+'</small></div><div class="mkOuts">'+cands.map(function(x){var ico=isIcon(myUid,x);return '<div class="mkOut'+(out===x.id?' on':'')+(ico?' off':'')+'" data-o="'+x.id+'"'+(ico?' data-ico="1"':'')+'><span class="rb '+rbCls(x.r)+'">'+x.r+'</span><b>'+esc(x.n)+(ico?' ⭐':'')+'</b><i class="ck">'+(out===x.id?'✓':'')+'</i></div>'}).join("")+'</div>')+
+      '<div class="mkLeft"><span>'+esc(cfg.leftLabel)+'</span><b style="color:'+(left<0?'var(--loss)':'var(--tx)')+'">'+fmtM(Math.max(left,0))+(left<0?' · yetersiz':'')+'</b></div>'+
+      (cfg.contract?'<div class="mkSign"><span>İmza</span><i>'+esc(mine.name||"")+'</i></div>':'')+
+      '<button class="btn" id="bSend"'+((!open&&!outP)||left<0?' style="opacity:.55"':'')+'>'+esc(cfg.btn)+'</button></div>';
     sh.querySelector("#bm").onclick=function(){bid=Math.max(0,Math.round((bid-0.1)*10)/10);draw()};sh.querySelector("#bp").onclick=function(){bid=Math.round((bid+0.1)*10)/10;draw()};
-    Array.prototype.forEach.call(sh.querySelectorAll(".chips button"),function(b){b.onclick=function(){bid=Math.max(0,Math.round((bid+(+b.dataset.a))*10)/10);draw()}});
-    Array.prototype.forEach.call(sh.querySelectorAll(".cand"),function(c){c.onclick=function(){if(c.dataset.ico)return;out=c.dataset.o;draw()}});
-    sh.querySelector("#bSend").onclick=function(){cfg.onSend(bid,open?"":out);close()};
+    Array.prototype.forEach.call(sh.querySelectorAll(".mkQ button"),function(b){b.onclick=function(){if(b.dataset.set!==undefined)bid=+b.dataset.set;else bid=Math.max(0,Math.round((bid+(+b.dataset.a))*10)/10);draw()}});
+    Array.prototype.forEach.call(sh.querySelectorAll("[data-b]"),function(b){b.onclick=function(){var k=b.dataset.b,d=k.charAt(1)==="+"?1:-1;if(k.charAt(0)==="g")bg=Math.max(bq.g,Math.min(BON_MAX,bg+d));else ba=Math.max(bq.a,Math.min(BON_MAX,ba+d));draw()}});
+    Array.prototype.forEach.call(sh.querySelectorAll(".mkOut"),function(c){c.onclick=function(){if(c.dataset.ico)return;out=c.dataset.o;draw()}});
+    sh.querySelector("#bSend").onclick=function(){cfg.onSend(bid,open?"":out,bg,ba);close()};
     sh.onclick=function(ev){if(ev.target===sh)close()};first=false}
+  draw()}
+function sigPath(name){var h=5381,k=String(name||"x");for(var i=0;i<k.length;i++)h=((h<<5)+h+k.charCodeAt(i))>>>0;function r(){h=(h*1664525+1013904223)>>>0;return h/4294967296}
+  var d="M8 46 C4 20,22 4,30 10 C38 18,16 44,12 50 C22 36,34 24,42 30 C34 40,52 44,60 30",x=60,n=3+Math.floor(r()*3);
+  for(var j=0;j<n;j++){var nx=x+16+r()*18,y1=8+r()*28,y2=24+r()*26;d+=" C"+(x+6)+" "+y1+","+(nx-8)+" "+y2+","+nx+" "+(26+r()*14);x=nx}
+  d+=" C"+(x+14)+" 18,"+(x+24)+" 40,194 22 M20 52 C70 58,120 50,176 52";return d}
+function openContractSheet(cfg){var mine=fbLeague.teams[myUid],mgr=(typeof myName==="string"&&myName&&myName.indexOf("@")<0?myName:"")||mine.ownerName||(fbSquads[myUid]&&fbSquads[myUid].name)||mine.name||"",signing=false,ro=mine.roster||[],p=cfg.p,open=openAt(ro,p.m)>0,ask=cfg.amt,bid=ask,bq=cfg.bq||null,bg=bq?bq.g:0,ba=bq?bq.a:0,out="",foc="i",
+    cands=ro.filter(function(x){return x.m===p.m}).sort(function(a,b){return b.r-a.r});
+  var sh=document.createElement("div");sh.className="sheet";document.body.appendChild(sh);var first=true;
+  function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
+  function fm(v){return String(Math.round(v*10)/10).replace(".",",")}
+  function row(id,lab,req,mid,unit){return '<div class="cRow'+(foc===id?' on':'')+'" data-f="'+id+'"><b>'+lab+'</b><span class="rq">'+req+'</span><div class="of"><button data-b="'+id+'-" aria-label="Azalt">◀</button><em>'+mid+'<i>'+unit+'</i></em><button data-b="'+id+'+" aria-label="Artır">▶</button></div></div>'}
+  function draw(){var left=availOf(myUid)-bid*1e6,outP=cands.filter(function(x){return x.id===out})[0],score=bid+(bq?(bg+ba)*10*1000/1e6:0),mv=fmtM(mvOf(p)),ok=(open||outP)&&left>=0;
+    var note=esc(p.n)+(cfg.from?' ('+esc(cfg.from)+' takımından serbest kaldı)':' şu an serbest oyuncu')+'. Piyasa değeri yaklaşık <b>'+mv+'</b>. İmza parası olarak <b>'+fmtM(ask*1e6)+'</b>'+(bq?', gol başına <b>'+bq.g+' bin €</b>, asist başına <b>'+bq.a+' bin €</b> prim'+'':'')+' bekliyor. Teklifler hafta bitince sonuçlanır; en yüksek teklif kazanır.';
+    sh.innerHTML='<div class="in mkPaper"'+(first?'':' style="animation:none"')+'>'+
+      '<div class="cHead"><div class="hex"><b>'+p.r+'</b><small>'+esc(p.m)+'</small></div><div class="ti"><h3>Sözleşme teklifi</h3><span>'+esc(p.n)+'</span></div></div>'+
+      '<div class="cCom"><small>Menajer notu:</small><p>'+note+'</p></div>'+
+      '<div class="cBud"><div><span>Kalan bakiye</span><b style="color:'+(left<0?'#b3261e':'inherit')+'">'+(left<0?'yetersiz':fmtM(left))+'</b></div><div><span>Kullanılabilir</span><b>'+fmtM(availOf(myUid))+'</b></div></div>'+
+      '<div class="cTh"><span></span><span>Oyuncunun talebi</span><span>Teklifimiz</span></div>'+
+      row("i","İmza parası",fmtM(ask*1e6),fm(bid),' M€')+
+      (bq?row("g","Gol primi",bq.g+' bin €',bg,' bin €')+row("a","Asist primi",bq.a+' bin €',ba,' bin €'):'')+
+      (foc==="i"?'<div class="cQ"><button data-a="-1">−1</button><button data-set="1">Talebe dön</button><button data-a="1">+1</button></div>':'')+
+            (open?'<div class="cOut"><b>Bırakılacak oyuncu:</b><span>Gerekmiyor, '+esc(p.m)+' mevkisinde boş yer var</span></div>':'<div class="cOut"><b>Bırakılacak oyuncu ('+esc(p.m)+'):</b><span>'+(outP?esc(outP.n)+' · '+outP.r:'Seç')+'</span></div><div class="cList">'+cands.map(function(x){var ico=isIcon(myUid,x);return '<div class="cc'+(out===x.id?' on':'')+(ico?' off':'')+'" data-o="'+x.id+'"'+(ico?' data-ico="1"':'')+'><span>'+x.r+'</span><b>'+esc(x.n)+(ico?' ⭐':'')+'</b><i>'+(out===x.id?'✓':'')+'</i></div>'}).join("")+'</div>')+
+      '<button class="cGo'+(ok?'':' dim')+'" id="bSend">Teklifi gönder</button>'+
+      '<div class="cSig"><div><svg class="cSv" viewBox="0 0 200 60" preserveAspectRatio="none"><path pathLength="1" d="'+sigPath(mgr)+'"/></svg><i class="ln"></i><span>Menajer: '+esc(mgr)+'</span></div><div><i class="ln"></i><span>Oyuncu</span></div></div></div>';
+    function setB(k){var d=k.charAt(1)==="+"?1:-1,id=k.charAt(0);foc=id;if(id==="i")bid=Math.max(ask,Math.round((bid+d*0.1)*10)/10);else if(id==="g")bg=Math.max(bq.g,Math.min(BON_MAX,bg+d));else ba=Math.max(bq.a,Math.min(BON_MAX,ba+d));draw()}
+    Array.prototype.forEach.call(sh.querySelectorAll("[data-b]"),function(b){b.onclick=function(ev){ev.stopPropagation();setB(b.dataset.b)}});
+    Array.prototype.forEach.call(sh.querySelectorAll(".cRow"),function(r){r.onclick=function(){foc=r.dataset.f;draw()}});
+    Array.prototype.forEach.call(sh.querySelectorAll(".cQ button"),function(b){b.onclick=function(){if(b.dataset.set!==undefined)bid=ask;else bid=Math.max(ask,Math.round((bid+(+b.dataset.a))*10)/10);draw()}});
+    Array.prototype.forEach.call(sh.querySelectorAll(".cc"),function(c){c.onclick=function(){if(c.dataset.ico)return;out=c.dataset.o;draw()}});
+    sh.querySelector("#bSend").onclick=function(){if(signing)return;if(!ok){var inn=sh.querySelector(".mkPaper");if(inn)inn.scrollTop=inn.scrollHeight;return}
+      signing=true;var inn=sh.querySelector(".mkPaper");sh.classList.add("signing");if(inn)inn.scrollTop=inn.scrollHeight;
+      setTimeout(function(){cfg.onSend(bid,open?"":out,bg,ba);close()},2100)};
+    sh.onclick=function(ev){if(ev.target===sh&&!signing)close()};first=false}
   draw()}
 function mktHTML(mine){mkCss();mkCss2();var T=fbLeague.teams,ro=(mine&&mine.roster)||[],h="";
   var listed={};Object.keys(fbMkList).forEach(function(k){var l=fbMkList[k];if(l.status==="open")listed[l.seller+"|"+l.pid]=k});
@@ -22310,11 +22365,11 @@ function mktHTML(mine){mkCss();mkCss2();var T=fbLeague.teams,ro=(mine&&mine.rost
   return h}
 function faHTML(mine){mkCss();mkCss2();var h="",ro=(mine&&mine.roster)||[],pos=UI.faPos||"";
   var keys=Object.keys(fbFaPool);
-  h+='<p class="slot">Kimsenin almadığı, bırakılan veya sözleşmesi biten oyuncular. Sadece <b>imza parası</b> ödenir (piyasa değerinin %30–45\'i). Teklifler gizli, hafta bitince sonuçlanır; aynı oyuncuya birden fazla teklif gelirse en yüksek kazanır, <b>Şampiyonlar Ligi\'nde oynayan</b> takımın teklifi %10 avantajlıdır. Aldığın oyuncunun yerine aynı mevkiden birini bırakırsın (o mevkide boş yerin varsa gerekmez).</p>';
+  h+='<p class="slot">Serbest oyuncular. Sadece <b>imza parası</b> ödenir. Teklifler hafta bitince sonuçlanır; aynı oyuncuya birden fazla teklif gelirse en yüksek kazanır. Aldığın oyuncunun yerine aynı mevkiden birini bırakırsın (o mevkide boş yerin varsa gerekmez).</p>';
   h+='<div class="svcN" style="margin:6px 0 10px"><button data-fapos=""'+(pos===""?' class="on"':'')+'>Hepsi</button>'+ORDER.map(function(m){return '<button data-fapos="'+m+'"'+(pos===m?' class="on"':'')+'>'+m+'</button>'}).join("")+'</div>';
   var list=keys.map(function(k){return {k:k,e:fbFaPool[k]}}).filter(function(x){return !pos||x.e.m===pos}).sort(function(a,b){return b.e.r-a.e.r}).slice(0,80);
   h+=list.length?list.map(function(x){var e=x.e,mb=fbFaBids[x.k],f=perfOf(e);
-    return mkRowHTML(e,(f.pn&&f.pf!=null?'ort. '+f.pf.toFixed(1).replace(".",","):'')+(e.from?(f.pn?' · ':'')+esc(e.from):''),fmtM(faAsk(e)),'imza · değer '+fmtM(mvOf(e)),mine?(mb?'<button class="mkBtn" data-fawd="'+x.k+'">Geri çek ('+fmtM(mb.bid)+')</button>':'<button class="mkBtn ok" data-faoff="'+x.k+'">Teklif</button>'):'')}).join(""):'<p class="msg">Serbest oyuncu yok.</p>';
+    return mkRowHTML(e,'',fmtM(mvOf(e)),'piyasa değeri',mine?(mb?'<button class="mkBtn" data-fawd="'+x.k+'">Geri çek ('+fmtM(mb.bid)+')</button>':'<button class="mkBtn ok" data-faoff="'+x.k+'">Teklif</button>'):'',true)}).join(""):'<p class="msg">Serbest oyuncu yok.</p>';
   return h}
 document.addEventListener("click",function(ev){var t=ev.target;if(!t||!t.closest)return;
   var el=t.closest("[data-mklist],[data-mkdel],[data-mkacc],[data-mkrej],[data-mkoff],[data-mkwd],[data-faoff],[data-fawd],[data-fapos]");if(!el||!fbLeague||!fbLeague.teams)return;
@@ -22327,10 +22382,10 @@ document.addEventListener("click",function(ev){var t=ev.target;if(!t||!t.closest
   if(d.mkrej){var r=d.mkrej.split("|");mkReject(r[0],r[1]);return}
   if(d.mkwd){mkOfferWithdraw(d.mkwd);return}
   if(d.mkoff){var l=fbMkList[d.mkoff];if(!l)return;
-    openMkSheet({title:"Teklif ver",p:l,amt:Math.round(l.ask/1e5)/10,info:esc(l.sellerName||"")+' fiyat olarak '+fmtM(l.ask)+' istiyor (piyasa değeri '+fmtM(l.mv)+'). Daha düşük teklif verebilirsin; kabul veya red satıcıda.',leftLabel:"Kabul edilirse kalan bakiye",btn:"Teklifi gönder",onSend:function(a2,out){mkOffer(d.mkoff,a2,out)}});return}
+    openMkSheet({title:"Satıştaki oyuncu · "+((fbLeague.teams[l.seller]||{}).name||l.sellerName||""),p:l,amt:Math.round(l.ask/1e5)/10,facts:[["İstenen",fmtM(l.ask)],["Piyasa değeri",fmtM(l.mv)]],setLabel:"İstenen",leftLabel:"Kabul edilirse kalan bakiye",btn:"Teklifi gönder",onSend:function(a2,out){mkOffer(d.mkoff,a2,out)}});return}
   if(d.fawd){faBidWithdraw(d.fawd);return}
   if(d.faoff){var e=fbFaPool[d.faoff];if(!e)return;var ask=faAsk(e);
-    openMkSheet({title:"İmza teklifi",p:e,amt:Math.round(ask/1e5)/10,info:'En az '+fmtM(ask)+' (imza parası). Teklifler gizli, hafta bitince sonuçlanır.'+(inCL(myUid)?' Şampiyonlar Ligi takımı olarak teklifin %10 avantajlı sayılır.':''),leftLabel:"Kazanırsan kalan bakiye",btn:"Teklifi gönder",onSend:function(a2,out){faBidSubmit(d.faoff,a2,out)}})}
+    openContractSheet({contract:true,title:"Sözleşme teklifi",p:e,from:e.from||"",amt:Math.round(ask/1e5)/10,bq:faBonusAsk(e),facts:[["İmza parası talebi",fmtM(ask)],["Piyasa değeri",fmtM(mvOf(e))]],setLabel:"Talep",leftLabel:"Kazanırsan kalan bakiye",btn:"Sözleşmeyi imzala",onSend:function(a2,out,bg,ba){faBidSubmit(d.faoff,a2,out,bg,ba)}})}
 });
 
 /* ================= sezon verileri: oyuncu kariyeri, odüller, ikili rekabet ================= */
@@ -24282,7 +24337,7 @@ function bind(){
   on("backPlayer",function(){viewingPlayer=null;render()});
   on("backClub",function(){viewingClub=null;render()});on("clubSave",saveClub);on("iconSave",saveIcon);on("iconPick",openIconSheet);bindClubEditor();
   document.querySelectorAll(".clubOpen").forEach(function(e){e.onclick=function(ev){if(ev){ev.preventDefault();ev.stopPropagation()}viewingClub=e.dataset.uid;render();window.scrollTo(0,0)}});
-  document.querySelectorAll(".plLink").forEach(function(e){e.onclick=function(ev){ev.preventDefault();ev.stopPropagation();viewingPlayer=e.dataset.pn;render();window.scrollTo(0,0)}});
+  document.querySelectorAll(".plLink").forEach(function(e){e.onclick=function(ev){if(ev.target.closest&&ev.target.closest("button"))return;ev.preventDefault();ev.stopPropagation();viewingPlayer=e.dataset.pn;render();window.scrollTo(0,0)}});
   document.querySelectorAll(".svcBtn").forEach(function(b){b.onclick=function(){svcType=b.dataset.k;svcPid="";svcCnt=1;render()}});
   document.querySelectorAll(".svcP").forEach(function(e){e.onclick=function(){svcPid=e.dataset.pid;svcCnt=1;render()}});
   document.querySelectorAll(".svcN button").forEach(function(e){e.onclick=function(){svcCnt=+e.dataset.n;render()}});
@@ -24296,5 +24351,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v74 · 26.10 00:34</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v80 · 26.10 12:15</div></body>
 </html>
