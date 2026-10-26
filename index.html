@@ -22315,26 +22315,26 @@ function sigPath(name){var h=5381,k=String(name||"x");for(var i=0;i<k.length;i++
   var d="M8 46 C4 20,22 4,30 10 C38 18,16 44,12 50 C22 36,34 24,42 30 C34 40,52 44,60 30",x=60,n=3+Math.floor(r()*3);
   for(var j=0;j<n;j++){var nx=x+16+r()*18,y1=8+r()*28,y2=24+r()*26;d+=" C"+(x+6)+" "+y1+","+(nx-8)+" "+y2+","+nx+" "+(26+r()*14);x=nx}
   d+=" C"+(x+14)+" 18,"+(x+24)+" 40,194 22 M20 52 C70 58,120 50,176 52";return d}
-function openContractSheet(cfg){var mine=fbLeague.teams[myUid],mgr=(typeof myName==="string"&&myName&&myName.indexOf("@")<0?myName:"")||mine.ownerName||(fbSquads[myUid]&&fbSquads[myUid].name)||mine.name||"",signing=false,ro=mine.roster||[],p=cfg.p,kind=cfg.kind||"buy",open=(kind==="sell")||openAt(ro,p.m)>0,ask=cfg.amt,minB=(kind==="buy"?ask:0.1),reqM=(cfg.reqM!==undefined?cfg.reqM:ask),bid=ask,bq=cfg.bq||null,bg=bq?bq.g:0,ba=bq?bq.a:0,out="",foc="i",
+function openContractSheet(cfg){mkCss2();var mine=fbLeague.teams[myUid],mgr=(typeof myName==="string"&&myName&&myName.indexOf("@")<0?myName:"")||mine.ownerName||(fbSquads[myUid]&&fbSquads[myUid].name)||mine.name||"",signing=false,ro=mine.roster||[],p=cfg.p,kind=cfg.kind||"buy",open=(kind==="sell")||(kind!=="auc"&&openAt(ro,p.m)>0),ask=cfg.amt,minB=(kind==="buy"?ask:0.1),stp=cfg.step||0.1,qs=cfg.qs||[-1,1],reqM=(cfg.reqM!==undefined?cfg.reqM:ask),bid=(cfg.start!==undefined?cfg.start:ask),bq=cfg.bq||null,bg=bq?bq.g:0,ba=bq?bq.a:0,out="",foc="i",
     cands=ro.filter(function(x){return x.m===p.m}).sort(function(a,b){return b.r-a.r});
   var sh=document.createElement("div");sh.className="sheet";document.body.appendChild(sh);var first=true;
   function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
   function fm(v){return String(Math.round(v*10)/10).replace(".",",")}
   function row(id,lab,req,mid,unit){return '<div class="cRow'+(foc===id?' on':'')+'" data-f="'+id+'"><b>'+lab+'</b><span class="rq">'+req+'</span><div class="of"><button data-b="'+id+'-" aria-label="Azalt"><svg viewBox="0 0 10 10"><path d="M7 1 2 5l5 4z"/></svg></button><em>'+mid+'<i>'+unit+'</i></em><button data-b="'+id+'+" aria-label="Artır"><svg viewBox="0 0 10 10"><path d="M3 1l5 4-5 4z"/></svg></button></div></div>'}
   function draw(){var left=kind==="sell"?availOf(myUid)+bid*1e6:availOf(myUid)-bid*1e6,outP=cands.filter(function(x){return x.id===out})[0],score=bid+(bq?(bg+ba)*10*1000/1e6:0),mv=fmtM(mvOf(p)),ok=(open||outP)&&(kind==="sell"||left>=0);
-    var note=kind==="sell"?esc(p.n)+' ('+esc(p.m)+', '+p.r+') satışa çıkıyor. Piyasa değeri yaklaşık <b>'+mv+'</b>. Diğer menajerler teklif verir; teklifleri kabul ya da reddedersin. Kabul ettiğin an oyuncu yeni takımına geçer.':kind==="offer"?esc(cfg.sellerName||"Bir menajer")+' takımı '+esc(p.n)+' ('+esc(p.m)+', '+p.r+') oyuncusunu <b>'+fmtM(reqM*1e6)+'</b> fiyatla satışa koydu. Piyasa değeri yaklaşık <b>'+mv+'</b>. Daha düşük teklif verebilirsin; satıcı kabul ya da reddeder.':esc(p.n)+(cfg.from?' ('+esc(cfg.from)+' takımından serbest kaldı)':' şu an serbest oyuncu')+'. Piyasa değeri yaklaşık <b>'+mv+'</b>. İmza parası olarak <b>'+fmtM(ask*1e6)+'</b>'+(bq?', gol başına <b>'+bq.g+' bin €</b>, asist başına <b>'+bq.a+' bin €</b> prim'+'':'')+' bekliyor. Teklifler hafta bitince sonuçlanır; en yüksek teklif kazanır.';
+    var note=kind==="auc"?esc(p.n)+' ('+esc(p.m)+', '+p.r+') bu haftanın ihale oyuncusu. Piyasa değeri yaklaşık <b>'+mv+'</b>. Teklifler gizli; hafta bitince en yüksek teklif kazanır. Kazanırsan aynı mevkiden bir oyuncunu bırakırsın, kaybedersen paran düşmez.':kind==="sell"?esc(p.n)+' ('+esc(p.m)+', '+p.r+') satışa çıkıyor. Piyasa değeri yaklaşık <b>'+mv+'</b>. Diğer menajerler teklif verir; teklifleri kabul ya da reddedersin. Kabul ettiğin an oyuncu yeni takımına geçer.':kind==="offer"?esc(cfg.sellerName||"Bir menajer")+' takımı '+esc(p.n)+' ('+esc(p.m)+', '+p.r+') oyuncusunu <b>'+fmtM(reqM*1e6)+'</b> fiyatla satışa koydu. Piyasa değeri yaklaşık <b>'+mv+'</b>. Daha düşük teklif verebilirsin; satıcı kabul ya da reddeder.':esc(p.n)+(cfg.from?' ('+esc(cfg.from)+' takımından serbest kaldı)':' şu an serbest oyuncu')+'. Piyasa değeri yaklaşık <b>'+mv+'</b>. İmza parası olarak <b>'+fmtM(ask*1e6)+'</b>'+(bq?', gol başına <b>'+bq.g+' bin €</b>, asist başına <b>'+bq.a+' bin €</b> prim'+'':'')+' bekliyor. Teklifler hafta bitince sonuçlanır; en yüksek teklif kazanır.';
     sh.innerHTML='<div class="in mkPaper"'+(first?'':' style="animation:none"')+'>'+
       '<div class="cHead"><div class="hex"><b>'+p.r+'</b><small>'+esc(p.m)+'</small></div><div class="ti"><h3>'+esc(cfg.title||"Sözleşme teklifi")+'</h3><span>'+esc(p.n)+'</span></div></div>'+
       '<div class="cCom"><small>Menajer notu:</small><p>'+note+'</p></div>'+
       '<div class="cBud"><div><span>'+(kind==="sell"?'Satıştan sonra bakiye':'Kalan bakiye')+'</span><b style="color:'+(left<0?'#b3261e':'inherit')+'">'+(left<0?'yetersiz':fmtM(left))+'</b></div><div><span>Kullanılabilir</span><b>'+fmtM(availOf(myUid))+'</b></div></div>'+
       '<div class="cTh"><span></span><span>'+(kind==="buy"?"Oyuncunun talebi":kind==="offer"?"İstenen fiyat":"Piyasa değeri")+'</span><span>'+(kind==="sell"?"İstediğimiz fiyat":"Teklifimiz")+'</span></div>'+
-      row("i",kind==="buy"?"İmza parası":kind==="sell"?"Satış fiyatı":"Fiyat",fmtM(reqM*1e6),fm(bid),' M€')+
+      row("i",kind==="buy"?"İmza parası":kind==="sell"?"Satış fiyatı":kind==="auc"?"İhale teklifi":"Fiyat",fmtM(reqM*1e6),fm(bid),' M€')+
       (bq?row("g","Gol primi",bq.g+' bin €',bg,' bin €')+row("a","Asist primi",bq.a+' bin €',ba,' bin €'):'')+
-      (foc==="i"?'<div class="cQ"><button data-a="-1">−1</button><button data-set="1">'+(kind==="sell"?"Piyasa değeri":kind==="offer"?"İstenen fiyat":"Talebe dön")+'</button><button data-a="1">+1</button></div>':'')+
-            (kind==="sell"?'':open?'<div class="cOut"><b>Bırakılacak oyuncu:</b><span>Gerekmiyor, '+esc(p.m)+' mevkisinde boş yer var</span></div>':'<div class="cOut"><b>Bırakılacak oyuncu ('+esc(p.m)+'):</b><span>'+(outP?esc(outP.n)+' · '+outP.r:'Seç')+'</span></div><div class="cList">'+cands.map(function(x){var ico=isIcon(myUid,x);return '<div class="cc'+(out===x.id?' on':'')+(ico?' off':'')+'" data-o="'+x.id+'"'+(ico?' data-ico="1"':'')+'><span>'+x.r+'</span><b>'+esc(x.n)+(ico?' ⭐':'')+'</b><i>'+(out===x.id?'✓':'')+'</i></div>'}).join("")+'</div>')+
+      (foc==="i"?'<div class="cQ">'+qs.filter(function(q){return q<0}).map(function(q){return '<button data-a="'+q+'">−'+Math.abs(q)+'</button>'}).join("")+'<button data-set="1">'+(kind==="sell"||kind==="auc"?"Piyasa değeri":kind==="offer"?"İstenen fiyat":"Talebe dön")+'</button>'+qs.filter(function(q){return q>0}).map(function(q){return '<button data-a="'+q+'">+'+q+'</button>'}).join("")+'</div>':'')+
+            (cfg.extra&&outP?cfg.extra(outP):'')+(kind==="sell"?'':open?'<div class="cOut"><b>Bırakılacak oyuncu:</b><span>Gerekmiyor, '+esc(p.m)+' mevkisinde boş yer var</span></div>':'<div class="cOut"><b>Bırakılacak oyuncu ('+esc(p.m)+'):</b><span>'+(outP?esc(outP.n)+' · '+outP.r:'Seç')+'</span></div><div class="cList">'+cands.map(function(x){var ico=isIcon(myUid,x);return '<div class="cc'+(out===x.id?' on':'')+(ico?' off':'')+'" data-o="'+x.id+'"'+(ico?' data-ico="1"':'')+'><span>'+x.r+'</span><b>'+esc(x.n)+(ico?' ⭐':'')+'</b><i>'+(out===x.id?'✓':'')+'</i></div>'}).join("")+'</div>')+
       '<div class="cBtns"><button class="cNo" id="bCancel">İptal</button><button class="cGo'+(ok?'':' dim')+'" id="bSend">'+esc(cfg.btn||"Teklifi gönder")+'</button></div>'+
       '<div class="cSig"><div><svg class="cSv" viewBox="0 0 200 60" preserveAspectRatio="none"><path pathLength="1" d="'+sigPath(mgr)+'"/></svg><i class="ln"></i><span>Menajer: '+esc(mgr)+'</span></div><div><i class="ln"></i><span>Oyuncu</span></div></div></div>';
-    function setB(k){var d=k.charAt(1)==="+"?1:-1,id=k.charAt(0);foc=id;if(id==="i")bid=Math.max(minB,Math.round((bid+d*0.1)*10)/10);else if(id==="g")bg=Math.max(bq.g,Math.min(BON_MAX,bg+d));else ba=Math.max(bq.a,Math.min(BON_MAX,ba+d));draw()}
+    function setB(k){var d=k.charAt(1)==="+"?1:-1,id=k.charAt(0);foc=id;if(id==="i")bid=Math.max(minB,Math.round((bid+d*stp)*10)/10);else if(id==="g")bg=Math.max(bq.g,Math.min(BON_MAX,bg+d));else ba=Math.max(bq.a,Math.min(BON_MAX,ba+d));draw()}
     Array.prototype.forEach.call(sh.querySelectorAll("[data-b]"),function(b){b.onclick=function(ev){ev.stopPropagation();setB(b.dataset.b)}});
     Array.prototype.forEach.call(sh.querySelectorAll(".cRow"),function(r){r.onclick=function(){foc=r.dataset.f;draw()}});
     Array.prototype.forEach.call(sh.querySelectorAll(".cQ button"),function(b){b.onclick=function(){if(b.dataset.set!==undefined)bid=reqM;else bid=Math.max(minB,Math.round((bid+(+b.dataset.a))*10)/10);draw()}});
@@ -24204,25 +24204,10 @@ function vMarket(){var gate=gateCard();if(gate)return gate;
       ((res.bids||[]).length?'<div class="bd">'+(res.bids||[]).map(function(b,i){return '<div><span>'+(i+1)+'. '+esc(b.team)+(b.why?' ('+esc(b.why)+')':'')+'</span><b style="color:var(--tx)">'+fmtM(b.bid)+'</b></div>'}).join("")+(w?'<div><span>Ayrılan oyuncu</span><b style="color:var(--tx)">'+esc(w.outN)+'</b></div>':'')+'</div>':'')+'</details>'}).join(""):'<p class="msg">Henüz sonuçlanan ihale yok.</p>');
   return h}
 function openBidSheet(){var cur=curAuc();if(!cur||!cur.player||!fbLeague||!fbLeague.teams[myUid])return;var mine=fbLeague.teams[myUid],p=cur.player,mb=fbMyBids["w"+cur.idx];
-  var bid=mb?mb.bid/1e6:Math.max(1,Math.round(Math.min(availOf(myUid)/1e6,10)*2)/2),out=mb?mb.outId:"";
-  var cands=(mine.roster||[]).filter(function(x){return x.m===p.m});
-  var sh=document.createElement("div");sh.className="sheet";sh.id="bidSheet";document.body.appendChild(sh);var firstDraw=true;
-  function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
-  function draw(){var left=availOf(myUid)-bid*1e6;
-    sh.innerHTML='<div class="in"'+(firstDraw?'':' style="animation:none"')+'><div class="grab"></div><div style="display:flex;align-items:baseline;gap:10px"><h2 style="margin:0;font-size:22px">Teklif ver</h2><span style="color:var(--mut);font-size:13px">'+esc(p.n)+' · '+p.m+' '+p.r+'</span></div>'+
-      '<div class="step"><button id="bm">−</button><div class="v">'+String(bid).replace(".",",")+'<span style="font-size:20px;color:var(--mut)"> M€</span></div><button id="bp">+</button></div>'+
-      '<div class="chips"><button data-a="-10">−10 M€</button><button data-a="-5">−5 M€</button><button data-a="5">+5 M€</button><button data-a="10">+10 M€</button></div>'+
-      '<div style="color:var(--mut);font-size:13px;margin-bottom:8px">Bırakacağın oyuncu ('+p.m+')</div>'+
-      cands.map(function(x){var ico=isIcon(myUid,x);return '<div class="cand'+(out===x.id?' on':'')+(ico?' off':'')+'" data-o="'+x.id+'"'+(ico?' data-ico="1"':'')+'><span class="rb '+rbCls(x.r)+'" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 13px Inter;color:#0b1017">'+x.r+'</span><span style="font-weight:700">'+esc(x.n)+(ico?' ⭐':'')+'</span><span style="margin-left:auto;color:var(--mut);font-size:12.5px">'+(ico?'ikon · bırakılamaz':(out===x.id?'Seçili':x.m))+'</span></div>'}).join("")+
-      (out&&(function(){var sw=swapAvg(mine.roster||[],out,p);return '<div style="margin:10px 2px 0;padding:10px 12px;border-radius:12px;background:var(--card2);font-size:13px;color:var(--mut)">Kazanırsan ilk 11 ortalaman: <b style="color:var(--tx)">'+sw.a.toFixed(1).replace(".",",")+' → '+sw.b.toFixed(1).replace(".",",")+'</b> '+dltHTML(sw.a,sw.b)+'</div>'})()||'')+
-      '<div style="display:flex;justify-content:space-between;margin:12px 2px 0;font-size:13.5px"><span style="color:var(--mut)">Kazanırsan kalan bakiye</span><b style="color:'+(left<0?'var(--loss)':'var(--tx)')+'">'+fmtM(Math.max(left,0))+(left<0?' (yetersiz)':'')+'</b></div>'+
-      '<button class="btn" id="bSend">'+(mb?'Teklifi güncelle':'Teklifi gönder')+'</button><p class="slot" style="text-align:center;margin:10px 0 0">Teklifler gizli. Sonuç hafta bitince açıklanır.</p></div>';
-    sh.querySelector("#bm").onclick=function(){bid=Math.max(0,Math.round((bid-0.5)*10)/10);draw()};sh.querySelector("#bp").onclick=function(){bid=Math.round((bid+0.5)*10)/10;draw()};
-    Array.prototype.forEach.call(sh.querySelectorAll(".chips button"),function(b){b.onclick=function(){var a=b.dataset.a;bid=Math.max(0,Math.round((bid+(+a))*10)/10);draw()}});
-    Array.prototype.forEach.call(sh.querySelectorAll(".cand"),function(c){c.onclick=function(){if(c.dataset.ico)return;out=c.dataset.o;draw()}});
-    sh.querySelector("#bSend").onclick=function(){aucBidIn=String(bid).replace(".",",");aucOutSel=out;aucFormFor=cur.idx;submitBid();close()};
-    sh.onclick=function(ev){if(ev.target===sh)close()};firstDraw=false}
-  draw()}
+  var mvM=Math.round(mvOf(p)/1e5)/10,st=mb?mb.bid/1e6:Math.max(1,Math.round(Math.min(availOf(myUid)/1e6,10)*2)/2);
+  openContractSheet({kind:"auc",title:"İhale teklifi",btn:mb?"Teklifi güncelle":"Teklifi gönder",p:p,amt:mvM,reqM:mvM,start:st,step:0.5,qs:[-5,-1,1,5],facts:[],
+    extra:function(o){var sw=swapAvg(mine.roster||[],o.id,p);return '<div class="cSc"><span>Kazanırsan ilk 11 ortalaman</span><b>'+sw.a.toFixed(1).replace(".",",")+' → '+sw.b.toFixed(1).replace(".",",")+'</b></div>'},
+    onSend:function(a2,out){aucBidIn=String(a2).replace(".",",");aucOutSel=out;aucFormFor=cur.idx;submitBid()}})}
 
 /* ---- ceki̇lis kart acilisi ---- */
 var rcSeen={};
@@ -24352,5 +24337,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v82 · 26.10 15:40</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v83 · 26.10 16:01</div></body>
 </html>
