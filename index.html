@@ -245,6 +245,7 @@ nav button .dot{position:absolute;top:2px;right:calc(50% - 25px);width:9px;heigh
 .cmSm{margin:8px 0 2px;padding:6px 10px;border-width:1.5px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cmSm.cmFlash{font-size:13px}.cmSm .cmTx{display:block;overflow:hidden;text-overflow:ellipsis}
 .cmMin{font-weight:800;opacity:.6}
 .cmNew{animation:cmIn .4s ease-out}
+.cmPrev{display:block;font:600 11.5px/1.3 Inter;opacity:.62;margin-top:5px;text-align:center}.cmPrev b{font-weight:800}.cm-tz{background:#fff8d6}
 @keyframes cmIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .cm-goal,.cm-red,.cm-var,.cm-pen,.cm-big{font-weight:800}
 .cm-red{background:#ffe3e3;border-color:#c0262d}.cm-var{background:#e8e5ff;border-color:#4b3fc9}.cm-pen,.cm-big{background:#fff3d6;border-color:#c98a10}
@@ -19019,8 +19020,8 @@ function moveDraftOrder(uid,dir){if(!draftOrderEdit)return;
   var i=draftOrderEdit.indexOf(uid);if(i<0)return;var j=i+dir;if(j<0||j>=draftOrderEdit.length)return;
   var t=draftOrderEdit[i];draftOrderEdit[i]=draftOrderEdit[j];draftOrderEdit[j]=t;render()}
 function confirmDraftOrder(){if(!isAdmin||!draftOrderEdit||!draftOrderEdit.length||!currentSeason)return;
-  var payload={order:draftOrderEdit,turn:0,taken:{},freeAgents:(fbPending&&fbPending.freeAgents)||[]};
-  var icUpd={};((fbPending&&fbPending.iconFree)||[]).forEach(function(f){var e={n:f.n,m:f.m,l:f.l||"",r:f.r,pn:f.pn||0,from:f.fromTeam||"",src:"ikon",tot:0,ak:Math.round((0.30+Math.random()*0.15)*1000)/1000,at:Date.now()};if(f.pf!=null)e.pf=f.pf;icUpd["fa/pool/"+pkey(f)]=faDecide(e,0)});
+  var payload={order:draftOrderEdit,turn:0,taken:{},freeAgents:(fbPending&&fbPending.freeAgents)||[],iconFree:((fbPending&&fbPending.iconFree)||[]).map(function(f){return {n:f.n,m:f.m,r:f.r,fromUid:f.fromUid||null,fromTeam:f.fromTeam||""}})};
+  var icUpd={};((fbPending&&fbPending.iconFree)||[]).forEach(function(f){var e={n:f.n,m:f.m,l:f.l||"",r:f.r,pn:f.pn||0,from:f.fromTeam||"",src:"ikon",fu:f.fromUid||null,ic:currentSeason,tot:0,ak:Math.round((0.30+Math.random()*0.15)*1000)/1000,at:Date.now()};if(f.pf!=null)e.pf=f.pf;icUpd["fa/pool/"+pkey(f)]=faDecide(e,0)});
   if(Object.keys(icUpd).length)fbDb.ref().update(icUpd).catch(function(){});
   fbDb.ref("draft/"+currentSeason).set(payload).then(function(){
     fbDb.ref("meta/pending").set(null);draftOrderEdit=null
@@ -19037,6 +19038,7 @@ function markTaken(o){if(!currentSeason||!fbDb)return;
 
 function takeFreeAgent(idx){if(!signedIn||!currentSeason||!fbDraft||!myTurn()||!st.cur)return;
   var fa=(fbDraft.freeAgents||[])[idx];if(!fa||fa.takenBy||fa.m!==st.cur.m)return;
+  if(iconForced(st.cur.m)){note="Kulüp ikonunun yerine bu mevkide lig çekilişinden oyuncu almak zorundasın.";render();return}
   if(st.refill&&usedLeagues()[fa.l]){note="Yeni gelen oyuncular farklı liglerden olmalı: "+fa.l+" ligi zaten kullanıldı.";render();return}
   st.cur.done.push({n:fa.n,m:fa.m,l:fa.l,r:fa.r,t:tierOf(fa.r),free:true,fromTeam:fa.fromTeam,tr:currentSeason});
   if(st.refill)st.cur.done[st.cur.done.length-1].rf=1;
@@ -19841,6 +19843,14 @@ function liveSched(m){var tot=m.totalLen||90,S=LIVE_MS/300000,fr=[],nr=[],i;
     if(f||n){fr[k]=Math.min(30,fr[k]+f);nr[k]=1;nr[k-1]=1;if(k>2)nr[k-2]=1}});
   var cum=[0];for(i=1;i<=tot;i++)cum[i]=cum[i-1]+((nr[i]?LIVE_N:LIVE_Q)+fr[i])*1000*S;
   return {cum:cum,fr:fr,S:S,tot:tot,end:cum[tot]}}
+var _SCM=typeof WeakMap!=="undefined"?new WeakMap():null;
+function liveSchedC(m){if(!_SCM)return liveSched(m);var c=_SCM.get(m),key=LIVE_MS+"|"+(m.events||[]).length+"|"+(m.totalLen||90);if(c&&c.key===key)return c.sc;var sc=liveSched(m);_SCM.set(m,{key:key,sc:sc});return sc}
+/* canli macta olay 'sut cekildi' anligi: olay dakikasi basladiktan sonraki ilk ~1.7 sn sonuc gizlenir (gerilim) */
+function teaseMs(e){return ((e&&(e.type==="goal"||e.pen))?1800:1300)*LIVE_MS/300000}
+function evTeasing(rd,m,e){if(!rd||!rd.live||!rd.live.startedAt||m.played||!m.events)return false;
+  if(!(e.type==="goal"||e.type==="chance"))return false;
+  var sc=liveSchedC(m),k=Math.max(1,Math.min(sc.tot,e.min||1)),age=(Date.now()-rd.live.startedAt)-(sc.cum[k]-sc.fr[k]*1000*sc.S);
+  return age>=0&&age<teaseMs(e)}
 function matchLiveMin(rd,m){var e=Date.now()-rd.live.startedAt,tot=m.totalLen||(rd.live&&rd.live.totalLen)||90;
   if(!m.events)return Math.min(tot,Math.floor(e*tot/LIVE_MS));
   var sc=liveSched(m),k=0;while(k<sc.tot&&sc.cum[k+1]-sc.fr[k+1]*1000*sc.S<=e)k++;return k}
@@ -20160,6 +20170,7 @@ setInterval(function(){
   if(liveIdx<0)return;
   var rdLive=fbLeague.rounds[liveIdx];
   if(roundLiveOver(rdLive))finalizeRound(liveIdx);
+  try{var lh=liveHide(myUid),sig=lh?Object.keys(lh.inj).join(",")+"|"+Object.keys(lh.sus).join(","):"";if(window._lhSig!==undefined&&window._lhSig!==sig&&(tab==="squad"||tab==="more")&&editingRound==null)render();window._lhSig=sig}catch(e){}
   if(tab==="fixture"||(tab==="home"&&editingRound==null&&!viewingPlayer&&!viewingProfile&&!viewingClub))render() // ana sayfadaki canli mac kutusu da akar
 },1000);
 
@@ -20977,7 +20988,7 @@ function computeSeasonEndTransfers(stats){
         var o=pool[Math.floor(Math.random()*pool.length)];usedK[pkey(o)]=1;g.pl.push({n:o.n,m:o.m,l:o.l,r:o.r,t:tierOf(o.r),fill:1});lack--}});
     var icn=clubIcon(uid),notIc=function(p){return !(icn&&icn.n===p.n&&icn.m===p.m)};
     if(uid===lastUid&&icn){keptPicks.forEach(function(g){var ix=-1;g.pl.forEach(function(p,i){if(p.n===icn.n&&p.m===icn.m)ix=i});
-        if(ix>=0){var ip=g.pl.splice(ix,1)[0],pf=perfName[ip.n+"|"+ip.m]||{};iconFree.push({n:ip.n,m:ip.m,l:ip.l||"",r:ip.r,fromTeam:teamName,fromOwner:ownerName,pf:pf.pf!=null?Math.round(pf.pf*100)/100:null,pn:pf.pn||0})}})}
+        if(ix>=0){var ip=g.pl.splice(ix,1)[0],pf=perfName[ip.n+"|"+ip.m]||{};iconFree.push({n:ip.n,m:ip.m,l:ip.l||"",r:ip.r,fromUid:uid,fromTeam:teamName,fromOwner:ownerName,pf:pf.pf!=null?Math.round(pf.pf*100)/100:null,pn:pf.pn||0})}})}
     // her serbest kalan mevki icin: o mevkiden birden fazla secim grubu varsa rastgele birini sec,
     // o grubun SADECE en yuksek reytingli oyuncusu ayrilir (serbest kalir); gruptaki digerleri kadroda kalir
     posChoices.forEach(function(pos){
@@ -21519,7 +21530,8 @@ function vDrawInner(){var gate=gateCard();if(gate)return gate;
       h+='<div class="card"><p class="slot">Seçilen mevki · değiştirilemez</p><h2>'+m+' · '+NAMES[m]+' <span class="avg">· '+idx+'/'+tot+' oyuncu</span></h2>';
       if(done.length){var lp=done[done.length-1],rk=lp.n+"|"+lp.m,anm=!rcSeen[rk];rcSeen[rk]=1;h+=rcardHTML(lp,anm)+'<p class="slot" style="text-align:center;margin:12px 0 6px">Bu mevkiden çektiklerin</p>'+done.map(row).join("")}
       if(idx<tot){
-        var faList=freeAgentsFor(m);
+        var iconLock=iconForced(m),faList=iconLock?[]:freeAgentsFor(m);
+        if(iconLock&&freeAgentsFor(m).length)h+='<p class="slot" style="border:1px dashed var(--bd);border-radius:12px;padding:10px 12px">🔒 Kulüp ikonun ayrıldığı için bu mevkide ilk oyuncuyu <b>lig çekilişinden</b> (75+) almak zorundasın. Serbest oyuncu listesi bu çekiliş için kapalı.</p>';
         if(faList.length){h+='<p class="slot">🔁 Serbest kalan oyuncular (isteğe bağlı, birini transfer edebilirsin)</p>'+
           faList.map(function(x){return '<div class="li"><span class="nm">'+esc(x.fa.n)+' <span class="avg">('+esc(x.fa.fromTeam||"?")+'\'den serbest)</span></span><span class="r">'+x.fa.r+'</span>'+
             '<button class="btn alt faBtn" data-idx="'+x.idx+'" style="width:auto;padding:2px 10px;margin-left:6px">Transfer et</button></div>'}).join("")}
@@ -21532,6 +21544,8 @@ function vDrawInner(){var gate=gateCard();if(gate)return gate;
       h+='<button class="btn alt" id="cancel">Bu mevkiyi iptal et</button></div>'}}
   if(note)h+='<p class="msg">'+esc(note)+'</p>';
   return h}
+function myIconSlot(){var l=((fbDraft&&fbDraft.iconFree)||[]).filter(function(f){return f.fromUid&&f.fromUid===myUid})[0];return l||null}
+function iconForced(m){var ic=myIconSlot();if(!ic||ic.m!==m||!st.cur)return false;var nw=st.cur.done.slice(st.cur.kept||0);return !nw.some(function(p){return !p.free})}
 function freeAgentsFor(m){var out=[];(fbDraft.freeAgents||[]).forEach(function(fa,idx){if(fa.m===m&&!fa.takenBy)out.push({fa:fa,idx:idx})});return out}
 
 function vSquad(){var gate=gateCard();if(gate)return gate;
@@ -21598,7 +21612,7 @@ function lsPower(t){return (t.roster||[]).length?hkProfile(t).xi:0}
 function lsFmt(v){return v.toFixed(1).replace(".",",")}
 function vSquadList(){var gate=gateCard();if(gate)return gate;
   var t=fbLeague&&fbLeague.teams&&fbLeague.teams[myUid];if(!t||!(t.roster||[]).length)return vSquad();
-  kdCss();lsCss();
+  t=maskT(myUid,t);kdCss();lsCss();
   var ro=t.roster,inj=t.injuries||{},sus=t.susp||{},fat=t.fatigue||{},S=plSeason();
   var f=UI.lsFilter||"all",so=UI.lsSort||"pos";if(so==="kon")so="pos";
   var nI=ro.filter(function(p){return (inj[p.id]||0)>0}).length,nS=ro.filter(function(p){return (sus[p.id]||0)>0}).length,nT=ro.filter(function(p){return (fat[p.id]||0)>=60&&!((inj[p.id]||0)>0)}).length;
@@ -21655,7 +21669,7 @@ function vAll(){
   if(UI.hkView==="rep")return h+repTableHTML();
   if(UI.hkView==="cmp")return h+hkReport(T,ids,rival);
   var order=rank.slice();order.sort(function(a,b){return (b===rival?1:0)-(a===rival?1:0)});
-  order.forEach(function(id){var t=T[id],sq=fbSquads[id]||{},ro=t.roster,best=ro.slice().sort(function(a,b){return b.r-a.r})[0],fm=(form[id]||[]).slice(-5),rk=rank.indexOf(id)+1;
+  order.forEach(function(id){var t=maskT(id,T[id]),sq=fbSquads[id]||{},ro=t.roster,best=ro.slice().sort(function(a,b){return b.r-a.r})[0],fm=(form[id]||[]).slice(-5),rk=rank.indexOf(id)+1;
     h+='<details class="card sqCard hkC'+(id===rival?' riv':'')+'" data-id="'+esc(id)+'"'+(openIds[id]?' open':'')+'><summary><div class="hkS"><div class="hkT">'+avatarHTML(teamOf(sq),34)+'<div class="hkN"><b>'+esc(teamOf(sq))+'</b><small>'+esc(sq.name||"İsimsiz")+(id===myUid?' · sen':'')+(id===rival?' · <u>bu hafta rakibin</u>':'')+'</small></div><div class="hkP"><b>'+lsFmt(pw[id])+'</b><small>en iyi 11 ort.</small></div></div>'+
       '<div class="hkSub"><span>Kadro gücü: '+rk+'. sıra</span>'+(fm.length?'<span class="kdDots">'+fm.map(function(x){return '<i class="'+x+'"></i>'}).join("")+'</span>':'')+'<span>⭐ '+esc(shortName(best.n))+' <b>'+best.r+'</b></span></div></div><span class="chev">›</span></summary>'+
       ORDER.map(function(m){var g=ro.filter(function(p){return p.m===m}).sort(function(a,b){return b.r-a.r});if(!g.length)return '';
@@ -21689,7 +21703,17 @@ document.head.appendChild(st1)}
 function teamOf(sq){return (sq&&(sq.teamName||sq.name))||"İsimsiz"}
 
 function myTeamRoster(){return (fbLeague&&fbLeague.teams&&fbLeague.teams[myUid])?fbLeague.teams[myUid].roster:[]}
-function myTeamInjuries(){return (fbLeague&&fbLeague.teams&&fbLeague.teams[myUid])?(fbLeague.teams[myUid].injuries||{}):{}}
+/* canli macta henuz gerceklesmemis sakatlik/ceza (mac onceden hesaplandigi icin kadroya erken yazilir) kullaniciya gosterilmez */
+function liveHide(uid){var li=liveRoundIdx();if(li<0)return null;var rd=leagueRounds()[li],m=null,mi=-1;
+  (rd.matches||[]).forEach(function(x,i){if(!m&&(x.home===uid||x.away===uid)){m=x;mi=i}});
+  if(!m||m.played||!m.events||!rd.live||!rd.live.startedAt)return null;
+  var side=m.home===uid?"home":"away",mm=matchLiveMin(rd,m),inj={},sus={},any=false,evs=m.events||[],ni=(m.newInjuries&&m.newInjuries[side])||{},ns=(m.newSusp&&m.newSusp[side])||{};
+  Object.keys(ni).forEach(function(id){if(!evs.some(function(e){return e.type==="injury"&&e.team===side&&String(e.playerId)===String(id)&&e.min<=mm})){inj[id]=1;any=true}});
+  Object.keys(ns).forEach(function(id){if(!evs.some(function(e){return (e.type==="red"||e.type==="yellow")&&e.team===side&&String(e.playerId)===String(id)&&e.min<=mm})){sus[id]=1;any=true}});
+  return any?{inj:inj,sus:sus}:null}
+function maskT(uid,t){if(!t)return t;var h=liveHide(uid);if(!h)return t;var o=Object.assign({},t),i2=Object.assign({},t.injuries||{}),s2=Object.assign({},t.susp||{});
+  Object.keys(h.inj).forEach(function(id){delete i2[id]});Object.keys(h.sus).forEach(function(id){delete s2[id]});o.injuries=i2;o.susp=s2;return o}
+function myTeamInjuries(){return (fbLeague&&fbLeague.teams&&fbLeague.teams[myUid])?(maskT(myUid,fbLeague.teams[myUid]).injuries||{}):{}}
 function mergeFormFat(form,fat){var o={};
   Object.keys(form||{}).forEach(function(id){o[id]={state:form[id].state}});
   Object.keys(fat||{}).forEach(function(id){o[id]=o[id]||{};o[id].fat=fat[id]});return o}
@@ -21706,7 +21730,7 @@ function fatBadgePlain(fat){var c=condOf(fat);return (c<=60?"🪫":"🔋")+"%"+c
 /* ceza sistemi: 3 sari = 1 mac, direkt kirmizi = 2 mac, ikinci sariden kirmizi = 1 mac */
 var YELLOW_LIMIT=3;
 function myTeamCards(){return (fbLeague&&fbLeague.teams&&fbLeague.teams[myUid])?(fbLeague.teams[myUid].cards||{}):{}}
-function myTeamSusp(){return (fbLeague&&fbLeague.teams&&fbLeague.teams[myUid])?(fbLeague.teams[myUid].susp||{}):{}}
+function myTeamSusp(){return (fbLeague&&fbLeague.teams&&fbLeague.teams[myUid])?(maskT(myUid,fbLeague.teams[myUid]).susp||{}):{}}
 function cardBadge(y,s){if(s>0)return '<span title="Cezalı">🟥</span>';
   return y>0?'<span title="Sarı kart sayacı" class="avg">🟨'+y+'/'+YELLOW_LIMIT+'</span>':''}
 function cardBadgePlain(y,s){if(s>0)return "🟥";return y>0?"🟨"+y:""}
@@ -22199,15 +22223,16 @@ function vTransfer(){var gate=gateCard();if(gate)return gate;
 
 /* ================= TRANSFER PAZARI + SERBEST OYUNCULAR ================= */
 var MK_MIN_R=70,FA_UP_W=[20,18,16,14,12,9,7,4],FA_DN_W=[40,35,25];
-var fbFaPool={},fbMkList={},fbFaBids={},fbMkSales={},fbMyTx={},mkRefs=[],mkBusy=false,mkLoaded=false;
+var fbFaCnt={},fbFaPool={},fbMkList={},fbFaBids={},fbMkSales={},fbMyTx={},mkRefs=[],mkBusy=false,mkLoaded=false;
 function subscribeMarket(){
-  mkRefs.forEach(function(r){r.off()});mkRefs=[];mkLoaded=false;fbMkList={};fbMkSales={};fbFaBids={};fbMyTx={};
+  mkRefs.forEach(function(r){r.off()});mkRefs=[];mkLoaded=false;fbMkList={};fbMkSales={};fbFaBids={};fbFaCnt={};fbMyTx={};
   if(!fbDb)return;
   function sub(path,cb,first){var r=fbDb.ref(path);mkRefs.push(r);r.on("value",function(s){cb(s.val()||{});if(first)mkLoaded=true;if(tab==="transfer")render();adminMarketTick();adminFaTick()},function(){cb({})})}
   sub("fa/pool",function(v){fbFaPool=v},true);
   if(!currentSeason)return;
   sub("market/list/"+currentSeason,function(v){fbMkList=v});
   sub("market/sales/"+currentSeason,function(v){fbMkSales=v});
+  sub("fa/cnt/"+currentSeason,function(v){fbFaCnt=v});
   if(myUid){sub("fa/bids/"+currentSeason+"/"+myUid,function(v){fbFaBids=v});sub("txlog/"+currentSeason+"/"+myUid,function(v){fbMyTx=v})}}
 /* ---- kadro / mevki kapasitesi ---- */
 function capOf(m){var n=SLOTS.filter(function(x){return x===m}).length;return n*totalFor(m)}
@@ -22352,13 +22377,15 @@ setInterval(adminMarketTick,4000);
 /* ---- serbest oyuncu teklifi (haftalik, gizli) ---- */
 function faBidSubmit(key,amtM,outId,bg,ba){var e=fbFaPool[key];if(!e||!signedIn||!fbDb||!fbLeague)return;var t=fbLeague.teams[myUid];if(!t)return;
   var ni=nextRoundIdx();if(ni<0||roundStarted(ni)){msgBox("Bu haftanın maçları başladı, teklif süresi doldu.");return}
+  if(e.src==="ikon"&&e.fu&&e.fu===myUid){msgBox("Eski ikonuna serbest oyuncu olarak teklif veremezsin.");return}
   var amt=Math.round(amtM*10)*1e5,ask=faAsk(e);
   if(amt<ask){msgBox("Teklif imza parasının ("+fmtM(ask)+") altında olamaz.");return}
   if(amt>availOf(myUid)){msgBox("Bakiyen yetersiz. Kullanılabilir: "+fmtM(availOf(myUid)));return}
   var chk=mkBuyerCheck(myUid,t,e.m,outId);if(chk){msgBox(chk);return}
   var bq=faBonusAsk(e),bo={};if(bq){bg=Math.round(+bg||0);ba=Math.round(+ba||0);if(bg<bq.g||ba<bq.a){msgBox("Gol ve asist primi oyuncunun talebinin altında olamaz.");return}if(bg>BON_MAX||ba>BON_MAX){msgBox("Prim en fazla "+BON_MAX+" bin € olabilir.");return}bo={bg:bg,ba:ba}}
-  fbDb.ref("fa/bids/"+currentSeason+"/"+myUid+"/"+key).set({bg:bo.bg||null,ba:bo.ba||null,bid:amt,outId:outId||null,ask:ask,at:Date.now(),idx:ni,n:e.n,m:e.m,r:e.r}).catch(function(er){fbBadge("Teklif kaydedilemedi (Rules hatası): "+er.message)})}
-function faBidWithdraw(key){var ni=nextRoundIdx();if(ni>=0&&roundStarted(ni)){msgBox("Bu haftanın maçları başladı, teklif geri çekilemez.");return}fbDb.ref("fa/bids/"+currentSeason+"/"+myUid+"/"+key).set(null).catch(function(){})}
+  var fu={};fu["fa/bids/"+currentSeason+"/"+myUid+"/"+key]={bg:bo.bg||null,ba:bo.ba||null,bid:amt,outId:outId||null,ask:ask,at:Date.now(),idx:ni,n:e.n,m:e.m,r:e.r};fu["fa/cnt/"+currentSeason+"/"+key+"/"+myUid]=true;
+  fbDb.ref().update(fu).catch(function(er){fbBadge("Teklif kaydedilemedi (Rules hatası): "+er.message)})}
+function faBidWithdraw(key){var ni=nextRoundIdx();if(ni>=0&&roundStarted(ni)){msgBox("Bu haftanın maçları başladı, teklif geri çekilemez.");return}var wu={};wu["fa/bids/"+currentSeason+"/"+myUid+"/"+key]=null;wu["fa/cnt/"+currentSeason+"/"+key+"/"+myUid]=null;fbDb.ref().update(wu).catch(function(){})}
 var faResolving={};
 function adminFaResolveTick(){
   if(mkSafeBusy()||!fbLeague.rounds)return;var S=currentSeason,rs=fbLeague.rounds,idx=-1;
@@ -22368,7 +22395,7 @@ function adminFaResolveTick(){
     var all=sn[0].val()||{},bv=sn[1].val()||{},T=fbLeague.teams,bud={},byKey={};
     Object.keys(T).forEach(function(u){bud[u]=(bv[u]!==undefined&&bv[u]!==null)?bv[u]:START_BUDGET});
     Object.keys(all).forEach(function(u){if(!T[u])return;Object.keys(all[u]||{}).forEach(function(k){var b=all[u][k];if(!b||!(b.idx<=idx))return;(byKey[k]=byKey[k]||[]).push({uid:u,b:b})})});
-    var W=mkWork(),upd={},lines=[],used={},now=Date.now();
+    var W=mkWork(),upd={},lines=[],used={},now=Date.now(),ikWin={},ikKeys=Object.keys(fbFaPool).filter(function(k){var e=fbFaPool[k];return e&&e.src==="ikon"&&e.ic===S}),firstRes=!Object.keys(fbLeague.faRes||{}).length;
     shuffle(Object.keys(byKey)).forEach(function(k){var e=fbFaPool[k];if(!e)return;
       var cs=byKey[k].map(function(x){return {uid:x.uid,b:x.b,sc:(x.b.bid+10*1000*((x.b.bg||0)+(x.b.ba||0)))/(inCL(x.uid)?0.9:1)}}).sort(function(a,b){return b.sc-a.sc||(a.b.at||0)-(b.b.at||0)});
       for(var q=0;q<cs.length;q++){var c=cs[q],u=c.uid,t=wTeam(W,u),ro=t.roster||[],bid=Math.round(c.b.bid),ask=Math.min(c.b.ask||0,faAsk(e)+0);
@@ -22377,13 +22404,16 @@ function adminFaResolveTick(){
         var out=null;if(openAt(ro,e.m)<=0){out=ro.filter(function(x){return x.id===c.b.outId&&!used[x.id]})[0];if(!out||out.m!==e.m||isIcon(u,out))continue}
         var np={id:mkNewId(u),n:e.n,m:e.m,l:e.l||"",r:e.r};if(c.b.bg||c.b.ba){np.bg=c.b.bg||0;np.ba=c.b.ba||0}
         rosterChange(W,upd,S,u,out,np,e.from||"serbest");if(out)used[out.id]=1;
-        bud[u]-=bid;upd["budgets/"+S+"/"+u]=bud[u];upd["fa/pool/"+k]=null;
+        bud[u]-=bid;upd["budgets/"+S+"/"+u]=bud[u];upd["fa/pool/"+k]=null;if(e.src==="ikon")ikWin[k]={team:t.name,owner:t.ownerName||"",bid:bid,e:e};
         if(out)upd["fa/pool/"+faKey(out)]=faEntry(out,t.name,"bırakılan");
         txPush(upd,S,u,"Serbest transfer: "+e.n,e.m+" · "+e.r+" · imza parası",-bid,now);
         lines.push("🔁 "+e.n+" ("+e.m+", "+e.r+"): serbest → "+t.name+" (imza "+fmtM(bid)+")"+(out?" · "+out.n+" serbest kaldı":""));break}});
     Object.keys(all).forEach(function(u){Object.keys(all[u]||{}).forEach(function(k){var b=all[u][k];if(b&&b.idx<=idx)upd["fa/bids/"+S+"/"+u+"/"+k]=null})});
-    upd["leagues/"+S+"/faRes/"+idx]=true;
-    return fbDb.ref().update(upd).then(function(){delete faResolving[idx];mkBusy=false;lines.forEach(function(l){pushTransferNews(l)})})
+    upd["leagues/"+S+"/faRes/"+idx]=true;upd["fa/cnt/"+S]=null;
+    return fbDb.ref().update(upd).then(function(){delete faResolving[idx];mkBusy=false;lines.forEach(function(l){pushTransferNews(l)});
+      if(firstRes)ikKeys.forEach(function(k){var w=ikWin[k],e=fbFaPool[k];
+        if(w)pushNews({type:"ikonflash",title:"⭐ İkon transfer oldu",body:w.e.n+" ("+w.e.m+", "+w.e.r+") → "+w.team+(w.owner?" · "+w.owner:"")+"\nİmza parası: "+fmtM(w.bid)+(w.e.from?"\nEski takımı: "+w.e.from:"")},"ikonflash_"+k);
+        else if(e)pushNews({type:"ikonflash",title:"⭐ İkona teklif gelmedi",body:e.n+" ("+e.m+", "+e.r+") için geçerli teklif çıkmadı. Serbest oyuncular arasında kalıyor."},"ikonflash_"+k)})})
   }).catch(function(e){delete faResolving[idx];mkBusy=false;fbBadge("Serbest transferler sonuçlanamadı (Rules hatası): "+e.message)})}
 setInterval(adminFaResolveTick,5000);
 /* ---- arayuz ---- */
@@ -22485,7 +22515,7 @@ function faHTML(mine){mkCss();mkCss2();var h="",ro=(mine&&mine.roster)||[],pos=U
   h+='<div class="svcN" style="margin:6px 0 10px"><button data-fapos=""'+(pos===""?' class="on"':'')+'>Hepsi</button>'+ORDER.map(function(m){return '<button data-fapos="'+m+'"'+(pos===m?' class="on"':'')+'>'+m+'</button>'}).join("")+'</div>';
   var list=keys.map(function(k){return {k:k,e:fbFaPool[k]}}).filter(function(x){return !pos||x.e.m===pos}).sort(function(a,b){return b.e.r-a.e.r}).slice(0,80);
   h+=list.length?list.map(function(x){var e=x.e,mb=fbFaBids[x.k],f=perfOf(e);
-    return mkRowHTML(e,'',fmtM(mvOf(e)),'piyasa değeri',mine?(mb?'<button class="mkBtn" data-fawd="'+x.k+'">Geri çek ('+fmtM(mb.bid)+')</button>':'<button class="mkBtn ok" data-faoff="'+x.k+'">Teklif</button>'):'',true)}).join(""):'<p class="msg">Serbest oyuncu yok.</p>';
+    return mkRowHTML(e,'',fmtM(mvOf(e)),'piyasa değeri',mine?(mb?'<button class="mkBtn" data-fawd="'+x.k+'">Geri çek ('+fmtM(mb.bid)+')</button>':(e.src==="ikon"&&e.fu&&e.fu===myUid)?'<span class="avg" style="font-size:11.5px">Eski ikonun</span>':'<button class="mkBtn ok" data-faoff="'+x.k+'">Teklif</button>'):'',true)}).join(""):'<p class="msg">Serbest oyuncu yok.</p>';
   return h}
 document.addEventListener("click",function(ev){var t=ev.target;if(!t||!t.closest)return;
   var el=t.closest("[data-mklist],[data-mkdel],[data-mkacc],[data-mkrej],[data-mkoff],[data-mkwd],[data-faoff],[data-fawd],[data-fapos]");if(!el||!fbLeague||!fbLeague.teams)return;
@@ -23449,13 +23479,13 @@ function liveInfo(ri,mi){ // bir macin canli durumu (ortak saat, macin kendi uza
     penList=pks.slice(0,pshow),pen={h:penList.filter(function(k){return k.team==="home"&&k.ok}).length,a:penList.filter(function(k){return k.team==="away"&&k.ok}).length},
     penDone=!hasPen||played||(el-mend>=PEN_MS);
   var done=played||(mm!=null&&mm>=tot&&!!m.events&&penDone);
-  var shown=played?evs:(mm!=null?evs.filter(function(e){return e.min<=mm}):[]);
+  var shown=played?evs:(mm!=null?evs.filter(function(e){return e.min<=mm&&!evTeasing(rd,m,e)}):[]),tz=(!played&&mm!=null)?evs.filter(function(e){return e.min<=mm&&evTeasing(rd,m,e)}):[];
   var gh=shown.filter(function(e){return e.type==="goal"&&e.team==="home"}).length,ga=shown.filter(function(e){return e.type==="goal"&&e.team==="away"}).length;
   var pend=[];if(!played&&mm!=null)shown.forEach(function(e){if(e.type!=="chance"||!e.varNo)return;
     var res=evs.some(function(v){return v.type==="var"&&v.kind==="goal"&&v.ok===false&&v.team===e.team&&v.playerName===e.playerName&&v.min>=e.min&&v.min>mm});
     if(res){pend.push(e);if(e.team==="home")gh++;else ga++}});
   if(played&&m.result){gh=m.result.h;ga=m.result.a}
-  return {pend:pend,varPend:pend.length>0,rd:rd,m:m,min:mm,tot:tot,add1:add1,done:done,played:played,shown:shown,gh:gh,ga:ga,penOn:hasPen&&pshow>0,pen:hasPen&&played?m.pen:pen,penList:penList,label:done?"Bitti":(hasPen&&mm!=null&&mm>=tot&&!played?"Penaltılar":(mm!=null?displayMinute(mm,add1,m.etFrom):"")),frac:played?1:(mm!=null?mm/tot:0)}}
+  return {tz:tz,pend:pend,varPend:pend.length>0,rd:rd,m:m,min:mm,tot:tot,add1:add1,done:done,played:played,shown:shown,gh:gh,ga:ga,penOn:hasPen&&pshow>0,pen:hasPen&&played?m.pen:pen,penList:penList,label:done?"Bitti":(hasPen&&mm!=null&&mm>=tot&&!played?"Penaltılar":(mm!=null?displayMinute(mm,add1,m.etFrom):"")),frac:played?1:(mm!=null?mm/tot:0)}}
 function formOf(uid,n){n=n||5;var out=[];leagueRounds().forEach(function(rd){rd.matches.forEach(function(m){if(!m.played||!m.result)return;
   if(m.home!==uid&&m.away!==uid)return;var gf=m.home===uid?m.result.h:m.result.a,ga=m.home===uid?m.result.a:m.result.h;out.push(gf>ga?"G":gf<ga?"M":"B")})});return out.slice(-n)}
 function liveTable(){var base=computeStats(fbLeague).table.map(function(t){return Object.assign({},t)});
@@ -23706,7 +23736,8 @@ function cmDominance(inf){var recent=inf.shown.filter(function(e){return e.min>i
   var tot=w.home+w.away;return {h:w.home,a:w.away,share:tot>0.001?w.home/tot:0.5,tot:tot}}
 function cmBarHTML(ri,mi,inf,sm){var rd=inf.rd,m=inf.m,teams=fbLeague.teams,hn=teams[m.home].name,an=teams[m.away].name;
   var R0=REFEREES[m.referee],lines=cmLines(inf,hn,an,R0?R0.name:"",m.weather),dm=cmDominance(inf),last=lines[lines.length-1],ago=last?inf.min-last.min:99;
-  var fresh=last&&ago<=2&&!inf.done,flash=fresh&&last.k==="goal";
+  var recent=inf.done?[]:lines.filter(function(l){return inf.min-l.min<=2}).slice(-3),tzE=(!inf.done&&inf.tz&&inf.tz.length)?inf.tz[inf.tz.length-1]:null;
+  var fresh=!!tzE||(last&&ago<=2&&!inf.done),flash=!!tzE||(fresh&&last.k==="goal");
   var idle,sd0=ri+"|"+mi+"|"+Math.floor(inf.min/3),W0=WEATHER[m.weather],wid=m.weather,md=inf.min||0,lead=inf.gh>inf.ga?hn:inf.ga>inf.gh?an:"",trail=inf.gh>inf.ga?an:inf.ga>inf.gh?hn:"",rfn=R0?cmSur(R0.name):"";
   if(inf.done)idle=cmPick(["Maç sona erdi. Skor "+inf.gh+"–"+inf.ga+".","Final düdüğü çaldı: "+hn+" "+inf.gh+"–"+inf.ga+" "+an+".","Karşılaşma "+inf.gh+"–"+inf.ga+" tamamlandı."],ri+"|"+mi);
   else if(inf.penOn||(inf.min!=null&&inf.min>=inf.tot&&m.pen))idle=cmPick(["Seri penaltı atışları başladı, gerilim tavan!","Penaltı atışları sürüyor, her vuruş bir sınav!","Herkes nefesini tuttu, seri penaltılar devam ediyor."],sd0);
@@ -23726,10 +23757,14 @@ function cmBarHTML(ri,mi,inf,sm){var rd=inf.rd,m=inf.m,teams=fbLeague.teams,hn=t
     else if(wid==="cold")pool=pool.concat(["Soğuk hava, oyuncular ısınmakta zorlanıyor.","Soğukta kaslar sertleşiyor, sakatlık riski artıyor."]);
     if(rfn)pool=pool.concat(["Hakem "+rfn+" oyunun akışını bozmamaya çalışıyor.","Hakem "+rfn+" itirazlara kulak asmıyor, oyun devam ediyor."]);
     idle=cmPick(pool,sd0)}
-  var top=fresh?{t:last.t,k:last.k,team:last.team}:{t:idle,k:"idle"};var cmNew=CM_LAST[ri+"_"+mi+(sm?"s":"")]!==top.t;CM_LAST[ri+"_"+mi+(sm?"s":"")]=top.t;
+  var top=tzE?{t:cmTease(tzE,hn,an),k:"tz",team:tzE.team}:(fresh?{t:last.t,k:last.k,team:last.team}:{t:idle,k:"idle"});var cmNew=CM_LAST[ri+"_"+mi+(sm?"s":"")]!==top.t;CM_LAST[ri+"_"+mi+(sm?"s":"")]=top.t;
   var ICON={goal:"⚽",chance:"🎯",big:"🔥",pen:"🥅",red:"🟥",var:"📺",card:"🟨",inj:"🚑",sub:"🔁",idle:""};
-  var h='<div class="cmBar cm-'+top.k+(flash?' cmFlash':'')+(sm?' cmSm':'')+'"><span class="cmTx'+(cmNew?' cmNew':'')+'">'+(top.k==="idle"?'':'<b class="cmMin">'+displayMinute(last.min,inf.add1,m.etFrom)+'</b> ')+(ICON[top.k]?ICON[top.k]+' ':'')+esc(top.t)+'</span></div>';
+  var h='<div class="cmBar cm-'+top.k+(flash?' cmFlash':'')+(sm?' cmSm':'')+'"><span class="cmTx'+(cmNew?' cmNew':'')+'">'+(top.k==="idle"?'':'<b class="cmMin">'+displayMinute(tzE?tzE.min:last.min,inf.add1,m.etFrom)+'</b> ')+(ICON[top.k]?ICON[top.k]+' ':'')+esc(top.t)+'</span>'+(!sm&&!tzE&&recent.length>1?recent.slice(0,-1).reverse().map(function(l){return '<span class="cmPrev"><b>'+displayMinute(l.min,inf.add1,m.etFrom)+'</b> '+(ICON[l.k]?ICON[l.k]+' ':'')+esc(l.t)+'</span>'}).join(""):'')+'</div>';
   return h}
+function cmTease(e,hn,an){var tn=e.team==="home"?hn:an,p=cmSur(e.playerName),sd=e.min+"|"+(e.playerId||"")+"|tz";
+  if(e.type==="chance"&&e.pen)return cmPick([p+" penaltı noktasında, topun başına geçti...","Penaltı! "+p+" geri çekildi, koşuyor...","Tribünler sustu... "+p+" penaltıyı kullanıyor!"],sd);
+  if(e.og)return cmPick(["Ortaya top geldi, tehlike büyük...!","Ceza sahasında karambol, top dönüyor...!"],sd);
+  return cmPick(["ŞUUUT! "+p+" vurdu...!","Şuuut! "+p+" kaleyi yokladı...!",p+" şutunu çekti...!","Vuruyor! "+p+"...!","ŞUUUT!! Top ayağından çıktı, "+p+"...!","Tehlikeli! "+p+" kale önünde vurdu...!"],sd)}
 function vMatchDetail(ri,mi){var rd=leagueRounds()[ri];if(!rd||!rd.matches[mi]){UI.md=null;return vMatches()}
   var m=rd.matches[mi],teams=fbLeague.teams,inf=liveInfo(ri,mi),hn=teams[m.home].name,an=teams[m.away].name,ha=teamAcc(m.home),aa=teamAcc(m.away);
   var W=WEATHER[m.weather],R=REFEREES[m.referee],started=!!(inf.played||inf.min!=null);
@@ -23982,7 +24017,7 @@ function vHome(){var gate=gateCard();if(gate)return gate;var h="";
     if(tgH&&tgH.uid===myUid&&!fbBsp[myUid])rows+='<div class="hrow"><div class="ico2">🎰</div><div><div class="t">Özel isim sponsorluğu</div><div class="s">Meritking ve Pashabet teklif etti</div></div><button class="go" data-go="sponsor">Bak</button></div>'}
   var brH=betRoundIdx();if(brH>=0&&mine&&!(fbBets["w"+brH]&&fbBets["w"+brH][myUid])&&eligibleMatches(brH,myUid).length)
     rows+='<div class="hrow"><div class="ico2">🎫</div><div><div class="t">Bu haftanın kuponu</div><div class="s">Oranlar hazır · maçlar başlayınca kapanır</div></div><button class="go" data-go="fixture" data-set="fxView:bet">Kupon yap</button></div>';
-  if(mine){var inj=Object.keys(mine.injuries||{}).filter(function(k){return (mine.injuries[k]||0)>0}).length;
+  if(mine){var mineM=maskT(myUid,mine),inj=Object.keys(mineM.injuries||{}).filter(function(k){return (mineM.injuries[k]||0)>0}).length;
     if(inj)rows+='<div class="hrow"><div class="ico2">➕</div><div><div class="t">'+inj+' sakat oyuncu</div><div class="s">Fizyo hizmetiyle erken dönebilir</div></div><button class="go q" data-go="squad" data-set="sqView:svc">Fizyo</button></div>';
     var trn=(mine.roster||[]).filter(function(p){return (p.tb||0)<trainMax(p)&&p.r<TRAIN_CAP}).length;
     if(trn)rows+='<div class="hrow"><div class="ico2">⚡</div><div><div class="t">Antrenman</div><div class="s">'+trn+' oyuncu +1 alabilir</div></div><button class="go q" data-go="squad" data-set="sqView:svc">Aç</button></div>'}
@@ -24017,9 +24052,9 @@ function squadPitchHTML(){var gate=gateCard();if(gate)return gate;
   var team=fbLeague.teams[myUid],roster=team.roster||[],nx=nextRoundIdx(),saved=(nx>=0&&fbLeague.lineups&&fbLeague.lineups[nx]&&fbLeague.lineups[nx][myUid])||null;
   var fk=(saved&&saved.formation&&FORMATIONS[saved.formation])?saved.formation:"4-3-3",xi;
   if(saved&&saved.xi)xi=saved.xi.map(function(x){return x.id});
-  else{var au=autoXI(roster,unavailMap(team.injuries||{},team.susp||{}),fk);xi=(au||[]).map(function(x){return x&&x.id!==undefined?x.id:x})}
+  else{var tm0=maskT(myUid,team),au=autoXI(roster,unavailMap(tm0.injuries||{},tm0.susp||{}),fk);xi=(au||[]).map(function(x){return x&&x.id!==undefined?x.id:x})}
   var slots=FORMATIONS[fk],coords=FORMATION_COORDS[fk],byId={};roster.forEach(function(p){byId[p.id]=p});
-  var inj=team.injuries||{},fat=team.fatigue||{},ic=clubIcon(myUid),used={};
+  var inj=maskT(myUid,team).injuries||{},fat=team.fatigue||{},ic=clubIcon(myUid),used={};
   var chips=slots.map(function(sp,i){var p=byId[xi[i]];if(p)used[p.id]=1;var c=coords[i]||{x:50,y:50};if(!p)return "";
     var f=fat[p.id]||0,isIc=ic&&ic.n===p.n&&ic.m===p.m,col=f>=60?'var(--loss)':f>=40?'var(--amber)':'var(--win)';
     return '<div class="pc plLink'+(p.r<80?' low':'')+'" data-pn="'+esc(p.n)+'" style="left:'+c.x+'%;top:'+(100-c.y)+'%"><div class="rb '+rbCls(slotRating(p,sp,fk))+'">'+slotRating(p,sp,fk)+((inj[p.id]||0)>0?'<span class="st2" style="background:var(--loss);color:#fff;border-radius:50%;width:16px;height:16px;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:900">+</span>':isIc?'<span class="st2">⭐</span>':'')+'</div><span class="nm3">'+esc(shortName(p.n))+'</span><div class="fb"><i style="width:'+Math.max(8,100-f)+'%;background:'+col+'"></i></div></div>'}).join("");
@@ -24387,6 +24422,52 @@ function rcardHTML(p,anim){var cls=p.r>=85?"":(p.r>=80?"w":"b");return '<div cla
 function vokHomeSubpage(){return ""}
 
 function goTab(t,set){if(t==="clubid")editClub=null;editingRound=null;tab=t;viewingProfile=null;viewingPlayer=null;viewingClub=null;UI.md=null;if(set){var kv=set.split(":");UI[kv[0]]=kv[1]}render();window.scrollTo(0,0)}
+
+/* ================= UYARI BANTLARI (ikon serbest / 85+ ihale) + ikon popup + ikon transfer flasi ================= */
+function iconWindowOpen(){if(!fbLeague||!fbLeague.rounds||!fbLeague.teams||!fbLeague.teams[myUid])return false;var ni=nextRoundIdx();if(ni<0||roundStarted(ni))return false;return !Object.keys(fbLeague.faRes||{}).length}
+function iconListMine(){if(!iconWindowOpen())return [];return Object.keys(fbFaPool||{}).map(function(k){return {k:k,e:fbFaPool[k]}}).filter(function(x){return x.e&&x.e.src==="ikon"&&x.e.ic===currentSeason&&!(x.e.fu&&x.e.fu===myUid)})}
+function iconCnt(k){return Object.keys((fbFaCnt&&fbFaCnt[k])||{}).length}
+function iconDen(k){var e=fbFaPool[k]||{};return Math.max(1,Object.keys(fbLeague.teams).length-(e.fu&&fbLeague.teams[e.fu]?1:0))}
+function openFaOffer(key){var e=fbFaPool[key];if(!e||!fbLeague||!fbLeague.teams)return;var ask=faAsk(e);
+  openContractSheet({contract:true,title:"Sözleşme teklifi",p:e,from:e.from||"",amt:Math.round(ask/1e5)/10,bq:faBonusAsk(e),facts:[["İmza parası talebi",fmtM(ask)],["Piyasa değeri",fmtM(mvOf(e))]],setLabel:"Talep",leftLabel:"Kazanırsan kalan bakiye",btn:"Sözleşmeyi imzala",onSend:function(a2,out,bg,ba){faBidSubmit(key,a2,out,bg,ba)}})}
+function abCss(){if(window._abCss)return;window._abCss=1;var st=document.createElement("style");st.textContent=
+".abBand{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;margin:8px 0 4px;color:#fff;font:700 13px/1.3 Inter,sans-serif}.abBand .ab{flex:1;min-width:0}.abBand b{font-weight:900}.abBand small{display:block;font:600 11.5px Inter;opacity:.88;margin-top:2px}.abBand button{border:0;border-radius:10px;padding:8px 12px;font:800 12.5px Inter;cursor:pointer;background:#fff;color:#111;flex:none}.abBand .ic{font-size:22px;flex:none}"+
+".abIcon{background:linear-gradient(110deg,#b3202f,#e63946);box-shadow:0 0 0 0 rgba(230,57,70,.55);animation:abPulse 1.8s infinite}.abIcon.ok{background:linear-gradient(110deg,#1f7a46,#2bb673);animation:none}"+
+".abBig{background:linear-gradient(110deg,#b8860b,#f0b44a);color:#1b1400;box-shadow:0 0 0 0 rgba(240,180,74,.6);animation:abPulseG 1.8s infinite}.abBig button{background:#1b1400;color:#f0b44a}.abBig.ok{background:linear-gradient(110deg,#6b5a2a,#8d7a3a);color:#fff;animation:none}.abBig.ok button{background:#fff;color:#111}"+
+"@keyframes abPulse{0%{box-shadow:0 0 0 0 rgba(230,57,70,.55)}70%{box-shadow:0 0 0 10px rgba(230,57,70,0)}100%{box-shadow:0 0 0 0 rgba(230,57,70,0)}}@keyframes abPulseG{0%{box-shadow:0 0 0 0 rgba(240,180,74,.6)}70%{box-shadow:0 0 0 10px rgba(240,180,74,0)}100%{box-shadow:0 0 0 0 rgba(240,180,74,0)}}@media(prefers-reduced-motion:reduce){.abIcon,.abBig{animation:none}}"+
+".ikSheet .in{text-align:center;padding-top:18px}.ikSheet .ikStar{font-size:38px;line-height:1}.ikSheet .ikT{font:900 13px Inter;letter-spacing:.08em;color:var(--amber);margin:6px 0 10px}.ikSheet .ikRb{width:86px;height:86px;border-radius:50%;margin:6px auto 8px;display:grid;place-items:center;font:900 38px Inter;color:#1b1400;background:linear-gradient(145deg,#f7d57a,#d99a1e);box-shadow:0 0 0 4px rgba(240,180,74,.25),0 0 28px rgba(240,180,74,.35)}.ikSheet .ikN{font:900 24px Inter;letter-spacing:-.02em}.ikSheet .ikP{color:var(--mut);font:700 13px Inter;margin-top:2px}.ikSheet .ikF{display:flex;gap:8px;margin:14px 0 10px}.ikSheet .ikF div{flex:1;background:var(--card2);border-radius:12px;padding:9px 6px}.ikSheet .ikF small{display:block;font:600 11px Inter;color:var(--mut)}.ikSheet .ikF b{font:800 14.5px Inter}.ikSheet .ikNote{font:600 12.5px/1.4 Inter;color:var(--mut);margin:0 0 12px}"+
+".ikFlash .in{text-align:center;background:linear-gradient(180deg,#2a1f08,var(--card) 55%)}.ikFlash .ikBody{white-space:pre-line;font:700 15px/1.5 Inter;margin:6px 0 14px}";
+  document.head.appendChild(st)}
+function alertBandsHTML(){if(!signedIn||!myUid||!fbLeague||!fbLeague.teams||!fbLeague.teams[myUid])return "";abCss();var h="";
+  iconListMine().forEach(function(x){var e=x.e,mb=fbFaBids&&fbFaBids[x.k],c=iconCnt(x.k)+(mb&&!(fbFaCnt&&fbFaCnt[x.k]&&fbFaCnt[x.k][myUid])?1:0),n=iconDen(x.k);
+    h+='<div class="abBand abIcon'+(mb?' ok':'')+'"><span class="ic">⭐</span><div class="ab">'+(mb?'<b>İkon için teklif verdin</b> · '+esc(e.n)+' ('+e.r+')':'<b>İKON SERBEST: '+esc(e.n)+' ('+esc(e.m)+' '+e.r+')</b>')+'<small>'+(mb?'':'Teklif vermedin · ')+c+'/'+n+' takım teklif verdi · maçlar başlayana kadar</small></div><button data-abgo="ik|'+esc(x.k)+'">'+(mb?'Düzenle':'Teklif ver')+'</button></div>'});
+  var cur=(typeof curAuc==="function")?curAuc():null;
+  if(cur&&cur.player&&cur.player.r>=BIG_R&&!roundStarted(cur.idx)&&aucWinsOf(myUid)<aucMaxOf(myUid)){var mb2=fbMyBids&&fbMyBids["w"+cur.idx],bc=Object.keys(cur.bidders||{}).length,nt=Object.keys(fbLeague.teams).length;
+    h+='<div class="abBand abBig'+(mb2?' ok':'')+'"><span class="ic">🔥</span><div class="ab">'+(mb2?'<b>İhalede teklifin var</b> · '+esc(cur.player.n)+' ('+cur.player.r+')':'<b>İHALEDE 85+ OYUNCU: '+esc(cur.player.n)+' ('+esc(cur.player.m)+' '+cur.player.r+')</b>')+'<small>'+bc+'/'+nt+' takım teklif verdi · maçlar başlayana kadar</small></div><button data-abgo="auc">'+(mb2?'Düzenle':'İhaleye git')+'</button></div>'}
+  return h}
+function ikonPopupTick(){
+  if(!signedIn||!myUid||document.querySelector(".sheet"))return;var L=iconListMine();if(!L.length)return;
+  var x=L.filter(function(y){return !(fbFaBids&&fbFaBids[y.k])&&!(window._ikDis||{})[y.k]})[0];if(!x)return;
+  window._ikDis=window._ikDis||{};window._ikDis[x.k]=1;abCss();mkCss();mkCss2();
+  var e=x.e,sh=document.createElement("div");sh.className="sheet ikSheet";document.body.appendChild(sh);
+  function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
+  sh.innerHTML='<div class="in"><div class="grab"></div><div class="ikStar">⭐</div><div class="ikT">İKON OYUNCU SERBEST KALDI</div><div class="ikRb">'+e.r+'</div><div class="ikN">'+esc(e.n)+'</div><div class="ikP">'+esc(e.m)+' · '+esc(NAMES[e.m]||"")+(e.from?' · Eski takımı: '+esc(e.from):'')+'</div>'+
+    '<div class="ikF"><div><small>Piyasa değeri</small><b>'+fmtM(mvOf(e))+'</b></div><div><small>İmza talebi</small><b>'+fmtM(faAsk(e))+'</b></div><div><small>Teklif veren</small><b>'+iconCnt(x.k)+'/'+iconDen(x.k)+'</b></div></div>'+
+    '<p class="ikNote">Bu oyuncu sadece bu hafta serbest. Maçlar başlayana kadar teklif verebilirsin, sonuç hafta bitince açıklanır. Teklifler gizli, en yüksek teklif kazanır.</p>'+
+    '<button class="btn" id="ikGo">Teklif ver</button><button class="btn alt" id="ikNo" style="margin-top:8px">Şimdi değil</button></div>';
+  sh.querySelector("#ikGo").onclick=function(){close();openFaOffer(x.k)};sh.querySelector("#ikNo").onclick=close}
+setInterval(ikonPopupTick,2500);
+function ikonFlashTick(){
+  if(!signedIn||!myUid||document.querySelector(".sheet")||!fbNews)return;var seen=[];try{seen=JSON.parse(localStorage.getItem("ikSeen")||"[]")}catch(e){}
+  var ids=Object.keys(fbNews).filter(function(k){var n=fbNews[k];return n&&n.type==="ikonflash"&&(Date.now()-(n.createdAt||0))<3*864e5&&seen.indexOf(k)<0});if(!ids.length)return;
+  var k=ids.sort(function(a,b){return (fbNews[a].createdAt||0)-(fbNews[b].createdAt||0)})[0],n=fbNews[k];abCss();
+  var sh=document.createElement("div");sh.className="sheet ikFlash";document.body.appendChild(sh);
+  sh.innerHTML='<div class="in"><div class="grab"></div><div style="font-size:44px;line-height:1">⭐</div><div class="ikT" style="font:900 13px Inter;letter-spacing:.08em;color:var(--amber);margin:6px 0 4px">'+esc(n.title||"İkon transferi").toUpperCase()+'</div><div class="ikBody">'+esc(n.body||"")+'</div><button class="btn" id="ikClose">Kapat</button></div>';
+  sh.querySelector("#ikClose").onclick=function(){seen.push(k);try{localStorage.setItem("ikSeen",JSON.stringify(seen.slice(-30)))}catch(e){}if(sh.parentNode)sh.parentNode.removeChild(sh)}}
+setInterval(ikonFlashTick,3000);
+document.addEventListener("click",function(ev){var t=ev.target&&ev.target.closest&&ev.target.closest("[data-abgo]");if(!t)return;var v=t.dataset.abgo;
+  if(v==="auc"){goTab("transfer","mkView:auc");return}
+  if(v.indexOf("ik|")===0){goTab("transfer","mkView:fa");setTimeout(function(){openFaOffer(v.slice(3))},50)}});
 function render(){
   if(tab==="db"&&!isAdmin)tab="home";
   applyTheme();renderTop();
@@ -24397,6 +24478,7 @@ function render(){
     rowOwner=null;
     var gp=spGatePage();v.innerHTML=gp?gp:(editingRound!=null&&fbLeague&&!viewingPlayer&&!viewingClub&&!viewingProfile)?vLineupEditor():viewingPlayer?vPlayerProfile(viewingPlayer):viewingClub?vClubHistory(viewingClub):viewingProfile?vManagerProfile(viewingProfile):
       (tab==="home"?vHome():tab==="draw"?vDraw():tab==="squad"?vSquadTab():tab==="all"?(UI.sqView="all",tab="squad",vSquadTab()):tab==="money"?vMoney():tab==="fixture"?vMatches():tab==="standings"?(UI.fxView="table",tab="fixture",vMatches()):tab==="history"?BACKMORE+vHistory():tab==="sponsor"?BACKMORE+vSponsor():tab==="news"?BACKMORE+vNews():tab==="transfer"?vMarket():tab==="more"?vMore():tab==="clubid"?vClubId():BACKMORE+vDb())
+  if(!gp&&editingRound==null&&!viewingPlayer&&!viewingClub&&!viewingProfile){var _ab=alertBandsHTML();if(_ab)v.insertAdjacentHTML("afterbegin",_ab)}
   }catch(err){ // ekran cokerse bos kalmasin: hata mesaji + (yoneticiyse) yeni donem dugmeleri
     v.innerHTML='<div class="card"><h2>Bu ekran açılamadı</h2><p class="msg">Bir hata oluştu: '+esc(String(err&&err.message||err))+'</p><p class="slot">Hatayı yöneticiye ilet. Sayfayı yenilemek bazen yardımcı olur.</p></div>'+
       (isAdmin?'<button class="btn alt" id="newseason">Yeni dönem başlat (herkes için)</button><button class="btn alt" id="newseasonreset">Tüm kadro seçimlerini sıfırlayarak yeni dönem başlat</button>':'');
@@ -24511,5 +24593,33 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v96 · 27.10 18:12</div></body>
+<script>/* SADECE TEST: yonetici icin 'Hizli sezon' dugmesi. Haftalari sirayla kisa canli sureyle simule eder. Live surume eklenmez. */
+(function(){
+  var run=false,btn=null,tries=0;
+  function lab(t){if(btn)btn.textContent=t}
+  function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+  async function loop(){
+    try{LIVE_MS=Math.min(LIVE_MS,4000);PEN_MS=Math.min(PEN_MS,3000)}catch(e){}
+    var guard=0;
+    while(run&&guard++<80){
+      var i=nextRoundIdx();
+      if(i<0){lab("✅ Sezon bitti");break}
+      var rd=leagueRounds()[i];
+      if(!rd||!rd.matches||!rd.matches.length){lab("⏳ Hafta "+(i+1)+" hazırlanıyor");await sleep(1500);if(++tries>20){lab("⚠️ Takıldı: hafta "+(i+1));break}continue}
+      tries=0;
+      lab("⏩ Hafta "+(i+1)+"/"+leagueRounds().length);
+      if(!rd.live){try{simulateRound(i)}catch(e){}}
+      var t0=Date.now(),ok=false;
+      while(run&&Date.now()-t0<120000){await sleep(600);var r2=leagueRounds()[i];if(r2&&rdAll(r2)&&(r2.paid||r2.skip)){ok=true;break}}
+      if(!ok&&run){lab("⚠️ Takıldı: hafta "+(i+1)+" (tekrar bas)");break}
+      await sleep(1200)}
+    run=false;if(btn&&btn.textContent.indexOf("⏩")===0)lab("⏩ Hızlı sezon")}
+  function mk(){if(btn||typeof isAdmin==="undefined"||!isAdmin)return;
+    btn=document.createElement("button");btn.textContent="⏩ Hızlı sezon";
+    btn.style.cssText="position:fixed;left:8px;bottom:72px;z-index:99998;background:#e63946;color:#fff;border:0;border-radius:999px;padding:8px 12px;font:700 12px Inter,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4)";
+    btn.onclick=function(){if(run){run=false;lab("⏩ Hızlı sezon");return}run=true;loop()};
+    document.body.appendChild(btn)}
+  setInterval(mk,2000);
+})();
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v97 · 27.10 21:09</div></body>
 </html>
