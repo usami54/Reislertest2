@@ -18765,7 +18765,7 @@ var _logoByName=null;
 function teamLogo(name){if(!_logoByName){_logoByName={};if(typeof AI_DB!=="undefined")AI_DB.forEach(function(t){if(TEAM_LOGOS[t.s])_logoByName[t.n]={u:TEAM_LOGOS[t.s],d:LOGO_DARK.indexOf(t.s)>=0}});if(typeof EL_DB!=="undefined")EL_DB.forEach(function(t){if(TEAM_LOGOS[t.s])_logoByName[t.n]={u:TEAM_LOGOS[t.s],d:LOGO_DARK.indexOf(t.s)>=0}})}return _logoByName[name]||null}
 var CLUB_PATS=[["solid","Düz"],["hoops","Yatay"],["stripes","Dikey"],["half","Yarı"],["sash","Çapraz"]];
 var CLUB_SHAPES=[["circle","Daire"],["shield","Kalkan"],["hex","Altıgen"]];
-var CLUB_SYMS=["","⭐","🦁","🦅","🐺","🐻","🐯","🦈","⚡","🔥","👑","⚓","🛡️","🚀","🐍","💎"];
+var CLUB_SYMS=["","⭐","🦁","🦅","🐺","🐻","🐯","🦈","⚡","🔥","👑","⚓","🛡️","🚀","🐍","💎","🐴","🐂","🐘","🦂","🐉","🦄","🐆","🦇","🐙","🦉","🐊","🐝","🦋","🌙","☀️","🌊","❄️","🌪️","🌲","🌹","⚔️","🏹","🏰","🔱","🏆","🎯","💀","🧿","☄️"];
 var SHAPE_CLIP={shield:"polygon(0 0,100% 0,100% 58%,50% 100%,0 58%)",hex:"polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%)"};
 function patBg(c1,c2,pat){
   if(pat==="solid")return c1;
@@ -18777,13 +18777,34 @@ function patBg(c1,c2,pat){
 function badgeHTML(c1,c2,pat,shape,sym,ch,size){var shp=SHAPE_CLIP[shape]?';border-radius:0;clip-path:'+SHAPE_CLIP[shape]:'';
   return '<span class="avatar" style="width:'+size+'px;height:'+size+'px;background:'+patBg(c1,c2,pat)+(sym?'':';text-shadow:0 0 3px #000,0 0 2px #000')+shp+';font-size:'+Math.round(size*(sym?0.55:0.46))+'px">'+(sym||esc(ch))+'</span>'}
 var KITN=0;
-function kitSVG(c1,c2,pat,w,sp){var id="kc"+(++KITN),p=pat||"half",body="M30 12 L18 18 L6 38 L20 46 L26 39 L26 90 L74 90 L74 39 L80 46 L94 38 L82 18 L70 12 Q50 25 30 12 Z",f="",i;
+function kitSVG(c1,c2,pat,w,sp,x){x=x||{};var id="kc"+(++KITN),p=pat||"half",body="M30 12 L18 18 L6 38 L20 46 L26 39 L26 90 L74 90 L74 39 L80 46 L94 38 L82 18 L70 12 Q50 25 30 12 Z",f="",i;
   if(p==="hoops"){for(i=0;i<7;i++)if(i%2)f+='<rect x="0" y="'+(12+i*13)+'" width="100" height="13" fill="'+c2+'"/>'}
   else if(p==="stripes"){for(i=0;i<7;i++)if(i%2)f+='<rect x="'+(6+i*12.57).toFixed(1)+'" y="0" width="12.57" height="100" fill="'+c2+'"/>'}
   else if(p==="half")f='<rect x="50" y="0" width="50" height="100" fill="'+c2+'"/>';
   else if(p==="sash")f='<polygon points="20,10 46,10 92,92 66,92" fill="'+c2+'"/>';
   else f='<polygon points="30,12 18,18 6,38 20,46 26,39 26,12" fill="'+c2+'"/><polygon points="70,12 82,18 94,38 80,46 74,39 74,12" fill="'+c2+'"/>';
-  return '<svg viewBox="0 0 100 100" width="'+w+'" height="'+w+'" style="display:block"><defs><clipPath id="'+id+'"><path d="'+body+'"/></clipPath></defs><g clip-path="url(#'+id+')"><rect width="100" height="100" fill="'+c1+'"/>'+f+'</g><path d="'+body+'" fill="none" stroke="rgba(0,0,0,.4)" stroke-width="1.3"/><path d="M38 13 Q50 26 62 13" fill="none" stroke="'+c2+'" stroke-width="3.4"/><path d="M38 13 Q50 26 62 13" fill="none" stroke="rgba(0,0,0,.3)" stroke-width=".8"/>'+((sp&&w>=44&&SP_LOGO[sp])?(w>=80?'<rect x="28" y="44" width="44" height="26" rx="3.5" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width=".5"/><image href="'+SP_LOGO[sp]+'" x="29.5" y="45.5" width="41" height="23" preserveAspectRatio="xMidYMid meet"/>':'<rect x="35" y="47" width="30" height="16" rx="3" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width=".5"/><image href="'+SP_LOGO[sp]+'" x="37" y="48.5" width="26" height="13" preserveAspectRatio="xMidYMid meet"/>'):'')+'</svg>'}
+  return '<svg viewBox="0 0 100 100" width="'+w+'" height="'+w+'" style="display:block"><defs><clipPath id="'+id+'"><path d="'+body+'"/></clipPath></defs><g clip-path="url(#'+id+')"><rect width="100" height="100" fill="'+c1+'"/>'+f+'</g><path d="'+body+'" fill="none" stroke="rgba(0,0,0,.4)" stroke-width="1.3"/><path d="M38 13 Q50 26 62 13" fill="none" stroke="'+c2+'" stroke-width="3.4"/><path d="M38 13 Q50 26 62 13" fill="none" stroke="rgba(0,0,0,.3)" stroke-width=".8"/>'+((sp&&w>=44&&SP_LOGO[sp])?'<defs><filter id="sp'+id+'" x="-15%" y="-25%" width="130%" height="150%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="'+(w>=80?".9":"1")+'" result="d"/><feFlood flood-color="#fff"/><feComposite in2="d" operator="in" result="h"/><feDropShadow in="h" dx="0" dy=".5" stdDeviation=".6" flood-color="#000" flood-opacity=".45" result="hs"/><feMerge><feMergeNode in="hs"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'+(w>=80?'<image href="'+SP_LOGO[sp]+'" x="29" y="51" width="42" height="19" preserveAspectRatio="xMidYMid meet" filter="url(#sp'+id+')"/>':'<image href="'+SP_LOGO[sp]+'" x="36" y="53" width="28" height="12" preserveAspectRatio="xMidYMid meet" filter="url(#sp'+id+')"/>'):'')+kitMarks(c1,c2,p,w,x,id)+'</svg>'}
+/* formada gogus isaretleri: ekranda sag ust = takim sembolu (oyuncunun sol gogsu), sol ust = forma markasi */
+function kitLum(h){h=String(h||"#888").replace("#","");if(h.length===3)h=h.replace(/(.)/g,"$1$1");var r=parseInt(h.substr(0,2),16)||0,g=parseInt(h.substr(2,2),16)||0,b=parseInt(h.substr(4,2),16)||0;return (0.2126*r+0.7152*g+0.0722*b)/255}
+function kitColorAt(c1,c2,p,x,y){if(p==="hoops")return (Math.floor((y-12)/13)%2)?c2:c1;if(p==="stripes")return (Math.floor((x-6)/12.57)%2)?c2:c1;if(p==="half")return x>=50?c2:c1;
+  if(p==="sash"){var o=0.561*(y-10);return (x>=20+o&&x<=46+o)?c2:c1}return c1}
+function kitLumArea(c1,c2,p,x0,x1,y0,y1){var n=0,t=0,i,j;for(i=0;i<5;i++)for(j=0;j<3;j++){t+=kitLum(kitColorAt(c1,c2,p,x0+(x1-x0)*i/4,y0+(y1-y0)*j/2));n++}return t/n}
+function kitMarks(c1,c2,p,w,x,id){var o="",df="";
+  if(w>=40&&(x.img||x.sym||x.ch)){var cx=63,cy=36.5;
+    df+='<filter id="sh'+id+'" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy=".4" stdDeviation=".55" flood-color="#000" flood-opacity=".65"/></filter>';
+    if(x.img)o+='<image href="'+x.img+'" x="'+(cx-5.2)+'" y="'+(cy-5.6)+'" width="10.4" height="10.4" preserveAspectRatio="xMidYMid meet" filter="url(#sh'+id+')"/>';
+    else if(x.sym)o+='<text x="'+cx+'" y="'+(cy+3.2)+'" font-size="9.2" text-anchor="middle" filter="url(#sh'+id+')">'+x.sym+'</text>';
+    else o+='<text x="'+cx+'" y="'+(cy+3.1)+'" font-size="9" font-weight="800" fill="#fff" stroke="#000" stroke-width="1.5" paint-order="stroke" text-anchor="middle" font-family="Inter,sans-serif">'+x.ch+'</text>'}
+  if(w>=60&&x.br&&BRAND_LOGOS[x.br]){var col=x.br==="mp"?null:(kitLumArea(c1,c2,p,29,47,31,42)>0.55?["#111","#fff"]:["#fff","#000"]);
+    if(col)df+='<filter id="tf'+id+'" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius=".45" result="d"/><feFlood flood-color="'+col[1]+'" flood-opacity=".85"/><feComposite in2="d" operator="in" result="h"/><feFlood flood-color="'+col[0]+'"/><feComposite in2="SourceAlpha" operator="in" result="f"/><feMerge><feMergeNode in="h"/><feMergeNode in="f"/></feMerge></filter>';
+    o+='<image href="'+BRAND_LOGOS[x.br]+'" x="30.5" y="31" width="16" height="10.5" preserveAspectRatio="xMidYMid meet"'+(col?' filter="url(#tf'+id+')"':'')+'/>'}
+  return df?'<defs>'+df+'</defs>'+o:o}
+function kitBrandOf(uid){if(/^ai_/.test(uid)){return BRANDS[(spHash("marka:"+uid)>>>7)%BRANDS.length][0]}
+  var d=kitDealOf(uid);return d&&BRAND_LOGOS[d.id]?d.id:""}
+function kitMarkOf(uid){var x={br:kitBrandOf(uid)};
+  if(/^ai_/.test(uid)){var nm=((fbLeague&&fbLeague.ai&&fbLeague.ai[uid])||{}).name,lg=nm&&teamLogo(nm);if(lg)x.img=lg.u;else x.ch=(nm||"?").trim().charAt(0).toUpperCase()}
+  else{var c=clubInfo(uid)||{},nm2=(fbLeague&&fbLeague.teams&&fbLeague.teams[uid]||{}).name||"?";x.sym=(c.badge||{}).sym||"";if(!x.sym)x.ch=nm2.trim().charAt(0).toUpperCase()||"?"}
+  return x}
 function titleStarsByName(name){try{if(!name||!fbLeague||!fbLeague.teams||!fbHistory)return 0;var uid=null;
   Object.keys(fbLeague.teams).forEach(function(u){if(!uid&&fbLeague.teams[u].name===name)uid=u});if(!uid)return 0;
   var n=0;Object.keys(fbHistory).forEach(function(k){if(fbHistory[k].uid===uid)n++});return Math.min(5,Math.floor(n/3))}catch(e){return 0}}
@@ -20455,7 +20476,7 @@ var SP_PRO={meritking:{n:"Meritking",bg:"#171d35"},pashabet:{n:"Pashabet",bg:"#4
 var SP_BR={
   bronz:[["penti","Penti","Penti"],["oses","Oses","Oses"],["temu","Temu","Temu"],["susse","Süsse","Süsse"],["bim","BİM","Bim"],["lcw","LC Waikiki","LCW"],["peripella","Peripella","Peripella"],["balkupu","Bal Küpü","Balküpü"],["orkid","Orkid","Orkid"]],
   gumus:[["migros","Migros","Migros"],["uludag","Uludağ","Uludağ"],["tupras","Tüpraş","Tüpraş"],["sutas","Sütaş","Sütaş"],["kmo","Kuzey Marmara Otoyolu","KMO"],["koc","Koç","Koç"],["ulker","Ülker","Ülker"],["togg","Togg","Togg"],["efes","Efes Pilsen","Efes"]],
-  altin:[["amazon","Amazon","Amazon"],["marlboro","Marlboro","Marlboro"],["nike","Nike","Nike"],["visa","Visa","Visa"],["bmw","BMW Group","BMW"],["thy","Turkish Airlines","THY"],["nvidia","Nvidia","Nvidia"],["iphone","iPhone","iPhone"],["sony","Sony","Sony"]]};
+  altin:[["amazon","Amazon","Amazon"],["marlboro","Marlboro","Marlboro"],["visa","Visa","Visa"],["bmw","BMW Group","BMW"],["thy","Turkish Airlines","THY"],["nvidia","Nvidia","Nvidia"],["iphone","iPhone","iPhone"],["sony","Sony","Sony"]]};
 var SP_T={altin:{n:"Altın",ic:"🥇",fx:15e6,fx2:11250000,pr:2e6,sl:4e6,nm:4e6},gumus:{n:"Gümüş",ic:"🥈",fx:10e6,fx2:7.5e6,pr:1.5e6,sl:0,nm:3e6},bronz:{n:"Bronz",ic:"🥉",fx:8e6,fx2:6e6,pr:1.3e6,sl:0,nm:2e6}};
 var SP_BON={cup:1e6,sup:5e5,slf:3e6,slc:7e6},BSP_PAY=6e6,BSP_AFTER=10; // bet sponsoru: 11. hafta (idx 10) sonrasi
 SP_LOGO.pashabet=SP_LOGO.pasha;
@@ -20465,7 +20486,7 @@ function spDecline(){fbDb.ref("sponsors/"+myUid).set({no:1,ord:curOrd()}).catch(
 function spPending(){if(spWriteErr||!signedIn||!myUid||!spReady()||!fbLeague||!fbLeague.teams||!fbLeague.teams[myUid])return false;
   if(nextRoundIdx()<0||liveRoundIdx()>=0)return false;
   var sp=fbSp[myUid],declined=sp&&sp.no&&sp.ord===curOrd(),tg=fbBsp.target;
-  return (!contractOf(myUid)&&!declined)||!!(tg&&tg.uid===myUid&&!fbBsp[myUid])||chkOffers().length>0}
+  return (!contractOf(myUid)&&!declined)||!!(tg&&tg.uid===myUid&&!fbBsp[myUid])||chkOffers().length>0||kitPending()}
 function spGatePage(){if(!spPending())return null;spCss();
   return '<div class="card" style="margin-top:8px;border-color:#b8963b"><h2>Cevap bekleyen teklif var</h2><p class="slot" style="margin:0">Devam etmeden önce teklife cevap vermen gerekiyor.</p></div>'+vSponsor()}
 function spSikeNews(uid,ri){var T=fbLeague.teams,t=T[uid],nm=t.baseName||t.name,rd=fbLeague.rounds[ri],m=(rd.matches||[]).filter(function(x){return x.home===uid||x.away===uid})[0];if(!m)return;
@@ -20479,8 +20500,8 @@ function spSikeNews(uid,ri){var T=fbLeague.teams,t=T[uid],nm=t.baseName||t.name,
   pushNews({type:"sike",title:"🕵️ "+nm+" maçında şike iddiaları",body:txt},"sike_"+uid+"_"+ri)}
 var fbSp={},fbSpPay={},fbBsp={},fbBspPriv={},fbSpLoaded=false,fbBspLoaded=false,fbHistLoaded=false,spRefs=[],spBusy=false;
 function spBrandOf(id){var r=null;["bronz","gumus","altin"].forEach(function(t){SP_BR[t].forEach(function(b){if(b[0]===id)r={id:b[0],n:b[1],s:b[2],tier:t}})});
-  if(!r&&SP_PRO[id])r={id:id,n:SP_PRO[id].n,s:SP_PRO[id].n,tier:"bet"};return r}
-function spReady(){return fbSpLoaded&&fbBspLoaded&&fbHistLoaded}
+  if(!r&&SP_PRO[id])r={id:id,n:SP_PRO[id].n,s:SP_PRO[id].n,tier:"bet"};if(!r&&id==="nike")r={id:"nike",n:"Nike",s:"Nike",tier:"altin"}; /* eski sozlesmeler icin */return r}
+function spReady(){return fbSpLoaded&&fbBspLoaded&&fbHistLoaded&&fbKtLoaded}
 function curOrd(){return Object.keys(fbHistory||{}).filter(function(k){return String(k)!==String(currentSeason)}).length}
 function spTerms(c){var b=spTerms0(c),mu=c.mu||1;if(mu===1)return b;var rm=function(v){return v?Math.round(v*mu/10000)*10000:0};return {kind:b.kind,fixed:rm(b.fixed),pr:rm(b.pr),sl:rm(b.sl),cup:rm(b.cup),sup:rm(b.sup),slf:rm(b.slf),slc:rm(b.slc),nm:rm(b.nm)}}
 function spTerms0(c){var t=SP_T[c.tier]||SP_T.bronz,two=c.years===2,m=two?0.75:1;
@@ -20489,6 +20510,53 @@ function spTerms0(c){var t=SP_T[c.tier]||SP_T.bronz,two=c.years===2,m=two?0.75:1
 function contractOf(uid){var c=fbSp&&fbSp[uid];if(!c||!c.id)return null;var cur=curOrd();
   if(c.ord===cur)return {c:c,yr:1};if(c.years===2&&c.ord===cur-1)return {c:c,yr:2};return null}
 function spChestId(uid){var x=contractOf(uid);return x?x.c.id:null}
+
+/* ================= FORMA MARKASI ================= */
+var KT_T={p:{n:"Premium",ic:"💎",fx:4e6,win:150000},m:{n:"Orta",ic:"🔷",fx:2.5e6,win:100000},y:{n:"Yerel",ic:"🔹",fx:1.5e6,win:0}};
+var fbKit={},fbKitPay={},fbKtLoaded=false,ktBusy=false;
+function kitPrevSid(){var prev=null;Object.keys(fbHistory||{}).forEach(function(k){if(String(k)===String(currentSeason))return;if(!prev||(fbHistory[k].finishedAt||0)>(fbHistory[prev].finishedAt||0))prev=k});return prev}
+function kitTierOf(uid){var prev=kitPrevSid();if(!prev)return {t:"m",why:"Geçen sezon verisi yok"};var H=fbHistory[prev]||{};
+  if(H.uid===uid)return {t:"p",why:"Geçen sezon lig şampiyonluğu"};
+  if(H.clKO&&H.clKO[uid])return {t:"p",why:"Geçen sezon Şampiyonlar Ligi'nde gruptan çıktın"};
+  if(H.elSF&&H.elSF[uid])return {t:"p",why:"Geçen sezon Avrupa Ligi'nde yarı finale kaldın"};
+  var rk=H.rank&&H.rank[uid];if(rk===6||rk===7)return {t:"y",why:"Geçen sezon ligi "+rk+". bitirdin"};
+  return {t:"m",why:"Geçen sezon performansın"}}
+function kitPool(t){return BRANDS.filter(function(b){return b[2]===t})}
+function kitPct(uid,id){return 90+(spHash(curOrd()+"|"+uid+"|"+id+"|kt")%21)}
+function kitTerms(t,pct){var T=KT_T[t]||KT_T.m,r=function(v){return Math.round(v/1e4)*1e4};return {fx:r(T.fx*pct/100),win:T.win?r(T.win*pct/100):0}}
+function kitOffers(uid){var ti=kitTierOf(uid),pool=kitPool(ti.t),h=spHash(curOrd()+"|"+uid+"|kit"),i=h%pool.length,j=(i+1+((h>>>7)%(pool.length-1)))%pool.length;
+  var mk=function(b){var p=kitPct(uid,b[0]);return {id:b[0],n:b[1],pct:p,terms:kitTerms(ti.t,p)}};return {t:ti.t,why:ti.why,A:mk(pool[i]),B:mk(pool[j])}}
+function kitDealOf(uid){var d=fbKit&&fbKit[uid];return d&&d.id&&d.ord===curOrd()?d:null}
+function kitDeclined(uid){var d=fbKit&&fbKit[uid];return !!(d&&d.no&&d.ord===curOrd())}
+function kitWinBonus(uid,idx){var d=kitDealOf(uid);if(!d||idx<(d.r0||0))return 0;return kitTerms(d.t,d.pct).win}
+function kitPending(){if(!myUid)return false;var sp=fbSp[myUid],spDone=!!contractOf(myUid)||!!(sp&&sp.no&&sp.ord===curOrd());return spDone&&!kitDealOf(myUid)&&!kitDeclined(myUid)}
+function kitSign(id){var of=kitOffers(myUid),o=of.A.id===id?of.A:of.B,nr=nextRoundIdx();if(nr<0)return;
+  fbDb.ref("kits/"+myUid).set({id:o.id,t:of.t,pct:o.pct,ord:curOrd(),r0:nr,at:Date.now()}).catch(function(e){spErr("Forma anlaşması kaydedilemedi (Rules hatası): "+e.message)})}
+function kitDecline(){fbDb.ref("kits/"+myUid).set({no:1,ord:curOrd()}).catch(function(e){spErr("Kaydedilemedi (Rules hatası): "+e.message)})}
+function kitSyncTick(){
+  if(ktBusy||spBusy||!signedIn||!myUid||!fbDb||!currentSeason||!spReady()||!fbLeague||!fbLeague.champion)return;
+  var d=kitDealOf(myUid),p=fbKitPay[myUid]||{};if(!d||p.fixed)return;
+  var amt=kitTerms(d.t,d.pct).fx;if(!amt)return;ktBusy=true;var S=currentSeason,got=0;
+  fbDb.ref("kitsPay/"+S+"/"+myUid).transaction(function(cur){cur=cur||{};if(cur.fixed)return;cur.fixed=1;got=amt;return cur})
+    .then(function(r){if(!r||!r.committed||!got)return;return fbDb.ref("budgets/"+S+"/"+myUid).transaction(function(b){return (b==null?START_BUDGET:b)+got})})
+    .then(function(){ktBusy=false}).catch(function(e){ktBusy=false;spErr("Forma ödemesi yazılamadı (Rules hatası): "+e.message)})}
+setInterval(kitSyncTick,4000);
+function ktLogo(id,sm){spCss();return '<span class="spLg'+(sm?' sm':'')+'" style="background:#fff"><img src="'+BRAND_LOGOS[id]+'" alt=""></span>'}
+function ktRows(t,tm){return '<div class="spRow"><span>Sabit ödeme (sezon sonunda)</span><b>'+fmtM(tm.fx)+'</b></div>'+(tm.win?'<div class="spRow"><span>Lig galibiyeti başına</span><b>'+fmtM(tm.win)+'</b></div>':'<div class="spRow"><span>Lig galibiyeti primi</span><b>Yok</b></div>')}
+function kitCardHTML(){spCss();var d=kitDealOf(myUid);
+  if(d){var tm=kitTerms(d.t,d.pct),T=KT_T[d.t],br=BRANDS.filter(function(b){return b[0]===d.id})[0],p=fbKitPay[myUid]||{},got=p.fixed?tm.fx:0;
+    if(tm.win)leagueRounds().forEach(function(rd,i){if(!rd.paid)return;(rd.matches||[]).forEach(function(m){var r=m.result;if(!m.played||!r||mC(rd,m)!=="league")return;if((r.h>r.a&&m.home===myUid)||(r.a>r.h&&m.away===myUid))got+=kitWinBonus(myUid,i)})});
+    return '<div class="pgTitle" style="margin-top:22px">Forma markası</div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span class="spTier">'+T.ic+' '+T.n+' marka</span><span class="slot" style="margin:0">1 sezonluk</span></div>'+
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">'+ktLogo(d.id)+'<div><div style="font:800 18px Inter;letter-spacing:-.02em">'+esc(br?br[1]:d.id)+'</div><div class="slot" style="margin:0">Formanın sol göğsünde görünür</div></div></div>'+ktRows(d.t,tm)+
+      '<div class="spTot"><span>Bu sezon markadan gelen</span><b style="color:var(--win)">+'+fmtM(got)+'</b></div></div>'}
+  if(kitDeclined(myUid))return '<div class="pgTitle" style="margin-top:22px">Forma markası</div><div class="card"><h2>Markasız sezon</h2><p class="msg">Bu sezon forma markası teklifini geri çevirdin. Yeni teklif sonraki sezon gelir.</p></div>';
+  if(nextRoundIdx()<0)return '';
+  var of=kitOffers(myUid),T=KT_T[of.t];
+  var h='<div class="pgTitle" style="margin-top:22px">Forma markası</div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Forma markası teklifleri</h2><span class="spTier">'+T.ic+' '+T.n+'</span></div>'+
+    '<p class="slot" style="margin:8px 0 0;font-size:13px;line-height:1.5">'+esc(of.why)+' için <b>'+T.n+'</b> kademesinden iki teklif var. Marka logosu formanın sol göğsünde görünür. Anlaşma 1 sezonluktur; imzalamazsan markasız devam edersin.</p></div>';
+  [of.A,of.B].forEach(function(o){h+='<div class="spOf"><div class="hd">'+ktLogo(o.id)+'<div><b>'+esc(o.n)+'</b><small>1 sezonluk forma anlaşması</small></div></div>'+ktRows(of.t,o.terms)+
+    '<button class="btn" data-ktsign="'+o.id+'" style="margin-top:10px">'+esc(o.n)+' ile imzala</button></div>'});
+  return h+'<button class="btn alt" id="ktNo" style="margin-top:12px">Bu sezon markasız devam et</button>'}
 function spTierOf(uid){var prev=null;Object.keys(fbHistory||{}).forEach(function(k){if(String(k)===String(currentSeason))return;if(!prev||(fbHistory[k].finishedAt||0)>(fbHistory[prev].finishedAt||0))prev=k});
   if(!prev)return "bronz";var pz=fbHistory[prev].prizes||{};if(pz[uid]==null)return "bronz";
   var rank=1;Object.keys(pz).forEach(function(u){if(pz[u]>pz[uid])rank++});return rank<=3?"altin":rank<=5?"gumus":"bronz"}
@@ -20502,7 +20570,7 @@ function sponsorRoundIncome(idx){var rd=leagueRounds()[idx],c=compOf(rd),inc={};
   function add(u,v){if(v&&u&&fbLeague.teams[u])inc[u]=(inc[u]||0)+v}
   function cr(u){var x=u&&contractOf(u);if(!x)return null;if(x.yr===1&&idx<(x.c.r0||0))return null;return spTerms(x.c)}
   (rd.matches||[]).forEach(function(m){var r=m.result;if(!m.played||!r)return;var t,w,c=mC(rd,m);
-    if(c==="league"){w=r.h>r.a?m.home:r.a>r.h?m.away:null;t=cr(w);if(t)add(w,t.pr)}
+    if(c==="league"){w=r.h>r.a?m.home:r.a>r.h?m.away:null;t=cr(w);if(t)add(w,t.pr);add(w,kitWinBonus(w,idx))}
     else if(c==="super"){w=koWinner(m);t=cr(w);if(t)add(w,t.sup)}
     else if(c==="cup"){if(idx===lastRoundOf("cup")){w=koWinner(m);t=cr(w);if(t)add(w,t.cup)}}
     else if(c==="cl"){if(m.grp)return;w=koWinner(m);t=cr(w);if(t)add(w,t.sl);
@@ -20511,17 +20579,19 @@ function sponsorRoundIncome(idx){var rd=leagueRounds()[idx],c=compOf(rd),inc={};
 /* ---- abonelikler ---- */
 function subscribeSponsors(){
   spRefs.forEach(function(r){r.off()});spRefs=[];
-  fbSpLoaded=false;fbBspLoaded=false;
+  fbSpLoaded=false;fbBspLoaded=false;fbKtLoaded=false;
   function sub(path,set,flag){var r=fbDb.ref(path);spRefs.push(r);
     r.on("value",function(s){set(s.val()||{});if(flag)flag();if(tab==="home"||tab==="sponsor"||tab==="money"||tab==="clubid"||tab==="more")render();sponsorSyncTick();adminSponsorTick()},
       function(){set({});if(flag)flag();})}
   if(!fbDb)return;
   sub("sponsors",function(v){fbSp=v},function(){fbSpLoaded=true});
+  sub("kits",function(v){fbKit=v},function(){fbKtLoaded=true});
   if(currentSeason){
     sub("sponsorsPay/"+currentSeason,function(v){fbSpPay=v});
+    sub("kitsPay/"+currentSeason,function(v){fbKitPay=v});
     sub("bsp/"+currentSeason,function(v){fbBsp=v},function(){fbBspLoaded=true});
     if(myUid)sub(isAdmin?"bspPriv/"+currentSeason:"bspPriv/"+currentSeason+"/"+myUid,function(v){fbBspPriv=isAdmin?v:(function(o){var r={};r[myUid]=v;return r})(v)})}
-  else{fbSpPay={};fbBsp={};fbBspPriv={};fbBspLoaded=true}}
+  else{fbSpPay={};fbKitPay={};fbBsp={};fbBspPriv={};fbBspLoaded=true}}
 /* ---- oyuncu tarafi: odemeler + isim senkronu ---- */
 function sponsorSyncTick(){
   if(spBusy||!signedIn||!myUid||!fbDb||!currentSeason||!spReady()||!fbLeague||!fbLeague.teams||!fbLeague.teams[myUid])return;
@@ -20644,6 +20714,7 @@ function vSponsor(){var gate=gateCard();if(gate)return gate;spCss();
         '<button class="btn" data-spsign="'+k+'" style="margin-top:10px">'+esc(b[1])+' ile imzala</button></div>'});
     h+='<button class="btn alt" id="spNo" style="margin-top:12px">Bu sezon sponsorsuz devam et</button>';
     }
+  if(contractOf(myUid)||(fbSp[myUid]&&fbSp[myUid].no&&fbSp[myUid].ord===curOrd()))h+=kitCardHTML();
   return h}
 function spForce(idx,m){var f={},any=false;[["home",m.home],["away",m.away]].forEach(function(p){var x=(((fbBspPriv||{})[p[1]]||{}).chk||{})[idx];if(x&&x.st==="yes"&&(x.type==="red"||x.type==="pen")){var o={};o[x.type]=1;f[p[0]]=o;any=true}});return any?f:null}
 /* ================= ITIBAR ================= */
@@ -20798,7 +20869,7 @@ function checkChampion(){
   var rec={uid:c.id,teamName:c.name,ownerName:champOwner0,pts:c.pts,gf:c.gf,ga:c.ga,finishedAt:Date.now()};
   var updates={};updates["leagues/"+currentSeason+"/champion"]=rec;updates["history/"+currentSeason]=rec;
   var prizes={};stats.table.forEach(function(t,i){if(PRIZES[i])prizes[t.id]=PRIZES[i]});
-  rec.prizes=prizes;rec.top3=stats.table.slice(0,3).map(function(t){return t.id});rec.top5=stats.table.slice(0,5).map(function(t){return t.id});if(stats.table[1])rec.secondName=stats.table[1].name||"";
+  rec.rank={};stats.table.forEach(function(t,i){rec.rank[t.id]=i+1});rec.prizes=prizes;rec.top3=stats.table.slice(0,3).map(function(t){return t.id});rec.top5=stats.table.slice(0,5).map(function(t){return t.id});if(stats.table[1])rec.secondName=stats.table[1].name||"";
   updates["leagues/"+currentSeason+"/champion"]=rec;updates["history/"+currentSeason]=rec; // oduller adminIncomeTick ile bakiyeye yazilir
   fbDb.ref().update(updates).then(function(){
     pushNews({type:"odul",title:"💰 Sezon ödülleri",body:stats.table.filter(function(t,i){return PRIZES[i]}).map(function(t,i){return (i+1)+". "+t.name+" · +"+fmtM(PRIZES[i])}).join("\n")},"son_oduller");
@@ -20838,6 +20909,9 @@ function seasonExtras(){
       u["history/"+currentSeason+"/cupWinName"]=(T[w]||{}).name||"";}
     else if(c==="el"){u["history/"+currentSeason+"/elWin"]=w;u["history/"+currentSeason+"/elWinName"]=(T[w]||(fbLeague.ai||{})[w]||{}).name||"";u["history/"+currentSeason+"/elFin"]=l}
     else{u["history/"+currentSeason+"/clWin"]=w;u["history/"+currentSeason+"/clWinName"]=(T[w]||(fbLeague.ai||{})[w]||{}).name||"";u["history/"+currentSeason+"/clFin"]=l}});
+  (function(){var clKO={},elSF={},a=0,b=0;(fbLeague.rounds||[]).forEach(function(rd){(rd.matches||[]).forEach(function(m){if(m.grp)return;var c=mC(rd,m);
+    if(c==="cl"){clKO[m.home]=1;clKO[m.away]=1;a++}else if(c==="el"&&stIdx(rd.stage)>=2){elSF[m.home]=1;elSF[m.away]=1;b++}})});
+    if(a)u["history/"+currentSeason+"/clKO"]=clKO;if(b)u["history/"+currentSeason+"/elSF"]=elSF})();
   u["leagues/"+currentSeason+"/extrasDone"]=true;
   fbDb.ref().update(u).catch(function(){})}
 
@@ -22711,14 +22785,14 @@ function clubFounded(uid){var ns=allSeasonLeagues(),first="";
 function initEditClub(){var c=clubInfo(myUid),b=c.badge||{};
   editClub={c1:validColor(c.c1)?c.c1:"#2bd66b",c2:validColor(c.c2)?c.c2:"#0a1220",pat:c.pat||"half",shape:b.shape||"circle",sym:b.sym||"",stadium:c.stadium||"",name:myTeamName||""}}
 function clubPrevHTML(){var e=editClub,ic=clubIcon(myUid),f=clubFounded(myUid),ch=(e.name||"?").trim().charAt(0).toUpperCase()||"?";
-  return '<div class="cpv" style="background-image:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.32)),linear-gradient(112deg,'+e.c1+','+e.c2+')"><div class="cpvKit">'+kitSVG(e.c1,e.c2,e.pat,108,spChestId(myUid))+'</div><div class="cpvTx"><div class="cpvN">'+withStars(badgeHTML(e.c1,e.c2,e.pat,e.shape,e.sym,ch,42),42,titleStarsByName(e.name))+'<b>'+esc(e.name||"Takım adı")+'</b></div>'+
+  return '<div class="cpv" style="background-image:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.32)),linear-gradient(112deg,'+e.c1+','+e.c2+')"><div class="cpvKit">'+kitSVG(e.c1,e.c2,e.pat,108,spChestId(myUid),{sym:e.sym,ch:(e.name||'?').trim().charAt(0).toUpperCase()||'?',br:kitBrandOf(myUid)})+'</div><div class="cpvTx"><div class="cpvN">'+withStars(badgeHTML(e.c1,e.c2,e.pat,e.shape,e.sym,ch,42),42,titleStarsByName(e.name))+'<b>'+esc(e.name||"Takım adı")+'</b></div>'+
     '<div class="cpvL">🏟️ '+esc(e.stadium?stadBet(myUid,e.stadium):"Stadyum adı belirlenmedi")+'</div>'+'<div class="cpvS">'+(ic?'⭐ İkon · <b>'+esc(ic.n)+'</b>':'⭐ İkon oyuncu seçilmedi')+'</div>'+
     '<div class="cpvC">'+(f?'<span>Kuruluş · '+esc(f)+'</span>':'')+'</div></div></div>'}
 function clubPatsHTML(){var e=editClub;return CLUB_PATS.map(function(x){return '<button class="cpB'+(e.pat===x[0]?' on':'')+'" data-pat="'+x[0]+'">'+kitSVG(e.c1,e.c2,x[0],46)+'<span>'+x[1]+'</span></button>'}).join("")}
 function clubBdgHTML(){var e=editClub,ch=(e.name||"?").trim().charAt(0).toUpperCase()||"?";
   return '<div class="cpRow">'+CLUB_SHAPES.map(function(x){return '<button class="cpB'+(e.shape===x[0]?' on':'')+'" data-shape="'+x[0]+'">'+badgeHTML(e.c1,e.c2,e.pat,x[0],e.sym,ch,40)+'<span>'+x[1]+'</span></button>'}).join("")+'</div>'+
-    '<div class="cpSym">'+CLUB_SYMS.map(function(x){return '<button class="'+(e.sym===x?'on':'')+'" data-sym="'+x+'">'+(x||ch)+'</button>'}).join("")+'</div>'}
-function refreshClubUI(){if(!editClub)return;var a=$("clubPrev"),b=$("clubPats"),c=$("clubBdg");if(a)a.innerHTML=clubPrevHTML();if(b)b.innerHTML=clubPatsHTML();if(c)c.innerHTML=clubBdgHTML();bindClubChoices()}
+    '<div class="cpSymW"><div class="cpSym" id="cpSymS">'+(function(){var h="",i,pg=16;for(i=0;i<CLUB_SYMS.length;i+=pg)h+='<div class="cpPg">'+CLUB_SYMS.slice(i,i+pg).map(function(x){return '<button class="'+(e.sym===x?'on':'')+'" data-sym="'+x+'">'+(x||ch)+'</button>'}).join("")+'</div>';return h})()+'</div><div class="cpDots" id="cpDots">'+CLUB_SYMS.filter(function(_,i){return i%16===0}).map(function(_,i){return '<i'+(i===0?' class="on"':'')+'></i>'}).join("")+'</div></div>'}
+function refreshClubUI(){if(!editClub)return;var _sc=$("cpSymS"),_sl=_sc?_sc.scrollLeft:0;var a=$("clubPrev"),b=$("clubPats"),c=$("clubBdg");if(a)a.innerHTML=clubPrevHTML();if(b)b.innerHTML=clubPatsHTML();if(c)c.innerHTML=clubBdgHTML();bindClubChoices();var s2=$("cpSymS");if(s2){s2.scrollLeft=_sl;s2.onscroll=function(){var i=Math.round(s2.scrollLeft/s2.clientWidth),d=document.querySelectorAll("#cpDots i");Array.prototype.forEach.call(d,function(el,k){el.className=k===i?"on":""})};s2.onscroll()}}
 function bindClubChoices(){
   Array.prototype.forEach.call(document.querySelectorAll("#clubPats [data-pat]"),function(b){b.onclick=function(){editClub.pat=b.dataset.pat;refreshClubUI()}});
   Array.prototype.forEach.call(document.querySelectorAll("#clubBdg [data-shape]"),function(b){b.onclick=function(){editClub.shape=b.dataset.shape;refreshClubUI()}});
@@ -22740,7 +22814,7 @@ var CLCSS=false;
 function clCss(){if(CLCSS)return;CLCSS=true;var st=document.createElement("style");st.textContent=
 '.cpv{border-radius:20px;padding:16px;display:flex;align-items:center;gap:14px;border:1px solid var(--bd);color:#fff;margin-bottom:14px;text-shadow:0 1px 3px rgba(0,0,0,.55)}.cpvKit{flex:0 0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}.cpvTx{min-width:0;flex:1}.cpvN{display:flex;align-items:center;gap:9px}.cpvN b{font:800 19px Inter,sans-serif;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cpvL{font-size:12.5px;opacity:.92;margin-top:7px}.cpvS{font-size:12.5px;font-style:italic;margin-top:4px;opacity:.95}.cpvC{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.cpvC span{background:rgba(0,0,0,.35);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:700}'+
 '.cpRow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px}.cpB{border:1px solid var(--bd);background:var(--bg2);color:var(--tx);border-radius:14px;padding:8px 6px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font:700 11px Inter,sans-serif;cursor:pointer;min-width:62px}.cpB.on{border-color:var(--gold);background:rgba(240,180,74,.12)}.cpB .avatar{margin:0}#clubPats.cpRow{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}#clubBdg .cpRow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.cpB{min-width:0;width:100%}'+
-'.cpSym{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin:8px 0 12px}.cpSym button{border:1px solid var(--bd);background:var(--bg2);color:var(--tx);border-radius:10px;aspect-ratio:1;font-size:18px;cursor:pointer;padding:0}.cpSym button.on{border-color:var(--gold);background:rgba(240,180,74,.14)}'+
+'.cpSymW{margin:8px 0 12px}.cpSym{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}.cpSym::-webkit-scrollbar{display:none}.cpPg{flex:0 0 100%;scroll-snap-align:start;display:grid;grid-template-columns:repeat(8,1fr);gap:6px;align-content:start;box-sizing:border-box}.cpDots{display:flex;justify-content:center;gap:6px;margin-top:8px}.cpDots i{width:6px;height:6px;border-radius:50%;background:var(--bd)}.cpDots i.on{background:var(--gold)}.cpSym button{border:1px solid var(--bd);background:var(--bg2);color:var(--tx);border-radius:10px;aspect-ratio:1;font-size:18px;cursor:pointer;padding:0}.cpSym button.on{border-color:var(--gold);background:rgba(240,180,74,.14)}'+
 '.cpIco{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:12px;margin:8px 0}.cpIco b{font-size:14px}.cpIco small{display:block;color:var(--mut);font-size:11.5px}';
 document.head.appendChild(st)}
 function iconRowHTML(){var ic=clubIcon(myUid),all=playersOf(myUid);
@@ -23282,7 +23356,7 @@ var AI_KITS={psg:["#0b1f4d","#e30613","solid"],"atletico-madrid":["#d4202a","#ff
 var KV="E"; // forma gosterim varyantlari (onizleme: hepsi acik)
 function kitOf(uid){var c=clubInfo(uid)||{};if(/^ai_/.test(uid)){var k=AI_KITS[uid.slice(3)];return k?{c1:k[0],c2:k[1],pat:k[2]}:null}
   return validColor(c.c1)&&validColor(c.c2)?{c1:c.c1,c2:c.c2,pat:c.pat||"half"}:null}
-function bigKit(uid,w){var k=kitOf(uid);if(!k)return avU(uid,w);return '<span style="display:inline-block;line-height:0;filter:drop-shadow(0 6px 10px rgba(0,0,0,.45))">'+kitSVG(k.c1,k.c2,k.pat,w,spChestId(uid))+'</span>'}
+function bigKit(uid,w){var k=kitOf(uid);if(!k)return avU(uid,w);return '<span style="display:inline-block;line-height:0;filter:drop-shadow(0 6px 10px rgba(0,0,0,.45))">'+kitSVG(k.c1,k.c2,k.pat,w,spChestId(uid),kitMarkOf(uid))+'</span>'}
 function kitSpon(uid){var id=spChestId(uid),b=id&&spBrandOf(id);return b?'<div style="font:700 11px Inter;opacity:.85;margin-top:2px">'+esc(b.n)+'</div>':''}
 function kitPlate(uid){return '<div style="text-align:center;line-height:0">'+bigKit(uid,104)+'</div>'}
 function kitStrip(uid,right){var id=spChestId(uid),k=kitOf(uid)||{c1:"#333",c2:"#111"},lg=id?spLogo(id,true):'<span style="font:600 12px Inter;opacity:.6">Sponsorsuz</span>';
@@ -23293,7 +23367,7 @@ function avKit(uid,size,name){var c=clubInfo(uid)||{},kit=null;
   else if(validColor(c.c1)&&validColor(c.c2))kit={c1:c.c1,c2:c.c2,pat:c.pat||"half"};
   if(!kit)return avU(uid,size,name);
   var ks=Math.round(size*0.56);
-  return '<span style="position:relative;display:inline-block;line-height:0">'+avU(uid,size,name)+'<span style="position:absolute;right:-'+Math.round(ks*0.5)+'px;bottom:-3px;line-height:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))">'+kitSVG(kit.c1,kit.c2,kit.pat,ks,spChestId(uid))+'</span></span>'}
+  return '<span style="position:relative;display:inline-block;line-height:0">'+avU(uid,size,name)+'<span style="position:absolute;right:-'+Math.round(ks*0.5)+'px;bottom:-3px;line-height:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))">'+kitSVG(kit.c1,kit.c2,kit.pat,ks,spChestId(uid),kitMarkOf(uid))+'</span></span>'}
 function avU(uid,size,name){var nm=name||((fbLeague&&fbLeague.teams&&fbLeague.teams[uid])?fbLeague.teams[uid].name:userLabel(uid));return avatarHTML(nm,size)}
 function segHTML(key,items,cur){return '<div class="seg">'+items.map(function(it){return '<button data-seg="'+key+'" data-v="'+it[0]+'" class="'+(cur===it[0]?'on':'')+'">'+it[1]+'</button>'}).join("")+'</div>'}
 function rbCls(r){return r>=85?"t1":r>=80?"t2":"t3"}
@@ -23325,6 +23399,7 @@ function moneyItems(uid){var rs=leagueRounds(),items=[];
     if(x){var tt=spTerms(x.c),b=spBrandOf(x.c.id);if(p.fixed&&tt.fixed)items.push({t:t0,o:-0.5,label:"Sponsor: "+b.n,sub:"Sabit ödeme",amt:tt.fixed});if(p.name&&x.c.nm)items.push({t:t0,o:-0.4,label:"Sponsor: "+b.n,sub:"İsim hakkı",amt:tt.nm})}
     if(p.bsp&&betPrefixOf(uid))items.push({t:t0+1,o:-0.3,label:"Sponsor: "+betPrefixOf(uid),sub:"İsim sponsorluğu",amt:BSP_PAY});
     var chk=((fbBspPriv||{})[uid]||{}).chk||{};Object.keys(chk).forEach(function(ri){if(chk[ri]&&chk[ri].st==="paid")items.push({t:dms(rs[+ri])+1,o:1.5,label:"Sponsor: "+betPrefixOf(uid),sub:"Özel ödeme",amt:BSP_PAY})})})();
+  (function(){var kd=kitDealOf(uid),kp=(fbKitPay&&fbKitPay[uid])||{};if(kd&&kp.fixed){var br=BRANDS.filter(function(b){return b[0]===kd.id})[0];items.push({t:dms(rs[rs.length-1])+2.6,o:4.2,label:"Forma markası: "+(br?br[1]:kd.id),sub:"Sabit ödeme",amt:kitTerms(kd.t,kd.pct).fx})}})();
   var ch=fbLeague.champion;if(ch&&ch.paid&&ch.prizes&&ch.prizes[uid])items.push({t:dms(rs[rs.length-1])+3,o:4,label:"Sezon sonu ödülü",sub:"Lig sıralaması",amt:ch.prizes[uid]});
   if(ch&&ch.paid&&ch.tax&&ch.tax[uid])items.push({t:dms(rs[rs.length-1])+3,o:4.5,label:"Gelir vergisi",sub:"Sezon sonu bakiyesi üzerinden",amt:-ch.tax[uid]});
   if(uid===myUid)Object.keys(fbMyTx||{}).forEach(function(k){var x=fbMyTx[k];if(x&&x.amt)items.push({t:x.t||0,o:3.5,label:x.label,sub:x.sub||"",amt:x.amt})});
@@ -24321,6 +24396,8 @@ function bind(){
   document.querySelectorAll("[data-spsign]").forEach(function(b){b.onclick=function(){var k=b.dataset.spsign,of=spOffers(myUid),br=k==="A"?of.A:of.B,yrs=+(UI.spYrs||1)===2?2:1;
     cfm(br[1]+" ile "+yrs+" yıllık sponsorluk imzalansın mı?"+(UI.spNm==="1"?" Takım adının başına “"+br[2]+"” eklenecek.":""),function(){spSign(k)})}});
   document.querySelectorAll("[data-bspacc]").forEach(function(b){b.onclick=function(){var id=b.dataset.bspacc;cfm(SP_PRO[id].n+" ile sezon sonuna kadar isim sponsorluğu imzalansın mı? +"+fmtM(BSP_PAY)+" hemen yatar.",function(){bspAccept(id)})}});
+  document.querySelectorAll("[data-ktsign]").forEach(function(b){b.onclick=function(){var id=b.dataset.ktsign,br=BRANDS.filter(function(x){return x[0]===id})[0];cfm((br?br[1]:id)+" ile 1 sezonluk forma anlaşması imzalansın mı?",function(){kitSign(id)})}});
+  var kn=$("ktNo");if(kn)kn.onclick=function(){cfm("Forma markası teklifleri bu sezon için reddedilsin mi? Bu karar geri alınamaz.",kitDecline)};
   var sn=$("spNo");if(sn)sn.onclick=function(){cfm("Sponsor teklifleri bu sezon için reddedilsin mi? Bu karar geri alınamaz.",spDecline)};
   var bn=$("bspNo");if(bn)bn.onclick=function(){cfm("Teklifler reddedilsin mi? Bu karar geri alınamaz.",bspReject)};
   document.querySelectorAll("[data-chk]").forEach(function(b){b.onclick=function(){var p=b.dataset.chk.split("|");cfm(p[1]==="1"?"Teklifi kabul ediyorsun. Emin misin?":"Teklif reddedilsin mi?",function(){chkAnswer(+p[0],p[1]==="1")})}});
@@ -24419,5 +24496,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v95 · 26.10 19:54</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v96 · 27.10 08:20</div></body>
 </html>
