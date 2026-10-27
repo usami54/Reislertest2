@@ -23737,7 +23737,7 @@ function cmDominance(inf){var recent=inf.shown.filter(function(e){return e.min>i
 function cmBarHTML(ri,mi,inf,sm){var rd=inf.rd,m=inf.m,teams=fbLeague.teams,hn=teams[m.home].name,an=teams[m.away].name;
   var R0=REFEREES[m.referee],lines=cmLines(inf,hn,an,R0?R0.name:"",m.weather),dm=cmDominance(inf),last=lines[lines.length-1],ago=last?inf.min-last.min:99;
   var recent=inf.done?[]:lines.filter(function(l){return inf.min-l.min<=2}).slice(-3),tzE=(!inf.done&&inf.tz&&inf.tz.length)?inf.tz[inf.tz.length-1]:null;
-  var fresh=!!tzE||(last&&ago<=2&&!inf.done),flash=!!tzE||(fresh&&last.k==="goal");
+  var fresh=!!tzE||(last&&ago<=2&&!inf.done),flash=!tzE&&fresh&&last.k==="goal";
   var idle,sd0=ri+"|"+mi+"|"+Math.floor(inf.min/3),W0=WEATHER[m.weather],wid=m.weather,md=inf.min||0,lead=inf.gh>inf.ga?hn:inf.ga>inf.gh?an:"",trail=inf.gh>inf.ga?an:inf.ga>inf.gh?hn:"",rfn=R0?cmSur(R0.name):"";
   if(inf.done)idle=cmPick(["Maç sona erdi. Skor "+inf.gh+"–"+inf.ga+".","Final düdüğü çaldı: "+hn+" "+inf.gh+"–"+inf.ga+" "+an+".","Karşılaşma "+inf.gh+"–"+inf.ga+" tamamlandı."],ri+"|"+mi);
   else if(inf.penOn||(inf.min!=null&&inf.min>=inf.tot&&m.pen))idle=cmPick(["Seri penaltı atışları başladı, gerilim tavan!","Penaltı atışları sürüyor, her vuruş bir sınav!","Herkes nefesini tuttu, seri penaltılar devam ediyor."],sd0);
@@ -24436,7 +24436,7 @@ function abCss(){if(window._abCss)return;window._abCss=1;var st=document.createE
 ".abBig{background:linear-gradient(110deg,#b8860b,#f0b44a);color:#1b1400;box-shadow:0 0 0 0 rgba(240,180,74,.6);animation:abPulseG 1.8s infinite}.abBig button{background:#1b1400;color:#f0b44a}.abBig.ok{background:linear-gradient(110deg,#6b5a2a,#8d7a3a);color:#fff;animation:none}.abBig.ok button{background:#fff;color:#111}"+
 "@keyframes abPulse{0%{box-shadow:0 0 0 0 rgba(230,57,70,.55)}70%{box-shadow:0 0 0 10px rgba(230,57,70,0)}100%{box-shadow:0 0 0 0 rgba(230,57,70,0)}}@keyframes abPulseG{0%{box-shadow:0 0 0 0 rgba(240,180,74,.6)}70%{box-shadow:0 0 0 10px rgba(240,180,74,0)}100%{box-shadow:0 0 0 0 rgba(240,180,74,0)}}@media(prefers-reduced-motion:reduce){.abIcon,.abBig{animation:none}}"+
 ".ikSheet .in{text-align:center;padding-top:18px}.ikSheet .ikStar{font-size:38px;line-height:1}.ikSheet .ikT{font:900 13px Inter;letter-spacing:.08em;color:var(--amber);margin:6px 0 10px}.ikSheet .ikRb{width:86px;height:86px;border-radius:50%;margin:6px auto 8px;display:grid;place-items:center;font:900 38px Inter;color:#1b1400;background:linear-gradient(145deg,#f7d57a,#d99a1e);box-shadow:0 0 0 4px rgba(240,180,74,.25),0 0 28px rgba(240,180,74,.35)}.ikSheet .ikN{font:900 24px Inter;letter-spacing:-.02em}.ikSheet .ikP{color:var(--mut);font:700 13px Inter;margin-top:2px}.ikSheet .ikF{display:flex;gap:8px;margin:14px 0 10px}.ikSheet .ikF div{flex:1;background:var(--card2);border-radius:12px;padding:9px 6px}.ikSheet .ikF small{display:block;font:600 11px Inter;color:var(--mut)}.ikSheet .ikF b{font:800 14.5px Inter}.ikSheet .ikNote{font:600 12.5px/1.4 Inter;color:var(--mut);margin:0 0 12px}"+
-".ikFlash .in{text-align:center;background:linear-gradient(180deg,#2a1f08,var(--card) 55%)}.ikFlash .ikBody{white-space:pre-line;font:700 15px/1.5 Inter;margin:6px 0 14px}";
+".ikFlash .in{text-align:center;background:linear-gradient(180deg,#2a1f08,var(--card) 55%)}.sikeFlash .in{background:var(--card)}.gz{background:#efe6d0;color:#1d1a14;border-radius:6px;padding:12px 14px 14px;font-family:Georgia,'Times New Roman',serif;box-shadow:inset 0 0 40px rgba(120,90,30,.18),0 4px 18px rgba(0,0,0,.5);text-align:left;transform:rotate(-.4deg)}.gzTop{display:flex;justify-content:space-between;font:italic 11.5px Georgia,serif;border-bottom:1px solid #1d1a14;padding-bottom:3px}.gzMast{font:900 28px/1.1 Georgia,'Times New Roman',serif;text-align:center;letter-spacing:-.01em;display:flex;align-items:center;justify-content:center;margin:6px 0 4px;}.gzMast i{font-style:normal;color:#a4161a}.gzLogo{display:inline-flex;vertical-align:middle;margin-right:7px}.gzRule{border-top:3px double #1d1a14;margin-bottom:8px}.gzKick{font:700 11.5px Georgia,serif;color:#a4161a;letter-spacing:.04em;text-transform:none;font-style:italic}.gzHead{font:900 25px/1.15 Georgia,'Times New Roman',serif;margin:3px 0 6px;letter-spacing:-.01em}.gzBy{font:italic 11.5px Georgia,serif;color:#5a5340;border-bottom:1px solid #b9ad8a;padding-bottom:6px;margin-bottom:8px}.gzBody{font:500 14.5px/1.5 Georgia,'Times New Roman',serif;text-align:justify;hyphens:auto;white-space:pre-line}.gzBody::first-letter{font:900 38px/.9 Georgia,serif;float:left;margin:3px 6px 0 0}.ikFlash .ikBody{white-space:pre-line;font:700 15px/1.5 Inter;margin:6px 0 14px}";
   document.head.appendChild(st)}
 function alertBandsHTML(){if(!signedIn||!myUid||!fbLeague||!fbLeague.teams||!fbLeague.teams[myUid])return "";abCss();var h="";
   iconListMine().forEach(function(x){var e=x.e,mb=fbFaBids&&fbFaBids[x.k],c=iconCnt(x.k)+(mb&&!(fbFaCnt&&fbFaCnt[x.k]&&fbFaCnt[x.k][myUid])?1:0),n=iconDen(x.k);
@@ -24459,10 +24459,12 @@ function ikonPopupTick(){
 setInterval(ikonPopupTick,2500);
 function ikonFlashTick(){
   if(!signedIn||!myUid||document.querySelector(".sheet")||!fbNews)return;var seen=[];try{seen=JSON.parse(localStorage.getItem("ikSeen")||"[]")}catch(e){}
-  var ids=Object.keys(fbNews).filter(function(k){var n=fbNews[k];return n&&n.type==="ikonflash"&&(Date.now()-(n.createdAt||0))<3*864e5&&seen.indexOf(k)<0});if(!ids.length)return;
+  var ids=Object.keys(fbNews).filter(function(k){var n=fbNews[k];return n&&(n.type==="ikonflash"||n.type==="sike")&&(Date.now()-(n.createdAt||0))<3*864e5&&seen.indexOf(k)<0});if(!ids.length)return;
   var k=ids.sort(function(a,b){return (fbNews[a].createdAt||0)-(fbNews[b].createdAt||0)})[0],n=fbNews[k];abCss();
-  var sh=document.createElement("div");sh.className="sheet ikFlash";document.body.appendChild(sh);
-  sh.innerHTML='<div class="in"><div class="grab"></div><div style="font-size:44px;line-height:1">⭐</div><div class="ikT" style="font:900 13px Inter;letter-spacing:.08em;color:var(--amber);margin:6px 0 4px">'+esc(n.title||"İkon transferi").toUpperCase()+'</div><div class="ikBody">'+esc(n.body||"")+'</div><button class="btn" id="ikClose">Kapat</button></div>';
+  var sh=document.createElement("div");var sk=n.type==="sike";sh.className="sheet ikFlash"+(sk?" sikeFlash":"");document.body.appendChild(sh);
+  if(sk){var ttl=esc((n.title||"").replace(/^🕵️\s*/,"")),dt=new Date(n.createdAt||Date.now()).toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"});
+    sh.innerHTML='<div class="in"><div class="grab"></div><div class="gz"><div class="gzTop"><span>Spor haberleri</span><span>'+dt+'</span></div><div class="gzMast"><span class="gzLogo"><svg viewBox="0 0 40 40" width="34" height="34"><rect width="40" height="40" rx="8" fill="#a4161a"/><path d="M11 30V10h10.5c4.2 0 6.5 2.3 6.5 5.6 0 2.8-1.7 4.7-4.3 5.3L29 30h-5.4l-4.2-8.4H16V30z M16 18h5c1.6 0 2.5-.8 2.5-2.1S22.600 13.800 21 13.800h-5z" fill="#efe6d0" fill-rule="evenodd"/><circle cx="30.500" cy="9.500" r="3.200" fill="#efe6d0"/></svg></span><span>reislerhaber<i>.com</i></span></div><div class="gzRule"></div><div class="gzKick">Son dakika · Spor</div><div class="gzHead">'+ttl+'</div><div class="gzBy">Spor servisi</div><div class="gzBody">'+esc(n.body||"")+'</div></div><button class="btn" id="ikClose" style="margin-top:12px">Kapat</button></div>'}
+  else sh.innerHTML='<div class="in"><div class="grab"></div><div style="font-size:44px;line-height:1">⭐</div><div class="ikT" style="font:900 13px Inter;letter-spacing:.08em;color:var(--amber);margin:6px 0 4px">'+esc((n.title||"İkon transferi")).toUpperCase()+'</div><div class="ikBody">'+esc(n.body||"")+'</div><button class="btn" id="ikClose">Kapat</button></div>';
   sh.querySelector("#ikClose").onclick=function(){seen.push(k);try{localStorage.setItem("ikSeen",JSON.stringify(seen.slice(-30)))}catch(e){}if(sh.parentNode)sh.parentNode.removeChild(sh)}}
 setInterval(ikonFlashTick,3000);
 document.addEventListener("click",function(ev){var t=ev.target&&ev.target.closest&&ev.target.closest("[data-abgo]");if(!t)return;var v=t.dataset.abgo;
@@ -24595,11 +24597,12 @@ loadDb();render();fbInit();
 </script>
 <script>/* SADECE TEST: yonetici icin 'Hizli sezon' dugmesi. Haftalari sirayla kisa canli sureyle simule eder. Live surume eklenmez. */
 (function(){
-  var run=false,btn=null,tries=0;
+  var run=false,btn=null,tries=0,orig=null;
+  function restore(){if(orig){try{LIVE_MS=orig[0];PEN_MS=orig[1]}catch(e){}orig=null}}
   function lab(t){if(btn)btn.textContent=t}
   function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
   async function loop(){
-    try{LIVE_MS=Math.min(LIVE_MS,4000);PEN_MS=Math.min(PEN_MS,3000)}catch(e){}
+    try{if(!orig)orig=[LIVE_MS,PEN_MS];LIVE_MS=Math.min(LIVE_MS,4000);PEN_MS=Math.min(PEN_MS,3000)}catch(e){}
     var guard=0;
     while(run&&guard++<80){
       var i=nextRoundIdx();
@@ -24607,19 +24610,19 @@ loadDb();render();fbInit();
       var rd=leagueRounds()[i];
       if(!rd||!rd.matches||!rd.matches.length){lab("⏳ Hafta "+(i+1)+" hazırlanıyor");await sleep(1500);if(++tries>20){lab("⚠️ Takıldı: hafta "+(i+1));break}continue}
       tries=0;
-      lab("⏩ Hafta "+(i+1)+"/"+leagueRounds().length);
+      lab("⏹ Durdur · hafta "+(i+1)+"/"+leagueRounds().length);
       if(!rd.live){try{simulateRound(i)}catch(e){}}
       var t0=Date.now(),ok=false;
       while(run&&Date.now()-t0<120000){await sleep(600);var r2=leagueRounds()[i];if(r2&&rdAll(r2)&&(r2.paid||r2.skip)){ok=true;break}}
       if(!ok&&run){lab("⚠️ Takıldı: hafta "+(i+1)+" (tekrar bas)");break}
       await sleep(1200)}
-    run=false;if(btn&&btn.textContent.indexOf("⏩")===0)lab("⏩ Hızlı sezon")}
+    run=false;restore();if(btn&&btn.textContent.indexOf("⏹")===0)lab("⏩ Hızlı sezon")}
   function mk(){if(btn||typeof isAdmin==="undefined"||!isAdmin)return;
     btn=document.createElement("button");btn.textContent="⏩ Hızlı sezon";
-    btn.style.cssText="position:fixed;left:8px;bottom:72px;z-index:99998;background:#e63946;color:#fff;border:0;border-radius:999px;padding:8px 12px;font:700 12px Inter,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4)";
-    btn.onclick=function(){if(run){run=false;lab("⏩ Hızlı sezon");return}run=true;loop()};
+    btn.style.cssText="position:fixed;right:8px;top:62px;z-index:99998;background:#e63946;color:#fff;border:0;border-radius:999px;padding:5px 10px;font:700 11px Inter,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4)";
+    btn.onclick=function(){if(run){run=false;restore();lab("⏩ Hızlı sezon");return}run=true;loop()};
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v97 · 27.10 21:09</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v100 · 27.10 21:39</div></body>
 </html>
