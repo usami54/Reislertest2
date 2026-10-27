@@ -18794,9 +18794,16 @@ function kitLumArea(c1,c2,p,x0,x1,y0,y1){var n=0,t=0,i,j;for(i=0;i<5;i++)for(j=0
 function kitMarks(c1,c2,p,w,x,id){var o="",df="";
   if(w>=40&&(x.img||x.sym||x.ch)){var cx=63,cy=36.5;
     df+='<filter id="sh'+id+'" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy=".4" stdDeviation=".55" flood-color="#000" flood-opacity=".65"/></filter>';
-    if(x.img)o+='<image href="'+x.img+'" x="'+(cx-5.2)+'" y="'+(cy-5.6)+'" width="10.4" height="10.4" preserveAspectRatio="xMidYMid meet" filter="url(#sh'+id+')"/>';
-    else if(x.sym)o+='<text x="'+cx+'" y="'+(cy+3.2)+'" font-size="9.2" text-anchor="middle" filter="url(#sh'+id+')">'+x.sym+'</text>';
-    else o+='<text x="'+cx+'" y="'+(cy+3.1)+'" font-size="9" font-weight="800" fill="#fff" stroke="#000" stroke-width="1.5" paint-order="stroke" text-anchor="middle" font-family="Inter,sans-serif">'+x.ch+'</text>'}
+    if(x.img)o+='<image href="'+x.img+'" x="'+(cx-6)+'" y="'+(cy-6.3)+'" width="12" height="12" preserveAspectRatio="xMidYMid meet" filter="url(#sh'+id+')"/>';
+    else{var sh=x.shape||"circle",bp=x.pat||p,gid="gb"+id,st=function(arr){return arr.map(function(q){return '<stop offset="'+q[0]+'%" stop-color="'+q[1]+'"/>'}).join("")},g1,gd="x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\"";
+      var bands=function(){return st([[0,c1],[20,c1],[20,c2],[40,c2],[40,c1],[60,c1],[60,c2],[80,c2],[80,c1],[100,c1]])};
+      if(bp==="hoops"){gd='x1="0" y1="0" x2="0" y2="1"';g1=bands()}else if(bp==="stripes"){g1=bands()}else if(bp==="half"){g1=st([[0,c1],[50,c1],[50,c2],[100,c2]])}
+      else if(bp==="sash"){gd='x1="0" y1="0" x2="1" y2="1"';g1=st([[0,c1],[34,c1],[34,c2],[66,c2],[66,c1],[100,c1]])}else g1=st([[0,c1],[100,c1]]);
+      df+='<linearGradient id="'+gid+'" '+gd+'>'+g1+'</linearGradient>';
+      var shp=sh==="shield"?'<path d="M57 30.5H69V37Q69 41.6 63 43.2Q57 41.6 57 37Z"':sh==="hex"?'<polygon points="60,30.6 66,30.6 69.2,36.5 66,42.4 60,42.4 56.8,36.5"':'<circle cx="63" cy="36.5" r="6"';
+      o+=shp+' fill="url(#'+gid+')" stroke="#fff" stroke-width=".7" filter="url(#sh'+id+')"/>';
+      if(x.sym)o+='<text x="63" y="39.3" font-size="7.6" text-anchor="middle">'+x.sym+'</text>';
+      else o+='<text x="63" y="39.2" font-size="7.4" font-weight="800" fill="#fff" stroke="#000" stroke-width="1.2" paint-order="stroke" text-anchor="middle" font-family="Inter,sans-serif">'+x.ch+'</text>'}}
   if(w>=60&&x.br&&BRAND_LOGOS[x.br]){var col=x.br==="mp"?null:(kitLumArea(c1,c2,p,29,47,31,42)>0.55?["#111","#fff"]:["#fff","#000"]);
     if(col)df+='<filter id="tf'+id+'" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius=".45" result="d"/><feFlood flood-color="'+col[1]+'" flood-opacity=".85"/><feComposite in2="d" operator="in" result="h"/><feFlood flood-color="'+col[0]+'"/><feComposite in2="SourceAlpha" operator="in" result="f"/><feMerge><feMergeNode in="h"/><feMergeNode in="f"/></feMerge></filter>';
     o+='<image href="'+BRAND_LOGOS[x.br]+'" x="30.5" y="31" width="16" height="10.5" preserveAspectRatio="xMidYMid meet"'+(col?' filter="url(#tf'+id+')"':'')+'/>'}
@@ -18805,7 +18812,7 @@ function kitBrandOf(uid){if(/^ai_/.test(uid)){return BRANDS[(spHash("marka:"+uid
   var d=kitDealOf(uid);return d&&BRAND_LOGOS[d.id]?d.id:""}
 function kitMarkOf(uid){var x={br:kitBrandOf(uid)};
   if(/^ai_/.test(uid)){var nm=((fbLeague&&fbLeague.ai&&fbLeague.ai[uid])||{}).name,lg=nm&&teamLogo(nm);if(lg)x.img=lg.u;else x.ch=(nm||"?").trim().charAt(0).toUpperCase()}
-  else{var c=clubInfo(uid)||{},nm2=(fbLeague&&fbLeague.teams&&fbLeague.teams[uid]||{}).name||"?";x.sym=(c.badge||{}).sym||"";if(!x.sym)x.ch=nm2.trim().charAt(0).toUpperCase()||"?"}
+  else{var c=clubInfo(uid)||{},nm2=(fbLeague&&fbLeague.teams&&fbLeague.teams[uid]||{}).name||"?";x.sym=(c.badge||{}).sym||"";x.shape=(c.badge||{}).shape||"circle";if(!x.sym)x.ch=nm2.trim().charAt(0).toUpperCase()||"?"}
   return x}
 function titleStarsByName(name){try{if(!name||!fbLeague||!fbLeague.teams||!fbHistory)return 0;var uid=null;
   Object.keys(fbLeague.teams).forEach(function(u){if(!uid&&fbLeague.teams[u].name===name)uid=u});if(!uid)return 0;
@@ -22787,7 +22794,7 @@ function clubFounded(uid){var ns=allSeasonLeagues(),first="";
 function initEditClub(){var c=clubInfo(myUid),b=c.badge||{};
   editClub={c1:validColor(c.c1)?c.c1:"#2bd66b",c2:validColor(c.c2)?c.c2:"#0a1220",pat:c.pat||"half",shape:b.shape||"circle",sym:b.sym||"",stadium:c.stadium||"",name:myTeamName||""}}
 function clubPrevHTML(){var e=editClub,ic=clubIcon(myUid),f=clubFounded(myUid),ch=(e.name||"?").trim().charAt(0).toUpperCase()||"?";
-  return '<div class="cpv" style="background-image:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.32)),linear-gradient(112deg,'+e.c1+','+e.c2+')"><div class="cpvKit">'+kitSVG(e.c1,e.c2,e.pat,108,spChestId(myUid),{sym:e.sym,ch:(e.name||'?').trim().charAt(0).toUpperCase()||'?',br:kitBrandOf(myUid)})+'</div><div class="cpvTx"><div class="cpvN">'+withStars(badgeHTML(e.c1,e.c2,e.pat,e.shape,e.sym,ch,42),42,titleStarsByName(e.name))+'<b>'+esc(e.name||"Takım adı")+'</b></div>'+
+  return '<div class="cpv" style="background-image:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.32)),linear-gradient(112deg,'+e.c1+','+e.c2+')"><div class="cpvKit">'+kitSVG(e.c1,e.c2,e.pat,108,spChestId(myUid),{sym:e.sym,shape:e.shape,ch:(e.name||'?').trim().charAt(0).toUpperCase()||'?',br:kitBrandOf(myUid)})+'</div><div class="cpvTx"><div class="cpvN">'+withStars(badgeHTML(e.c1,e.c2,e.pat,e.shape,e.sym,ch,42),42,titleStarsByName(e.name))+'<b>'+esc(e.name||"Takım adı")+'</b></div>'+
     '<div class="cpvL">🏟️ '+esc(e.stadium?stadBet(myUid,e.stadium):"Stadyum adı belirlenmedi")+'</div>'+'<div class="cpvS">'+(ic?'⭐ İkon · <b>'+esc(ic.n)+'</b>':'⭐ İkon oyuncu seçilmedi')+'</div>'+
     '<div class="cpvC">'+(f?'<span>Kuruluş · '+esc(f)+'</span>':'')+'</div></div></div>'}
 function clubPatsHTML(){var e=editClub;return CLUB_PATS.map(function(x){return '<button class="cpB'+(e.pat===x[0]?' on':'')+'" data-pat="'+x[0]+'">'+kitSVG(e.c1,e.c2,x[0],46)+'<span>'+x[1]+'</span></button>'}).join("")}
@@ -24498,5 +24505,5 @@ loadDb();render();fbInit();
 
 
 </script>
-<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v96 · 27.10 08:29</div></body>
+<div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v96 · 27.10 08:54</div></body>
 </html>
