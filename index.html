@@ -19448,6 +19448,26 @@ function displayMinute(raw,add1,etFrom){add1=add1||0;
 
 var VAR_P={goal:0.225,cancel:0.07,penChk:0.35,penKeep:0.8,appeal:1,appealYes:0.2};
 function simulateMatch(){try{return simulateMatchCore.apply(null,arguments)}finally{SIMRNG=null}}
+function dealWeak(s,d){var m=d.mul||0.9;return {def:s.def,mid:s.mid,forw:s.forw,atk:s.atk*m,con:d.type==="bera"?s.con:s.con*m}}
+function applyDealResult(events,DL,H,A,totalLen,seed){
+  if(!DL||!DL.ok)return events;
+  var rf=mulberry32(((seed||1)>>>0)*7+991),rk=DL.side,ok2=rk==="home"?"away":"home",rs=rk==="home"?H:A,os=rk==="home"?A:H;
+  var stp=rs.xi.filter(function(x){return x.slot==="ST"})[0];
+  function goals(t){return events.filter(function(e){return e.type==="goal"&&e.team===t})}
+  function removeGoal(t,pid){var gs=goals(t).filter(function(e){return !pid||e.playerId===pid}).sort(function(a,b){return b.min-a.min}),g=gs[0];if(!g)return false;
+    var i=events.indexOf(g);events[i]={min:g.min,type:"chance",team:g.team,playerId:g.playerId,playerName:g.playerName,xg:g.xg||0.3,onTarget:true};
+    events=events.filter(function(e){return !(e.type==="var"&&e.kind==="goal"&&e.team===g.team&&e.playerName===g.playerName&&e.min>=g.min&&e.min<=g.min+2)});return true}
+  function addGoal(t){var side=t===rk?rs:os,pool=side.xi.filter(function(x){return x.slot!=="KL"&&!(DL.type==="bera"&&t===rk&&stp&&x.id===stp.id)});if(!pool.length)return;
+    var p=pool[Math.floor(rf()*pool.length)],mn=clamp(3+Math.floor(rf()*Math.max(1,totalLen-6)),1,totalLen);
+    events.push({min:mn,type:"goal",team:t,playerId:p.id,playerName:p.player.n,assistId:null,assistName:null,xg:0.35})}
+  var guard=0;
+  if(DL.type==="yenil"){while(goals(rk).length>=goals(ok2).length&&guard++<8)addGoal(ok2)}
+  else if(DL.type==="fark"){while(goals(ok2).length-goals(rk).length<4&&guard++<14){if(goals(rk).length)removeGoal(rk);else addGoal(ok2)}}
+  else{if(DL.pl==="st"&&stp)while(guard++<8&&removeGoal(rk,stp.id)){}
+    while(goals(rk).length>goals(ok2).length&&guard++<20)removeGoal(rk);
+    while(goals(ok2).length>goals(rk).length&&guard++<20)removeGoal(ok2)}
+  events.sort(function(a,b){return a.min-b.min||evRank(a)-evRank(b)});
+  return events}
 function simulateMatchCore(homeRoster,awayRoster,homeLineup,awayLineup,homeInj,awayInj,homeFormData,awayFormData,opts){
   var weatherId=(opts&&opts.weather&&WEATHER[opts.weather])?opts.weather:"clear",W=WEATHER[weatherId];
   var refId=(opts&&opts.referee&&REFEREES[opts.referee])?opts.referee:"meler",REF=REFEREES[refId];
@@ -19632,6 +19652,7 @@ function simulateMatchCore(homeRoster,awayRoster,homeLineup,awayLineup,homeInj,a
     resolveVoluntarySubs(A,aSubs,aPlan.pendingVoluntary,aPlan.benchPool,segStart,"away");
     var hState=activeXIAt(H,hSubs,hReds,mid), aState=activeXIAt(A,aSubs,aReds,mid);
     var hs=teamStrength3(hState.list,hForm,hFormData), as_=teamStrength3(aState.list,aForm,aFormData);
+    if(FC.deal){var dfn=FC.deal.boost?dealBoost:dealWeak;if(FC.deal.side==="home")hs=dfn(hs,FC.deal);else as_=dfn(as_,FC.deal)} // tesvik primi anlasmasi: alan takim zayif/rolantide oynar
     var BASE=1.24,ADVH=(opts&&opts.neutral)?1.02:HOME_ADV_H*Math.pow(REF.hb,0.12),ADVA=(opts&&opts.neutral)?1.02:HOME_ADV_A/Math.pow(REF.hb,0.12),dur=(segEnd-segStart)/90; // saha avantaji: ev sahibi hucumu +%10, deplasman -%5
     var lateM=mid>60?W.late:1,hW=weatherAtk(W,hT)*W.goal*lateM,aW=weatherAtk(W,aT)*W.goal*lateM;
     var hRedPen=Math.max(0.35,1-0.42*hState.redImpact), aRedPen=Math.max(0.35,1-0.42*aState.redImpact);
@@ -19764,6 +19785,7 @@ function simulateMatchCore(homeRoster,awayRoster,homeLineup,awayLineup,homeInj,a
       else vs.push({min:Math.min(am+1,totalLen),type:"var",team:aside,kind:"penappeal",stage:"res",ok:false})}
     vs.forEach(function(v){events.push(v)})})();
   events.sort(function(a,b){return a.min-b.min||evRank(a)-evRank(b)});
+  if(FC.deal)events=applyDealResult(events,FC.deal,H,A,totalLen,SEED);
   var goalsH=events.filter(function(e){return e.type==="goal"&&e.team==="home"}).length;
   var goalsA=events.filter(function(e){return e.type==="goal"&&e.team==="away"}).length;
 
@@ -19951,6 +19973,7 @@ function simulateRound(idx){if(!isAdmin||!fbLeague)return;
     var sim=fbNorm(JSON.parse(JSON.stringify({hRoster:home.roster,aRoster:away.roster,hLine:hLine,aLine:aLine,hUn:hUn,aUn:aUn,hFD:hFD,aFD:aFD,wx:wxId,ref:refId,neutral:!!m.neutral,ko:!!m.ko,
       seed:1+Math.floor(Math.random()*2147483000),hAI:!!home.ai,aAI:!!away.ai,pre:{home:{fatigue:home.fatigue||{},form:home.form||{},cards:home.cards||{},susp:home.susp||{}},away:{fatigue:away.fatigue||{},form:away.form||{},cards:away.cards||{},susp:away.susp||{}}}})));
     var fc=spForce(idx,m);if(fc)sim.force=fc;
+    var dfc=dealForce(idx,m);if(dfc){sim.force=sim.force||{};sim.force.deal=dfc}
     var res=runSnapshot(simFromDb(sim),{}); // tek mac eleme: uzatma + penalti dahil
     if(res.totalLen>maxLen)maxLen=res.totalLen;
     if(home.ai)res.newInjuries.home={};if(away.ai)res.newInjuries.away={};
@@ -20128,9 +20151,9 @@ function finalizeRound(idx){if(!signedIn||!fbLeague||!currentSeason||finalizingR
       weekBigWin={diff:diff,team:winRec.name,owner:winOwner}}
     var ni=m.newInjuries||{home:{},away:{}};
     Object.keys(ni.home||{}).forEach(function(pid){var pl=(home.roster||[]).filter(function(p){return p.id===pid})[0];
-      injuryNews.push({name:pl?pl.n:pid,team:home.name,dur:ni.home[pid]})});
+      if(!home.ai)injuryNews.push({name:pl?pl.n:pid,team:home.name,dur:ni.home[pid]})});
     Object.keys(ni.away||{}).forEach(function(pid){var pl=(away.roster||[]).filter(function(p){return p.id===pid})[0];
-      injuryNews.push({name:pl?pl.n:pid,team:away.name,dur:ni.away[pid]})});
+      if(!away.ai)injuryNews.push({name:pl?pl.n:pid,team:away.name,dur:ni.away[pid]})});
     var ns=m.newSusp||{};
     [["home",home],["away",away]].forEach(function(pr){var o=pr[1].ai?{}:(ns[pr[0]]||{});
       Object.keys(o).forEach(function(pid){var pl=(pr[1].roster||[]).filter(function(p){return p.id===pid})[0];
@@ -20148,16 +20171,13 @@ function finalizeRound(idx){if(!signedIn||!fbLeague||!currentSeason||finalizingR
     koGroups.forEach(function(g){var sfx=g.c==="el"?"el":"";
       if(g.lines.length)pushNews({type:"kupa",title:(COMP_ICON[g.c]||"🏆")+" "+compTitle(rd,idx,g.c)+" sonuçları",body:g.lines.join("\n"),round:idx},"r"+idx+"_kupa"+sfx);
       if(g.champ)pushNews({type:"sampiyon",title:g.champ,body:g.champ},"r"+idx+"_kupasampiyon"+sfx)});
-    if(weekBest)pushNews({type:"haftaOyuncu",title:"🌟 "+(idx+1)+". Hafta Oyuncusu: "+weekBest.name,
-      body:weekBest.name+" ("+weekBest.team+") bu hafta "+weekBest.r.toFixed(1)+" puan topladı.",round:idx},"r"+idx+"_oyuncu");
-    if(weekBigWin)pushNews({type:"haftaMenajer",title:"👔 "+(idx+1)+". Hafta Menajeri: "+(weekBigWin.owner||weekBigWin.team),
-      body:(weekBigWin.owner||weekBigWin.team)+" yönetimindeki "+weekBigWin.team+", bu hafta "+weekBigWin.diff+" farkla kazanarak haftanın menajeri seçildi.",round:idx},"r"+idx+"_menajer");
-    injuryNews.forEach(function(inj){pushNews({type:"sakatlik",title:"🩹 "+inj.name+" sakatlandı",
-      body:inj.name+" ("+inj.team+"), "+inj.dur+" hafta sahalardan uzak kalacak.",round:idx},"r"+idx+"_sakat_"+inj.name+"_"+inj.team)});
+    if(weekBest||weekBigWin){var wl=[];if(weekBest)wl.push("🌟 Haftanın oyuncusu: "+weekBest.name+" ("+weekBest.team+") · "+weekBest.r.toFixed(1)+" puan");
+      if(weekBigWin)wl.push("👔 Haftanın menajeri: "+(weekBigWin.owner||weekBigWin.team)+" · "+weekBigWin.team+", "+weekBigWin.diff+" farkla kazandı");
+      pushNews({type:"haftaOyuncu",title:"📋 "+(idx+1)+". hafta özeti",body:wl.join("\n"),round:idx},"r"+idx+"_ozet")}
+    if(injuryNews.length||suspNews.length){var sl=[];injuryNews.forEach(function(inj){sl.push("🩹 "+inj.name+" ("+inj.team+") · "+inj.dur+" hafta yok")});
+      suspNews.forEach(function(x){var why=x.r==="k"?"direkt kırmızı":x.r==="s"?"ikinci sarıdan kırmızı":YELLOW_LIMIT+". sarı";sl.push("🟥 "+x.name+" ("+x.team+") · "+why+", "+x.n+" maç ceza")});
+      pushNews({type:"sakatlik",title:"🩹 "+(idx+1)+". hafta sağlık ve ceza raporu",body:sl.join("\n"),round:idx},"r"+idx+"_saglik")}
     incidentNews.forEach(function(x,xi){pushNews({type:"olay",title:"🗞️ "+x.name+" ("+x.team+") olayı",body:x.text,round:idx},"r"+idx+"_olay_"+xi)});
-    suspNews.forEach(function(s){var why=s.r==="k"?"direkt kırmızı kart":s.r==="s"?"ikinci sarıdan kırmızı kart":YELLOW_LIMIT+". sarı kart";
-      pushNews({type:"ceza",title:"🟥 "+s.name+" cezalı",
-        body:s.name+" ("+s.team+"), "+why+" nedeniyle "+s.n+" maç ceza aldı.",round:idx},"r"+idx+"_ceza_"+s.name+"_"+s.team)});
   }).catch(function(e){delete finalizingRounds[idx];fbBadge("Bitirilemedi (Rules hatası): "+e.message)})}
 
 /* saniyede bir calisip canli haftayi ekranda guncel tutan ve suresi dolani otomatik kapatan zamanlayici */
@@ -20383,6 +20403,10 @@ function buildCalendar(ids,prev,aiTeams){
   if(elCup)elH.push(elCup);
   if(elH.length<2){var pool=shuffle(ids.filter(function(x){return clH.indexOf(x)<0&&elH.indexOf(x)<0}));while(elH.length<2&&pool.length)elH.push(pool.shift())}
   elH=elH.slice(0,Math.max(0,Math.min(2,n-clH.length)));
+  var eb=sikeEuBan();
+  if(eb.n){var fr=function(){return [fourth,fifth,cupWin,cupFin].concat(rest,ids).filter(function(x,i,a){return x&&!eb.m[x]&&clH.indexOf(x)<0&&elH.indexOf(x)<0&&a.indexOf(x)===i})};
+    var nc=clH.length;clH=clH.filter(function(x){return !eb.m[x]});while(clH.length<nc&&fr().length)clH.push(fr()[0]);
+    var ne=elH.length;elH=elH.filter(function(x){return !eb.m[x]});while(elH.length<ne&&fr().length)elH.push(fr()[0])}
   // super kupa: lig sampiyonu - kupa sampiyonu (ayniysa kupa finalisti); ilk sezon: lig 1. - 2.
   var supA=champ,supB=(cupWin&&cupWin!==champ)?cupWin:(cupWin===champ&&cupFin&&cupFin!==champ?cupFin:second);
   if(!supB||supB===supA)supB=ids.filter(function(x){return x!==supA})[0];
@@ -20637,8 +20661,10 @@ function sponsorSyncTick(){
 setInterval(sponsorSyncTick,4000);
 /* ---- yonetici tarafi: bet sponsoru hedefi + ozel odeme ---- */
 function spBetNet(uid){var n=0;Object.keys(fbBetRes||{}).forEach(function(wk){var x=fbBetRes[wk]&&fbBetRes[wk][uid];if(!x||x.void||x.refund)return;n+=x.won?(x.payout||0)-(x.stake||0):-(x.stake||0)});return n}
-function bspTarget(){var best=null;Object.keys(fbLeague.teams||{}).forEach(function(u){var x=contractOf(u);if(!x||(x.c.tier!=="gumus"&&x.c.tier!=="bronz"))return;
-  var net=spBetNet(u),b=budOf(u);if(!best||net<best.net||(net===best.net&&b<best.b))best={u:u,net:net,b:b}});return best}
+function bspTarget(){var best=null,any=null;Object.keys(fbLeague.teams||{}).forEach(function(u){var x=contractOf(u);
+  var net=spBetNet(u),b=budOf(u);if(!any||net<any.net||(net===any.net&&b<any.b))any={u:u,net:net,b:b};
+  if(!x||(x.c.tier!=="gumus"&&x.c.tier!=="bronz"))return;
+  if(!best||net<best.net||(net===best.net&&b<best.b))best={u:u,net:net,b:b}});return best||any} // gumus/bronz sponsorlu yoksa teklif yine en cok kaybedene gider
 function adminSponsorTick(){
   if(!isAdmin||!fbDb||!currentSeason||!fbLeague||!fbLeague.rounds||!spReady()||betBusy||spBusy)return;
   var rs=fbLeague.rounds,S=currentSeason;
@@ -20839,7 +20865,7 @@ function adminIncomeTick(){
 setInterval(adminIncomeTick,3000);
 
 function computeStats(league,only){var teams=league.teams||{},table={};
-  Object.keys(teams).forEach(function(id){table[id]={id:id,name:teams[id].name,ownerName:teams[id].ownerName||"",p:0,w:0,d:0,l:0,gf:0,ga:0,pts:0,cs:0}});
+  Object.keys(teams).forEach(function(id){table[id]={id:id,name:teams[id].name,ownerName:teams[id].ownerName||"",p:0,w:0,d:0,l:0,gf:0,ga:0,pts:only?0:-((league.pen&&league.pen[id])||0),cs:0}});
   var allT={};Object.keys(league.ai||{}).forEach(function(id){allT[id]=league.ai[id]});Object.keys(teams).forEach(function(id){allT[id]=teams[id]}); // yapay zeka takimlari teams icinde gorunmez (enumerable degil)
   var playerTeam={};Object.keys(allT).forEach(function(tid){(allT[tid].roster||[]).forEach(function(p){playerTeam[p.id]=allT[tid].name})});
   var playerName={};Object.keys(allT).forEach(function(tid){(allT[tid].roster||[]).forEach(function(p){playerName[p.id]=p.n})});
@@ -20894,28 +20920,22 @@ function checkChampion(){
   rec.rank={};stats.table.forEach(function(t,i){rec.rank[t.id]=i+1});rec.prizes=prizes;rec.top3=stats.table.slice(0,3).map(function(t){return t.id});rec.top5=stats.table.slice(0,5).map(function(t){return t.id});if(stats.table[1])rec.secondName=stats.table[1].name||"";
   updates["leagues/"+currentSeason+"/champion"]=rec;updates["history/"+currentSeason]=rec; // oduller adminIncomeTick ile bakiyeye yazilir
   fbDb.ref().update(updates).then(function(){
-    pushNews({type:"odul",title:"💰 Sezon ödülleri",body:stats.table.filter(function(t,i){return PRIZES[i]}).map(function(t,i){return (i+1)+". "+t.name+" · +"+fmtM(PRIZES[i])}).join("\n")},"son_oduller");
     var champTeam=fbLeague.teams[c.id],champOwner=(champTeam&&champTeam.ownerName)||c.name;
     pushNews({type:"sampiyon",title:"🏆 Şampiyon: "+c.name,
-      body:champOwner+" yönetimindeki "+c.name+", ligi "+c.pts+" puanla zirvede tamamladı."},"son_sampiyon");
-    if(stats.scorers[0])pushNews({type:"golkrali",title:"⚽ Gol Kralı: "+stats.scorers[0].name,
-      body:stats.scorers[0].name+" ("+stats.scorers[0].team+") "+stats.scorers[0].n+" golle gol kralı oldu."},"son_golkrali");
-    if(stats.assists[0])pushNews({type:"asistkrali",title:"🅰️ Asist Kralı: "+stats.assists[0].name,
-      body:stats.assists[0].name+" ("+stats.assists[0].team+") "+stats.assists[0].n+" asistle zirvede."},"son_asistkrali");
-    if(stats.cleanSheets[0])pushNews({type:"enkaleci",title:"🧤 En İyi Kaleci: "+stats.cleanSheets[0].name,
-      body:stats.cleanSheets[0].name+" ("+stats.cleanSheets[0].team+") "+stats.cleanSheets[0].n+" maçta kalesini gole kapattı."},"son_enkaleci");
-    if(stats.avg[0])pushNews({type:"yilinoyuncusu",title:"🌟 Yılın Oyuncusu: "+stats.avg[0].name,
-      body:stats.avg[0].name+" ("+stats.avg[0].team+") sezonu "+stats.avg[0].avg+" ortalama puanla tamamladı."},"son_yilinoyuncusu");
-    pushNews({type:"enmenajer",title:"👔 Yılın Menajeri: "+champOwner,
-      body:champOwner+", "+c.name+" ile şampiyonluğa ulaşarak yılın menajeri seçildi."},"son_enmenajer");
+      body:champOwner+" yönetimindeki "+c.name+", ligi "+c.pts+" puanla zirvede tamamladı.\n\n💰 Ödüller:\n"+stats.table.filter(function(t,i){return PRIZES[i]}).map(function(t,i){return (i+1)+". "+t.name+" · +"+fmtM(PRIZES[i])}).join("\n")},"son_sampiyon");
+    var al=[];
+    if(stats.scorers[0])al.push("⚽ Gol kralı: "+stats.scorers[0].name+" ("+stats.scorers[0].team+") · "+stats.scorers[0].n+" gol");
+    if(stats.assists[0])al.push("🅰️ Asist kralı: "+stats.assists[0].name+" ("+stats.assists[0].team+") · "+stats.assists[0].n+" asist");
+    if(stats.cleanSheets[0])al.push("🧤 En iyi kaleci: "+stats.cleanSheets[0].name+" ("+stats.cleanSheets[0].team+") · "+stats.cleanSheets[0].n+" maçta gol yemedi");
+    if(stats.avg[0])al.push("🌟 Yılın oyuncusu: "+stats.avg[0].name+" ("+stats.avg[0].team+") · "+stats.avg[0].avg+" ort.");
+    al.push("👔 Yılın menajeri: "+champOwner);
     try{var aw=computeSeasonAwards({raw:fbLeague,label:"",sid:currentSeason,done:true}),lines=[];
       function ofKey(k){return aw.filter(function(a){return a.key===k})}
       var x11=ofKey("sezon11"),trf=ofKey("sezontransferi")[0],fp=ofKey("fairplay"),gl=ofKey("altineldiven")[0];
-      if(x11.length)lines.push("⭐ Sezonun 11'i:\n"+x11.map(function(a){return "• "+a.name+" ("+a.team+") · "+a.detail}).join("\n"));
-      if(gl)lines.push("🧤 Altın eldiven: "+gl.name+" ("+gl.team+") · "+gl.detail);
-      if(trf)lines.push("🔨 Sezonun transferi: "+trf.name+" ("+trf.team+") · "+trf.detail);
-      if(fp.length)lines.push("🤝 Fair-play: "+fp.map(function(a){return a.team}).join(", ")+" · "+fp[0].detail);
-      if(lines.length)pushNews({type:"oduller",title:"🏆 Sezon ödülleri",body:lines.join("\n\n")},"son_oduller")}catch(e){}
+      if(trf)al.push("🔨 Sezonun transferi: "+trf.name+" ("+trf.team+") · "+trf.detail);
+      if(fp.length)al.push("🤝 Fair-play: "+fp.map(function(a){return a.team}).join(", ")+" · "+fp[0].detail);
+      if(x11.length)al.push("\n⭐ Sezonun 11'i:\n"+x11.map(function(a){return "• "+a.name+" ("+a.team+") · "+a.detail}).join("\n"))}catch(e){}
+    pushNews({type:"oduller",title:"🏅 Sezonun ödülleri",body:al.join("\n")},"son_oduller")
   }).catch(function(e){fbBadge("Şampiyon kaydedilemedi (Rules hatası): "+e.message)});
   computeSeasonEndTransfers(stats)}
 
@@ -21423,6 +21443,7 @@ function createLeague(){if(!isAdmin||!currentSeason||!fbDb)return;
     var teams={};ids.forEach(function(id){var roster=flattenRoster(fbSquads[id].picks||[],id);
       teams[id]={name:fbSquads[id].teamName||"İsimsiz Takım",ownerName:fbSquads[id].name||"",roster:roster,injuries:{},fatigue:{},cards:{},susp:{},form:randomInitialForm(roster)}});
     (fbLeague?["auction","bids","budgets","odds","bets","betres","orders"]:["auction","bids"]).forEach(function(p){fbDb.ref(p+"/"+currentSeason).set(null).catch(function(){})}); // yeni lig = temiz acik artirma
+    try{var pd=(fbSike&&fbSike.pend&&fbSike.pend["s"+sikeSn()])||{};Object.keys(pd).forEach(function(u){if(!teams[u])return;Object.keys(pd[u]||{}).forEach(function(k){var x=pd[u][k],p=(teams[u].roster||[]).filter(function(q){return q.n===x.n})[0];if(p)teams[u].susp[p.id]=Math.max(teams[u].susp[p.id]||0,x.m||10)})})}catch(e){}
     var fu={};try{faSeasonStartUpd(fu)}catch(e){}if(Object.keys(fu).length)fbDb.ref().update(fu).catch(function(){});
     var data=JSON.parse(JSON.stringify({createdAt:Date.now(),teams:teams,ai:aiKeep,info:cal.info,rounds:cal.rounds}));
     fbDb.ref("leagues/"+currentSeason).set(data)
@@ -22147,7 +22168,9 @@ function resolveAuction(idx){var rec=fbAuc["w"+idx];
     return fbDb.ref().update(upd).then(function(){
       delete aucResolving[idx];
       var lines=res.map(function(b,i){return (i+1)+". "+b.team+": "+fmtM(b.bid)+(b.why?" ("+b.why+")":"")}).join("\n");
-      if(p&&winner){
+      if(p&&winner&&p.r>=80){var wt=(fbLeague.teams[winner.uid]||{}),wo=wt.ownerName&&wt.ownerName!=="Yapay zekâ"?wt.ownerName:"";
+        pushNews({type:"ihaleflash",title:"🔨 İhalede büyük transfer: "+p.n,body:p.n+" ("+p.m+", "+p.r+") ihalede "+winner.team+(wo?" ("+wo+")":"")+" tarafından "+fmtM(winner.bid)+" teklifle kazanıldı.\nTeklif veren takım sayısı: "+res.length,round:idx},"r"+idx+"_ihaleflash")}
+      else if(p&&winner){
         pushNews({type:"acikartirma",title:"🔨 "+(idx+1)+". Hafta Transferi: "+p.n,
           body:p.n+" ("+p.m+", "+p.r+") açık artırmayı "+winner.team+" "+fmtM(winner.bid)+" teklifle kazandı. "+winner.outN+" takımdan ayrıldı.\nTeklifler:\n"+lines,round:idx},"r"+idx+"_acik");
       }
@@ -22156,7 +22179,7 @@ function resolveAuction(idx){var rec=fbAuc["w"+idx];
           body:p.n+" ("+p.m+", "+p.r+") için geçerli teklif gelmedi."+(lines?"\nTeklifler:\n"+lines:""),round:idx},"r"+idx+"_acik")}
     })}).catch(function(e){delete aucResolving[idx];fbBadge("İhale sonuçlanamadı (Rules hatası): "+e.message)})}
 
-function submitBid(){if(!signedIn||!fbDb||!currentSeason||!fbLeague)return;
+function submitBid(){if(!signedIn||!fbDb||!currentSeason||!fbLeague)return;if(trBanned(myUid))return;
   var cur=curAuc();if(!cur||!cur.player){msgBox("Şu an ihalede oyuncu yok.");return}
   if(roundStarted(cur.idx)){msgBox("Bu haftanın maçları başladı, teklif süresi doldu.");return}
   var mine=fbLeague.teams&&fbLeague.teams[myUid];if(!mine){msgBox("Takımın bu ligde yok.");return}
@@ -22223,15 +22246,17 @@ function vTransfer(){var gate=gateCard();if(gate)return gate;
 
 /* ================= TRANSFER PAZARI + SERBEST OYUNCULAR ================= */
 var MK_MIN_R=70,FA_UP_W=[20,18,16,14,12,9,7,4],FA_DN_W=[40,35,25];
-var fbFaCnt={},fbFaPool={},fbMkList={},fbFaBids={},fbMkSales={},fbMyTx={},mkRefs=[],mkBusy=false,mkLoaded=false;
+var fbFaHist={},fbFaCnt={},fbFaPool={},fbMkList={},fbFaBids={},fbMkSales={},fbMyTx={},mkRefs=[],mkBusy=false,mkLoaded=false;
 function subscribeMarket(){
-  mkRefs.forEach(function(r){r.off()});mkRefs=[];mkLoaded=false;fbMkList={};fbMkSales={};fbFaBids={};fbFaCnt={};fbMyTx={};
+  mkRefs.forEach(function(r){r.off()});mkRefs=[];mkLoaded=false;fbMkList={};fbMkSales={};fbFaBids={};fbFaCnt={};fbFaHist={};fbMyTx={};
   if(!fbDb)return;
   function sub(path,cb,first){var r=fbDb.ref(path);mkRefs.push(r);r.on("value",function(s){cb(s.val()||{});if(first)mkLoaded=true;if(tab==="transfer")render();adminMarketTick();adminFaTick()},function(){cb({})})}
   sub("fa/pool",function(v){fbFaPool=v},true);
   if(!currentSeason)return;
+  try{dealSubscribe()}catch(e){}
   sub("market/list/"+currentSeason,function(v){fbMkList=v});
   sub("market/sales/"+currentSeason,function(v){fbMkSales=v});
+  sub("fa/res/"+currentSeason,function(v){fbFaHist=v||{}});
   sub("fa/cnt/"+currentSeason,function(v){fbFaCnt=v});
   if(myUid){sub("fa/bids/"+currentSeason+"/"+myUid,function(v){fbFaBids=v});sub("txlog/"+currentSeason+"/"+myUid,function(v){fbMyTx=v})}}
 /* ---- kadro / mevki kapasitesi ---- */
@@ -22333,7 +22358,7 @@ function mkList(pid,askM){if(!signedIn||!fbDb||!fbLeague)return;var t=fbLeague.t
   var id=fbDb.ref("market/list/"+currentSeason).push().key,f=perfOf(p);
   fbDb.ref("market/list/"+currentSeason+"/"+id).set({seller:myUid,sellerName:t.name,pid:pid,n:p.n,m:p.m,l:p.l||"",r:p.r,ask:ask,mv:mvOf(p),status:"open",at:Date.now()}).catch(function(e){fbBadge("İlan kaydedilemedi (Rules hatası): "+e.message)})}
 function mkDelist(id){var l=fbMkList[id];if(!l||l.seller!==myUid||l.status!=="open"||l.acc)return;fbDb.ref("market/list/"+currentSeason+"/"+id).set(null).catch(function(e){fbBadge("İlan kaldırılamadı: "+e.message)})}
-function mkOffer(id,amtM,outId){var l=fbMkList[id];if(!l||l.status!=="open"||l.seller===myUid)return;var t=fbLeague.teams[myUid];if(!t)return;
+function mkOffer(id,amtM,outId){var l=fbMkList[id];if(!l||l.status!=="open"||l.seller===myUid)return;if(trBanned(myUid))return;var t=fbLeague.teams[myUid];if(!t)return;
   var amt=Math.round(amtM*10)*1e5;if(!(amt>0)){msgBox("Geçerli bir teklif yaz.");return}
   if(amt>availOf(myUid)){msgBox("Bakiyen yetersiz. Kullanılabilir: "+fmtM(availOf(myUid)));return}
   var chk=mkBuyerCheck(myUid,t,l.m,outId);if(chk){msgBox(chk);return}
@@ -22375,7 +22400,7 @@ function adminMarketTick(){
   }).catch(function(e){mkBusy=false;fbBadge("Transfer uygulanamadı (Rules hatası): "+e.message)})}
 setInterval(adminMarketTick,4000);
 /* ---- serbest oyuncu teklifi (haftalik, gizli) ---- */
-function faBidSubmit(key,amtM,outId,bg,ba){var e=fbFaPool[key];if(!e||!signedIn||!fbDb||!fbLeague)return;var t=fbLeague.teams[myUid];if(!t)return;
+function faBidSubmit(key,amtM,outId,bg,ba){var e=fbFaPool[key];if(!e||!signedIn||!fbDb||!fbLeague)return;if(trBanned(myUid))return;var t=fbLeague.teams[myUid];if(!t)return;
   var ni=nextRoundIdx();if(ni<0||roundStarted(ni)){msgBox("Bu haftanın maçları başladı, teklif süresi doldu.");return}
   if(e.src==="ikon"&&e.fu&&e.fu===myUid){msgBox("Eski ikonuna serbest oyuncu olarak teklif veremezsin.");return}
   var amt=Math.round(amtM*10)*1e5,ask=faAsk(e);
@@ -22407,13 +22432,19 @@ function adminFaResolveTick(){
         bud[u]-=bid;upd["budgets/"+S+"/"+u]=bud[u];upd["fa/pool/"+k]=null;if(e.src==="ikon")ikWin[k]={team:t.name,owner:t.ownerName||"",bid:bid,e:e};
         if(out)upd["fa/pool/"+faKey(out)]=faEntry(out,t.name,"bırakılan");
         txPush(upd,S,u,"Serbest transfer: "+e.n,e.m+" · "+e.r+" · imza parası",-bid,now);
+        upd["fa/res/"+S+"/t_"+now.toString(36)+"_"+k.replace(/[^A-Za-z0-9]/g,"").slice(-8)]={t:now,kind:e.src==="ikon"?"ikon":"serbest",n:e.n,m:e.m,r:e.r,from:e.from||"",to:t.name,amt:bid,out:out?out.n:"",wk:idx+1};
         lines.push("🔁 "+e.n+" ("+e.m+", "+e.r+"): serbest → "+t.name+" (imza "+fmtM(bid)+")"+(out?" · "+out.n+" serbest kaldı":""));break}});
     Object.keys(all).forEach(function(u){Object.keys(all[u]||{}).forEach(function(k){var b=all[u][k];if(b&&b.idx<=idx)upd["fa/bids/"+S+"/"+u+"/"+k]=null})});
     upd["leagues/"+S+"/faRes/"+idx]=true;upd["fa/cnt/"+S]=null;
     return fbDb.ref().update(upd).then(function(){delete faResolving[idx];mkBusy=false;lines.forEach(function(l){pushTransferNews(l)});
       if(firstRes)ikKeys.forEach(function(k){var w=ikWin[k],e=fbFaPool[k];
-        if(w)pushNews({type:"ikonflash",title:"⭐ İkon transfer oldu",body:w.e.n+" ("+w.e.m+", "+w.e.r+") → "+w.team+(w.owner?" · "+w.owner:"")+"\nİmza parası: "+fmtM(w.bid)+(w.e.from?"\nEski takımı: "+w.e.from:"")},"ikonflash_"+k);
-        else if(e)pushNews({type:"ikonflash",title:"⭐ İkona teklif gelmedi",body:e.n+" ("+e.m+", "+e.r+") için geçerli teklif çıkmadı. Serbest oyuncular arasında kalıyor."},"ikonflash_"+k)})})
+        if(w){var fr=w.e.from||"eski kulübü",tm=w.team+(w.owner?" ("+w.owner+")":""),vr=(w.e.n.length+w.bid)%3,pn=w.e.n+" ("+w.e.m+", "+w.e.r+")",bd=fmtM(w.bid);
+          var ttl=["Büyük ayrılık: "+w.e.n+" artık "+w.team+"'da!","Sezonun sonuncusu yıldızını kaybetti: "+w.e.n+" gitti!",fr+" yıkıldı, "+w.e.n+" "+w.team+"'a imza attı!"][vr];
+          var txt=[fr+", sezonu son sırada bitirince ikonunu elinde tutamadı. "+pn+" serbest kaldı ve "+tm+" "+bd+" imza parasıyla bu yarışı kazandı.\n\nSonuncu kulüpte yıldız ayrılığının ardından sessizlik hâkim.",
+            "Liginin dibine çöken "+fr+" için kötü haber üst üste geldi: "+pn+" takımdan ayrıldı. Yeni adresi "+tm+". Bonservis yok, imza parası "+bd+".\n\nBu transfer, ligdeki dengeleri değiştirebilir.",
+            "Beklenen oldu: "+fr+" ikonunu kaybetti. "+pn+" için rekabet kızıştı, kazanan "+tm+" oldu. İmza parası: "+bd+".\n\nSon sıradaki kulüp için yeniden kuruluş zamanı."][vr];
+          pushNews({type:"ikonflash",title:ttl,body:txt},"ikonflash_"+k)}
+        else if(e)pushNews({type:"ikonflash",title:"İkona teklif gelmedi: "+e.n+" ortada kaldı",body:e.n+" ("+e.m+", "+e.r+") için kimse teklif yapmadı. "+(e.from||"Eski kulübü")+" ikonunu kaybetti ama kimse onu kadrosuna katmaya cesaret edemedi. Oyuncu serbest oyuncular arasında bekliyor."},"ikonflash_"+k)})})
   }).catch(function(e){delete faResolving[idx];mkBusy=false;fbBadge("Serbest transferler sonuçlanamadı (Rules hatası): "+e.message)})}
 setInterval(adminFaResolveTick,5000);
 /* ---- arayuz ---- */
@@ -22493,6 +22524,9 @@ function openContractSheet(cfg){mkCss2();var mine=fbLeague.teams[myUid],mgr=(typ
 function mktHTML(mine){mkCss();mkCss2();var T=fbLeague.teams,ro=(mine&&mine.roster)||[],h="";
   var listed={};Object.keys(fbMkList).forEach(function(k){var l=fbMkList[k];if(l.status==="open")listed[l.seller+"|"+l.pid]=k});
   h+='<p class="slot">70 ve üstü oyuncularını istediğin fiyata satışa koyabilirsin. Diğer menajerler fiyatın altında da teklif verebilir; teklifi kabul etmek veya reddetmek sende. Oyuncu satınca ihale hakkın artar (satılan oyuncu sayısı kadar +1).</p>';
+  var others=Object.keys(fbMkList).filter(function(k){var l=fbMkList[k];return l.status==="open"&&l.seller!==myUid}).sort(function(a,b){return fbMkList[b].r-fbMkList[a].r});
+  h+='<div class="secH" style="margin-top:16px"><h3>Pazardaki oyuncular</h3><a style="cursor:default">'+others.length+'</a></div>'+(others.length?others.map(function(k){var l=fbMkList[k],mo=l.offers&&l.offers[myUid];
+    return mkRowHTML(l,esc(l.sellerName||""),fmtM(l.ask),'değer '+fmtM(l.mv),mine?(mo?'<button class="mkBtn" data-mkwd="'+k+'">Geri çek ('+fmtM(mo.amt)+')</button>':'<button class="mkBtn ok" data-mkoff="'+k+'">Teklif</button>'):'')}).join(""):'<p class="msg">Pazarda başka oyuncu yok.</p>');
   if(mine){
     var mine1=Object.keys(fbMkList).filter(function(k){var l=fbMkList[k];return l.seller===myUid&&l.status==="open"});
     h+='<div class="secH"><h3>Satıştaki oyuncularım</h3><a style="cursor:default">'+mine1.length+'</a></div>';
@@ -22500,20 +22534,45 @@ function mktHTML(mine){mkCss();mkCss2();var T=fbLeague.teams,ro=(mine&&mine.rost
       return '<div class="card" style="padding:10px 12px;margin-bottom:10px">'+mkRowHTML(l,'değer '+fmtM(l.mv),fmtM(l.ask),'istenen','<button class="mkBtn" data-mkdel="'+k+'"'+(l.acc?' disabled':'')+'>Kaldır</button>')+
         (l.err?'<p class="slot" style="margin:0 0 6px;color:var(--loss)">'+esc(l.err)+'</p>':'')+
         (ofs.length?ofs.map(function(x){return '<div class="mkOf"><span>'+esc(x.o.buyerName||"?")+' · <b>'+fmtM(x.o.amt)+'</b></span>'+(l.acc&&l.acc.buyer===x.u?'<span style="flex:none;color:var(--amber)">işleniyor…</span>':'<button class="ok" data-mkacc="'+k+'|'+x.u+'">Kabul</button><button data-mkrej="'+k+'|'+x.u+'">Reddet</button>')+'</div>'}).join(""):'<p class="slot" style="margin:0">Henüz teklif yok.</p>')+'</div>'}).join(""):'<p class="msg">Satışta oyuncun yok.</p>';
+  }
+  var sold=Object.keys(fbMkList).filter(function(k){return fbMkList[k].status==="sold"}).sort(function(a,b){return (fbMkList[b].sold.at||0)-(fbMkList[a].sold.at||0)}).slice(0,8);
+  if(sold.length)h+='<div class="secH" style="margin-top:16px"><h3>Son satışlar</h3></div>'+sold.map(function(k){var l=fbMkList[k];return mkRowHTML(l,esc(l.sellerName||"")+' → '+esc(l.sold.buyerName||""),fmtM(l.sold.amt),'değer '+fmtM(l.mv),'')}).join("");
+  if(mine){
     var elig=ro.filter(function(p){return p.r>=MK_MIN_R&&!isIcon(myUid,p)&&!listed[myUid+"|"+p.id]}).sort(function(a,b){return b.r-a.r});
     h+='<div class="secH" style="margin-top:16px"><h3>Satışa koy</h3><a style="cursor:default">'+elig.length+' uygun</a></div>'+(elig.length?elig.map(function(p){var f=perfOf(p);
       return mkRowHTML(p,f.pn?('ort. '+f.pf.toFixed(1).replace(".",",")):'', fmtM(mvOf(p)),'piyasa değeri','<button class="mkBtn" data-mklist="'+p.id+'">Sat</button>')}).join(""):'<p class="msg">Satışa uygun oyuncun yok.</p>')}
-  var others=Object.keys(fbMkList).filter(function(k){var l=fbMkList[k];return l.status==="open"&&l.seller!==myUid}).sort(function(a,b){return fbMkList[b].r-fbMkList[a].r});
-  h+='<div class="secH" style="margin-top:16px"><h3>Pazardaki oyuncular</h3><a style="cursor:default">'+others.length+'</a></div>'+(others.length?others.map(function(k){var l=fbMkList[k],mo=l.offers&&l.offers[myUid];
-    return mkRowHTML(l,esc(l.sellerName||""),fmtM(l.ask),'değer '+fmtM(l.mv),mine?(mo?'<button class="mkBtn" data-mkwd="'+k+'">Geri çek ('+fmtM(mo.amt)+')</button>':'<button class="mkBtn ok" data-mkoff="'+k+'">Teklif</button>'):'')}).join(""):'<p class="msg">Pazarda başka oyuncu yok.</p>');
-  var sold=Object.keys(fbMkList).filter(function(k){return fbMkList[k].status==="sold"}).sort(function(a,b){return (fbMkList[b].sold.at||0)-(fbMkList[a].sold.at||0)}).slice(0,8);
-  if(sold.length)h+='<div class="secH" style="margin-top:16px"><h3>Son satışlar</h3></div>'+sold.map(function(k){var l=fbMkList[k];return mkRowHTML(l,esc(l.sellerName||"")+' → '+esc(l.sold.buyerName||""),fmtM(l.sold.amt),'değer '+fmtM(l.mv),'')}).join("");
   return h}
+function trHistList(){var L=[];
+  aucKeys().forEach(function(k){var r=fbAuc[k];if(r.status!=="done"||!r.result||!r.result.winner||!r.player)return;var w=r.result.winner;
+    L.push({t:(r.result.at||r.createdAt||0)+r.idx,o:r.idx,kind:"ihale",n:r.player.n,m:r.player.m,r:r.player.r,from:"İhale",to:w.team,amt:w.bid,out:w.outN||"",wk:r.idx+1,uid:w.uid})});
+  Object.keys(fbMkList||{}).forEach(function(k){var l=fbMkList[k];if(l.status!=="sold"||!l.sold)return;
+    L.push({t:l.sold.at||0,kind:"pazar",n:l.n,m:l.m,r:l.r,from:l.sellerName||"",to:l.sold.buyerName||"",amt:l.sold.amt,out:"",uid:l.sold.buyer,suid:l.seller})});
+  Object.keys(fbFaHist||{}).forEach(function(k){var x=fbFaHist[k];if(x&&x.n)L.push({t:x.t||0,kind:x.kind||"serbest",n:x.n,m:x.m,r:x.r,from:x.from||"Serbest",to:x.to,amt:x.amt,out:x.out||"",wk:x.wk})});
+  return L.sort(function(a,b){return (b.t||0)-(a.t||0)})}
+function trHistHTML(){mkCss();mkCss2();newsCss();var L=trHistList(),f=UI.trF||"all",KL={ihale:"İhale",pazar:"Pazar",serbest:"Serbest",ikon:"İkon"},KC={ihale:"#f0b44a",pazar:"#4c8dff",serbest:"#2bb673",ikon:"#e63946"},KH={ihale:"ihale",pazar:"pazar",serbest:"serbest",ikon:"ikon"};
+  var mineT=(fbLeague&&fbLeague.teams&&fbLeague.teams[myUid]||{}).name||"";
+  var cnt={all:L.length,me:0};L.forEach(function(x){cnt[x.kind]=(cnt[x.kind]||0)+1;if(x.uid===myUid||x.suid===myUid||(mineT&&(x.to===mineT||x.from===mineT)))cnt.me++});
+  var items=[["all","Tümü"],["ihale","İhale"],["pazar","Pazar"],["serbest","Serbest"],["ikon","İkon"],["me","Benim"]];
+  var h='',list=L;
+  if(!list.length)return '<p class="msg" style="padding:14px 4px">Bu sezon henüz tamamlanmış transfer yok.</p>';
+  var spend={},earn={},tot=0;list.forEach(function(x){tot+=x.amt||0;if(x.to)spend[x.to]=(spend[x.to]||0)+(x.amt||0);if(x.kind==="pazar"&&x.from)earn[x.from]=(earn[x.from]||0)+(x.amt||0)});
+  var sp=Object.keys(spend).sort(function(a,b){return spend[b]-spend[a]}),mxs=spend[sp[0]]||1;
+  var h2='<div class="card" style="padding:12px 14px;margin:10px 0"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><b style="font:800 13px Inter;letter-spacing:.03em">TAKIM HARCAMALARI</b><span style="font:700 12px Inter;color:var(--mut)">Toplam '+fmtM(tot)+'</span></div>'+
+    sp.map(function(t){var me=t===mineT;return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font:600 12.5px Inter"><span style="flex:0 0 96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'+(me?'color:var(--amber);font-weight:800':'')+'">'+esc(t)+'</span><span style="flex:1;height:10px;background:var(--card2);border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.max(4,Math.round(spend[t]/mxs*100))+'%;background:'+(me?'var(--amber)':'#4c8dff')+';border-radius:5px"></i></span><b style="flex:0 0 58px;text-align:right;font-weight:800">'+fmtM(spend[t])+'</b></div>'}).join("")+'</div>';
+  var G="display:grid;grid-template-columns:38px minmax(0,1.25fr) minmax(0,.95fr) minmax(0,.95fr) 56px;gap:6px;align-items:center;padding:8px 10px;";
+  var hdr='<div style="'+G+'font:800 10px Inter;letter-spacing:.06em;color:var(--mut);border-bottom:1px solid var(--bd)"><span>TARİH</span><span>OYUNCU</span><span>NEREDEN</span><span>NEREYE</span><span style="text-align:right">BEDEL</span></div>';
+  var rows=list.map(function(x,i){var mine=x.uid===myUid||x.suid===myUid||(mineT&&(x.to===mineT||x.from===mineT)),d=x.t?new Date(x.t):null,dt=d?('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2):'';
+    var fr=x.kind==="ihale"?"İhale":x.kind==="serbest"&&!x.from?"Serbest":(x.from||"Serbest");
+    return '<div style="'+G+(i%2?'background:rgba(255,255,255,.025);':'')+(mine?'box-shadow:inset 3px 0 0 var(--amber);':'')+'font:600 12px/1.3 Inter"><span style="color:var(--mut);font-size:11px">'+dt+(x.wk?'<br>'+x.wk+'. hf':'')+'</span>'+
+      '<span style="min-width:0"><b style="font:800 12.5px Inter;display:block;overflow-wrap:anywhere">'+plLink(x.n)+'</b><span style="color:var(--mut);font-size:11px">'+esc(x.m)+' · '+x.r+'</span></span>'+
+      '<span style="min-width:0;overflow-wrap:anywhere;color:var(--mut)">'+esc(fr)+'</span><span style="min-width:0;overflow-wrap:anywhere;'+(x.to===mineT?'color:var(--amber);font-weight:800':'')+'">'+esc(x.to||"?")+'</span>'+
+      '<span style="text-align:right"><b style="font:800 12.5px Inter;display:block">'+fmtM(x.amt)+'</b><span style="color:var(--mut);font-size:10.5px">'+(KH[x.kind]||"")+'</span></span></div>'}).join("");
+  return h2+'<div class="card" style="padding:0;overflow:hidden">'+hdr+rows+'</div>'}
 function faHTML(mine){mkCss();mkCss2();var h="",ro=(mine&&mine.roster)||[],pos=UI.faPos||"";
   var keys=Object.keys(fbFaPool);
-  h+='<p class="slot">Serbest oyuncular. Sadece <b>imza parası</b> ödenir. Teklifler hafta bitince sonuçlanır; aynı oyuncuya birden fazla teklif gelirse en yüksek kazanır. Aldığın oyuncunun yerine aynı mevkiden birini bırakırsın (o mevkide boş yerin varsa gerekmez).</p>';
+  h+='<p class="slot">Serbest oyuncular (70 ve üstü; altındakiler gelişip 70 üstüne çıkınca listeye döner). Sadece <b>imza parası</b> ödenir. Teklifler hafta bitince sonuçlanır; aynı oyuncuya birden fazla teklif gelirse en yüksek kazanır. Aldığın oyuncunun yerine aynı mevkiden birini bırakırsın (o mevkide boş yerin varsa gerekmez).</p>';
   h+='<div class="svcN" style="margin:6px 0 10px"><button data-fapos=""'+(pos===""?' class="on"':'')+'>Hepsi</button>'+ORDER.map(function(m){return '<button data-fapos="'+m+'"'+(pos===m?' class="on"':'')+'>'+m+'</button>'}).join("")+'</div>';
-  var list=keys.map(function(k){return {k:k,e:fbFaPool[k]}}).filter(function(x){return !pos||x.e.m===pos}).sort(function(a,b){return b.e.r-a.e.r}).slice(0,80);
+  var list=keys.map(function(k){return {k:k,e:fbFaPool[k]}}).filter(function(x){return x.e&&x.e.r>=MK_MIN_R&&(!pos||x.e.m===pos)}).sort(function(a,b){return b.e.r-a.e.r}).slice(0,80);
   h+=list.length?list.map(function(x){var e=x.e,mb=fbFaBids[x.k],f=perfOf(e);
     return mkRowHTML(e,'',fmtM(mvOf(e)),'piyasa değeri',mine?(mb?'<button class="mkBtn" data-fawd="'+x.k+'">Geri çek ('+fmtM(mb.bid)+')</button>':(e.src==="ikon"&&e.fu&&e.fu===myUid)?'<span class="avg" style="font-size:11.5px">Eski ikonun</span>':'<button class="mkBtn ok" data-faoff="'+x.k+'">Teklif</button>'):'',true)}).join(""):'<p class="msg">Serbest oyuncu yok.</p>';
   return h}
@@ -23185,8 +23244,8 @@ function hsRecordsHTML(ar,countArr,view){var r=ar.rec,h='<div class="card" style
   return h+(ar.pending?'<p class="msg" style="padding:8px 12px">Bazı sezonlar yükleniyor, birazdan tamamlanacak…</p>':'')+'</div>'}
 
 var NEWS_LOGO='<svg viewBox="0 0 40 40" width="34" height="34"><rect width="40" height="40" rx="8" fill="#a4161a"/><path d="M11 30V10h10.5c4.2 0 6.5 2.3 6.5 5.6 0 2.8-1.700 4.700-4.300 5.300L29 30h-5.400l-4.200-8.400H16V30z M16 18h5c1.600 0 2.500-.8 2.500-2.100S22.600 13.800 21 13.800h-5z" fill="#efe6d0" fill-rule="evenodd"/><circle cx="30.500" cy="9.500" r="3.200" fill="#efe6d0"/></svg>';
-var NEWS_CAT={kupa:"mac",haftaOyuncu:"mac",haftaMenajer:"mac",transfer:"trf",ikonflash:"trf",sponsor:"trf",sakatlik:"olay",ceza:"olay",olay:"olay",hakem:"olay",sike:"olay",odul:"odul",sampiyon:"odul",golkrali:"odul",asistkrali:"odul",enkaleci:"odul",vergi:"odul"},
- NEWS_CATS=[["all","Tümü"],["mac","Maç"],["trf","Transfer"],["olay","Olay"],["odul","Ödül"]],NEWS_COL={mac:"#2bb673",trf:"#4c8dff",olay:"#e63946",odul:"#f0b44a"},NEWS_LBL={mac:"Maç",trf:"Transfer",olay:"Olay",odul:"Ödül"};
+var NEWS_CAT={kupa:"mac",haftaOyuncu:"mac",transfer:"trf",ikonflash:"trf",ihaleflash:"trf",acikartirma:"trf",serbest:"trf",sakatlik:"olay",ceza:"olay",olay:"olay",hakem:"olay",sike:"olay",sponsor:"olay",odul:"sezon",oduller:"sezon",sampiyon:"sezon",gelisim:"sezon",vergi:"sezon",golkrali:"sezon",asistkrali:"sezon",enkaleci:"sezon",yilinoyuncusu:"sezon",enmenajer:"sezon"},
+ NEWS_CATS=[["all","Tümü"],["mac","Maç"],["trf","Transfer"],["olay","Olay"],["sezon","Sezon"]],NEWS_COL={mac:"#2bb673",trf:"#4c8dff",olay:"#e63946",sezon:"#f0b44a"},NEWS_LBL={mac:"Maç",trf:"Transfer",olay:"Olay",sezon:"Sezon"};
 function newsCat(n){return NEWS_CAT[n.type]||"mac"}
 function newsSeenAt(){var v=0;try{v=+localStorage.getItem("newsSeenAt")||0}catch(e){}return v}
 function newsUnread(){var sa=newsSeenAt(),c=0;Object.keys(fbNews||{}).forEach(function(k){if(((fbNews[k]||{}).createdAt||0)>sa)c++});return c}
@@ -23214,12 +23273,14 @@ function vNews(){var gate=gateCard();if(gate)return gate;newsCss();
     list=list.filter(function(k){return k!==hero})}
   h+=segH;
   if(!list.length&&!(f==="all"&&hero))return h+(adminBtn?'<div style="margin-top:18px">'+adminBtn+'</div>':'')+'<p class="msg" style="padding:14px 4px">Bu türde haber yok.</p>';
+  var total=list.length,LIM=UI.newsAll?9999:30;if(total>LIM)list=list.slice(0,LIM);
   var lastDay="";
   list.forEach(function(id){var n=fbNews[id],c=newsCat(n),dy=newsDay(n.createdAt);
     if(dy!==lastDay){h+='<div class="nwDay">'+esc(dy)+'</div>';lastDay=dy}
     var body=String(n.body||""),lines=body.split("\n"),long=lines.length>4||body.length>260,open=!!UI.newsOpen[id],shown=long&&!open?(lines.length>4?lines.slice(0,3).join("\n"):body.slice(0,200).replace(/\s+\S*$/,"")+"…"):body,isNew=(n.createdAt||0)>base;
     h+='<div class="nwCard" style="--nc:'+NEWS_COL[c]+'"><div class="nwMeta"><span class="nwTag">'+NEWS_LBL[c]+'</span>'+(isNew?'<span class="nwNew">YENİ</span>':'')+'<span class="nwT">'+newsAgo(n.createdAt)+'</span></div>'+
       (n.sp&&SP_LOGO[n.sp]?(spCss(),'<div style="margin-bottom:8px">'+spLogo(n.sp)+'</div>'):'')+'<h2>'+esc(n.title||"")+'</h2><p class="nwB">'+esc(shown)+'</p>'+(long?'<button class="nwMore" data-newsx="'+esc(id)+'">'+(open?'Daralt':'Devamı')+'</button>':'')+'</div>'});
+  if(total>30)h+='<button class="btn alt" data-newsall="1" style="margin-top:6px">'+(UI.newsAll?'Eski haberleri gizle':'Eski haberleri göster ('+(total-30)+')')+'</button>';
   return h+(adminBtn?'<div style="margin-top:18px">'+adminBtn+'</div>':'')}
 
 function recRow(title,val){return '<div class="li recR"><span class="nm">'+title+'</span><span class="r">'+(val||"—")+'</span></div>'}
@@ -24067,7 +24128,7 @@ function vMore(){var gate=gateCard();if(gate)return gate;var a=teamAcc(myUid),c=
   var h='<div class="pgTitle">Daha fazla</div><div class="mgrCard" style="margin-top:12px;background:linear-gradient(112deg,'+a.c1+'cc,'+a.c2+'f2)">'+avatarHTML(myClubName()||myName||"?",46)+'<div><div style="font:800 18px Inter;letter-spacing:-.02em">'+esc(myName||"")+'</div><div style="font-size:12.5px;opacity:.9">'+esc(myClubName()||"")+(seasons?' · '+seasons+' sezon':'')+'</div></div><button class="go" data-prof="1" style="margin-left:auto;border:0;border-radius:999px;padding:8px 12px;background:rgba(11,16,23,.55);color:#fff;font:800 13px Inter;cursor:pointer">Profil</button></div>';
   function tile(ic,t,s,go,extra){return '<div class="tile" '+(go||"")+'><div class="ic">'+ic+'</div><b>'+t+'</b><small>'+s+'</small></div>'}
   h+='<div class="tiles">'+tile("📰","Haberler",(newsUnread()?newsUnread()+" yeni haber":"Hafta oyuncusu, transfer"),'data-go="news"')+tile("📜","Geçmiş","Sezonlar, şampiyonlar, rekorlar",'data-go="history"')+
-    tile("🏛️","Kulüp tarihi","Efsaneler, ikonlar, transferler",'data-club="1"')+tile("🎨","Kulüp kimliği","Renkler, stadyum, ikon",'data-go="clubid"')+tile("🤝","Sponsorlar","Teklifler, gelirler",'data-go="sponsor"')+
+    tile("🏛️","Kulüp tarihi","Efsaneler, ikonlar, transferler",'data-club="1"')+tile("🎨","Kulüp kimliği","Renkler, stadyum, ikon",'data-go="clubid"')+tile("🤝","Sponsorlar","Teklifler, gelirler",'data-go="sponsor"')+tile("🤫","Teşvik primi",(function(){var n=Object.keys(fbDeals||{}).filter(function(k){var d=fbDeals[k];return d&&d.r===myUid&&d.st==="offer"}).length;return n?n+" yeni teklif":"Gizli anlaşmalar"})(),'data-go="prim"')+
     tile("👤","Menajer profili","Ödüller ve rekabet",'data-prof="1"')+(isAdmin?tile("🗂️","Veritabanı","Sadece yönetici",'data-go="db"'):'')+'</div>';
   if(isAdmin)h+='<div class="secH" style="margin-top:18px"><h3>Yönetici</h3></div>'+adminSeasonButtons();
   h+='<div class="tile" id="signout" style="margin-top:14px;min-height:0;display:flex;align-items:center;gap:12px;color:var(--mut)"><div class="ic" style="margin:0">⎋</div><b style="color:var(--tx)">Çıkış yap</b></div>';
@@ -24277,7 +24338,7 @@ function settleBets(idx,uids){var S=currentSeason,wk="w"+idx;betBusy=true;
       upd["budgets/"+S+"/"+u]=bal+delta;upd["betres/"+S+"/"+wk+"/"+u]=res;
       lines.push(name+": "+(nv===0?"iade":res.won?"✅ +"+fmtM(res.payout-stake)+" ("+fmtO(res.odds)+"x)":"❌ −"+fmtM(stake)))});
     return fbDb.ref().update(upd).then(function(){betBusy=false;
-      pushNews({type:"kupon",title:"🎫 "+(idx+1)+". Hafta kuponları",body:lines.join("\n"),round:idx},"r"+idx+"_kupon");adminBetTick()})
+      adminBetTick()})
   }).catch(function(e){betBusy=false;uids.forEach(function(u){delete betDone[S+wk+u]});fbBadge("Kuponlar sonuçlanamadı (Rules hatası): "+e.message)})}
 /* ---- ekranlar ---- */
 function oddBtn(mi,k,top,odd,sel,off){return '<button class="odd'+(sel?' on':'')+(off?' off':'')+'" data-bk="'+mi+'|'+k+'"><small>'+top+'</small><b>'+fmtO(odd)+'</b></button>'}
@@ -24405,11 +24466,12 @@ function betOddsHTML(ri,mi){var od=fbOdds["w"+ri],o=od&&od.matches&&od.matches[m
 function vMarket(){var gate=gateCard();if(gate)return gate;
   if(!fbLeague||!fbLeague.teams)return '<div class="pgTitle">Pazar</div><div class="card"><p class="msg">Transfer ihalesi lig kurulduktan sonra başlar.</p></div>';
   mkCss();
-  var h='<div class="pgTitle">Pazar</div>'+segHTML("mkView",[["auc","İhale"],["mkt","Pazar"],["fa","Serbest"],["bal","Bakiye"]],UI.mkView);
+  var h='<div class="pgTitle">Pazar</div>'+segHTML("mkView",[["auc","İhale"],["mkt","Pazar"],["fa","Serbest"],["hist","Geçmiş"],["bal","Bakiye"]],UI.mkView);
   var mine=fbLeague.teams[myUid],teams=fbLeague.teams;
   if(mine)h+='<div class="mkSum"><div><small>Kullanılabilir</small><b>'+fmtM(availOf(myUid))+'</b></div><div><small>Kuponda</small><b>'+fmtM(reservedOf(myUid))+'</b></div><div><small>İhale hakkı</small><b>'+aucWinsOf(myUid)+'/'+aucMaxOf(myUid)+'</b></div></div>';
   if(UI.mkView==="mkt")return h+mktHTML(mine);
   if(UI.mkView==="fa")return h+faHTML(mine);
+  if(UI.mkView==="hist")return h+trHistHTML();
   if(UI.mkView==="bal"){var ids=Object.keys(teams).sort(function(a,b){return budOf(b)-budOf(a)}),mx=Math.max.apply(null,ids.map(function(u){return budOf(u)}))||1,medal=["🥇","🥈","🥉"];
     h+='<div class="secH"><h3>Zenginlik sıralaması</h3></div><div class="stb" style="background:var(--card);border:1px solid var(--bd);border-radius:16px;overflow:hidden">'+ids.map(function(u,i){var b=budOf(u),r=Math.min(reservedOf(u),b),free=b-r;
       return '<div class="wlt'+(u===myUid?' me':'')+'"><span class="pos">'+(medal[i]||(i+1))+'</span>'+avU(u,30,teams[u].name)+'<div class="mid"><b>'+esc(teams[u].name)+'</b><small>İhale '+aucWinsOf(u)+'/'+aucMaxOf(u)+(r?' · kuponda '+fmtM(r):'')+'</small><div class="wbar" style="width:'+Math.max(4,Math.round(b/mx*100))+'%"><i style="flex:'+free+';background:var(--win)"></i><i style="flex:'+r+';background:var(--amber)"></i></div></div><div class="v">'+fmtM(b)+'</div></div>'}).join("")+
@@ -24473,9 +24535,22 @@ function alertBandsHTML(){if(!signedIn||!myUid||!fbLeague||!fbLeague.teams||!fbL
   var cur=(typeof curAuc==="function")?curAuc():null;
   if(cur&&cur.player&&cur.player.r>=BIG_R&&!roundStarted(cur.idx)&&aucWinsOf(myUid)<aucMaxOf(myUid)){var mb2=fbMyBids&&fbMyBids["w"+cur.idx],bc=Object.keys(cur.bidders||{}).length,nt=Object.keys(fbLeague.teams).length;
     h+='<div class="abBand abBig'+(mb2?' ok':'')+'"><span class="ic">🔥</span><div class="ab">'+(mb2?'<b>İhalede teklifin var</b> · '+esc(cur.player.n)+' ('+cur.player.r+')':'<b>İHALEDE 85+ OYUNCU: '+esc(cur.player.n)+' ('+esc(cur.player.m)+' '+cur.player.r+')</b>')+'<small>'+bc+'/'+nt+' takım teklif verdi · maçlar başlayana kadar</small></div><button data-abgo="auc">'+(mb2?'Düzenle':'İhaleye git')+'</button></div>'}
+  dealTodo().forEach(function(x){var d=x.d,me=x.kind==='ctr';
+    h+='<div class="abBand abBig"><span class="ic">🤫</span><div class="ab"><b>'+(me?'KARŞI TEKLİF GELDİ':'TEŞVİK PRİMİ TEKLİFİ')+' · '+esc(dealTeamName(me?d.r:d.p))+'</b><small>'+DEAL_TYPES[d.type].n+' · '+fmtM(me?d.ctr.amt:d.amt)+' · cevap bekliyor</small></div><button data-abgo="deal">Cevapla</button></div>'});
   return h}
+function dealTodo(){var o=[];Object.keys(fbDeals||{}).forEach(function(k){var d=fbDeals[k];if(!d||d.st!=="offer")return;
+  if(d.r===myUid&&!d.ctr)o.push({k:k+"|o",kind:"in",d:d,id:k});else if(d.p===myUid&&d.ctr)o.push({k:k+"|"+d.ctr.at,kind:"ctr",d:d,id:k})});return o}
+function dealPopupTick(){
+  if(!signedIn||!myUid||document.querySelector(".sheet,.shockOv"))return;window._dlDis=window._dlDis||{};
+  var x=dealTodo().filter(function(y){return !window._dlDis[y.k]})[0];if(!x)return;window._dlDis[x.k]=1;abCss();mkCss();mkCss2();dealCss();
+  var d=x.d,c=x.kind==="ctr",sh=document.createElement("div");sh.className="sheet ikSheet";document.body.appendChild(sh);function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
+  sh.innerHTML='<div class="in"><div class="grab"></div><div class="ikStar">🤫</div><div class="ikT" style="color:#e63946">'+(c?'KARŞI TEKLİF GELDİ':'GİZLİ TEŞVİK PRİMİ TEKLİFİ')+'</div><div class="ikN" style="font-size:20px">'+esc(dealTeamName(c?d.r:d.p))+'</div><div class="ikP">'+esc(dealMatchLabel(d))+'</div>'+
+   '<div class="ikF"><div><small>İstenen</small><b>'+DEAL_TYPES[d.type].n+'</b></div><div><small>'+(c?'İstediği prim':'Prim')+'</small><b>'+fmtM(c?d.ctr.amt:d.amt)+'</b></div></div>'+
+   '<p class="ikNote">'+(c?'Karşı teklifi kabul edebilir ya da reddedebilirsin.':'Bu teklif sadece sana görünür. Cevap vermezsen maç başlayınca süresi dolar.')+'</p><button class="btn" id="dlpGo">Cevapla</button><button class="btn alt" id="dlpNo" style="margin-top:8px">Şimdi değil</button></div>';
+  sh.querySelector("#dlpGo").onclick=function(){close();goTab("prim")};sh.querySelector("#dlpNo").onclick=close}
+setInterval(dealPopupTick,2500);
 function ikonPopupTick(){
-  if(!signedIn||!myUid||document.querySelector(".sheet"))return;var L=iconListMine();if(!L.length)return;
+  if(!signedIn||!myUid||document.querySelector(".sheet,.shockOv"))return;var L=iconListMine();if(!L.length)return;
   var x=L.filter(function(y){return !(fbFaBids&&fbFaBids[y.k])&&!(window._ikDis||{})[y.k]})[0];if(!x)return;
   window._ikDis=window._ikDis||{};window._ikDis[x.k]=1;abCss();mkCss();mkCss2();
   var e=x.e,sh=document.createElement("div");sh.className="sheet ikSheet";document.body.appendChild(sh);
@@ -24487,18 +24562,282 @@ function ikonPopupTick(){
   sh.querySelector("#ikGo").onclick=function(){close();openFaOffer(x.k)};sh.querySelector("#ikNo").onclick=close}
 setInterval(ikonPopupTick,2500);
 function ikonFlashTick(){
-  if(!signedIn||!myUid||document.querySelector(".sheet")||!fbNews)return;var seen=[];try{seen=JSON.parse(localStorage.getItem("ikSeen")||"[]")}catch(e){}
-  var ids=Object.keys(fbNews).filter(function(k){var n=fbNews[k];return n&&(n.type==="ikonflash"||n.type==="sike")&&(Date.now()-(n.createdAt||0))<3*864e5&&seen.indexOf(k)<0});if(!ids.length)return;
+  if(!signedIn||!myUid||document.querySelector(".sheet,.shockOv")||!fbNews)return;var seen=[];try{seen=JSON.parse(localStorage.getItem("ikSeen")||"[]")}catch(e){}
+  var ids=Object.keys(fbNews).filter(function(k){var n=fbNews[k];return n&&(n.type==="ikonflash"||n.type==="sike"||n.type==="ihaleflash")&&(Date.now()-(n.createdAt||0))<3*864e5&&seen.indexOf(k)<0});if(!ids.length)return;
   var k=ids.sort(function(a,b){return (fbNews[a].createdAt||0)-(fbNews[b].createdAt||0)})[0],n=fbNews[k];abCss();
-  var sh=document.createElement("div");var sk=n.type==="sike";sh.className="sheet ikFlash"+(sk?" sikeFlash":"");document.body.appendChild(sh);
-  if(sk){var ttl=esc((n.title||"").replace(/^🕵️\s*/,"")),dt=new Date(n.createdAt||Date.now()).toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"});
-    sh.innerHTML='<div class="in"><div class="grab"></div><div class="gz"><div class="gzTop"><span>Spor haberleri</span><span>'+dt+'</span></div><div class="gzMast"><span class="gzLogo"><svg viewBox="0 0 40 40" width="34" height="34"><rect width="40" height="40" rx="8" fill="#a4161a"/><path d="M11 30V10h10.5c4.2 0 6.5 2.3 6.5 5.6 0 2.8-1.7 4.7-4.3 5.3L29 30h-5.4l-4.2-8.4H16V30z M16 18h5c1.6 0 2.5-.8 2.5-2.1S22.600 13.800 21 13.800h-5z" fill="#efe6d0" fill-rule="evenodd"/><circle cx="30.500" cy="9.500" r="3.200" fill="#efe6d0"/></svg></span><span>reislerhaber<i>.com</i></span></div><div class="gzRule"></div><div class="gzKick">Son dakika · Spor</div><div class="gzHead">'+ttl+'</div><div class="gzBy">Spor servisi</div><div class="gzBody">'+esc(n.body||"")+'</div></div><button class="btn" id="ikClose" style="margin-top:12px">Kapat</button></div>'}
+  if(n.shock){sikeShock(k,n,seen);return}
+  var sh=document.createElement("div");var sk=true,kick=n.type==="sike"?"Son dakika · Spor":"Son dakika · Transfer";sh.className="sheet ikFlash"+(sk?" sikeFlash":"");document.body.appendChild(sh);
+  if(sk){var ttl=esc((n.title||"").replace(/^[^\wÇĞİÖŞÜçğıöşü]+\s*/,"")),dt=new Date(n.createdAt||Date.now()).toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"});
+    sh.innerHTML='<div class="in"><div class="grab"></div><div class="gz"><div class="gzTop"><span>Spor haberleri</span><span>'+dt+'</span></div><div class="gzMast"><span class="gzLogo"><svg viewBox="0 0 40 40" width="34" height="34"><rect width="40" height="40" rx="8" fill="#a4161a"/><path d="M11 30V10h10.5c4.2 0 6.5 2.3 6.5 5.6 0 2.8-1.7 4.7-4.3 5.3L29 30h-5.4l-4.2-8.4H16V30z M16 18h5c1.6 0 2.5-.8 2.5-2.1S22.600 13.800 21 13.800h-5z" fill="#efe6d0" fill-rule="evenodd"/><circle cx="30.500" cy="9.500" r="3.200" fill="#efe6d0"/></svg></span><span>reislerhaber<i>.com</i></span></div><div class="gzRule"></div><div class="gzKick">'+kick+'</div><div class="gzHead">'+ttl+'</div><div class="gzBy">Spor servisi</div><div class="gzBody">'+esc(n.body||"")+'</div></div><button class="btn" id="ikClose" style="margin-top:12px">Kapat</button></div>'}
   else sh.innerHTML='<div class="in"><div class="grab"></div><div style="font-size:44px;line-height:1">⭐</div><div class="ikT" style="font:900 13px Inter;letter-spacing:.08em;color:var(--amber);margin:6px 0 4px">'+esc((n.title||"İkon transferi")).toUpperCase()+'</div><div class="ikBody">'+esc(n.body||"")+'</div><button class="btn" id="ikClose">Kapat</button></div>';
   sh.querySelector("#ikClose").onclick=function(){seen.push(k);try{localStorage.setItem("ikSeen",JSON.stringify(seen.slice(-30)))}catch(e){}if(sh.parentNode)sh.parentNode.removeChild(sh)}}
+function sikeShock(k,n,seen){var o=document.createElement("div");o.className="shockOv";document.body.appendChild(o);
+  var ttl=esc((n.title||"").replace(/^[^\wÇĞİÖŞÜçğıöşü]+\s*/,"")),body=esc(n.body||"").replace(/\n/g,"<br>"),fin=/kararını/.test(n.title||"");
+  o.innerHTML='<div class="shStrobe"></div><div class="shSiren"></div><div class="shIn"><div class="shTop">🚨 SON DAKİKA 🚨</div><div class="shBig">'+(fin?"KARAR<br>AÇIKLANDI":"ŞİKE<br>SKANDALI")+'</div><div class="shHead">'+ttl+'</div><div class="shBody">'+body+'</div><div class="shSrc">reislerhaber.com</div><button class="btn" id="shClose">Haberi kapat</button></div>';
+  try{if(navigator.vibrate)navigator.vibrate([250,90,250,90,500])}catch(e){}
+  o.querySelector("#shClose").onclick=function(){seen.push(k);try{localStorage.setItem("ikSeen",JSON.stringify(seen.slice(-30)))}catch(e){}if(o.parentNode)o.parentNode.removeChild(o)}}
+(function(){var st=document.createElement("style");st.textContent=
+".shockOv{position:fixed;inset:0;z-index:100000;background:#0a0003;display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px 16px}.shStrobe{position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,#ff1f2d 0%,#7a0010 55%,#0a0003 100%);animation:shStr .42s steps(2,end) 9;opacity:.9}@keyframes shStr{0%{opacity:.95}50%{opacity:.12}100%{opacity:.95}}.shSiren{position:absolute;left:0;right:0;top:0;height:14px;background:repeating-linear-gradient(90deg,#ff1f2d 0 38px,#fff 38px 76px);animation:shSir .5s linear infinite}@keyframes shSir{to{background-position:76px 0}}"+
+".shIn{position:relative;width:100%;max-width:440px;text-align:center;color:#fff;animation:shShake .55s ease-in-out 3}@keyframes shShake{0%,100%{transform:translate(0,0)}15%{transform:translate(-9px,4px) rotate(-.6deg)}35%{transform:translate(8px,-5px) rotate(.6deg)}55%{transform:translate(-6px,3px)}75%{transform:translate(6px,-3px)}}.shTop{display:inline-block;background:#fff;color:#c1001f;font:900 14px Inter;letter-spacing:.12em;padding:6px 12px;border-radius:6px;animation:shBlink .6s steps(2,end) infinite}@keyframes shBlink{50%{opacity:.25}}"+
+".shBig{font:900 58px/.98 Inter;letter-spacing:-.03em;margin:16px 0 12px;text-shadow:0 0 22px #ff1f2d,0 4px 0 #6b000e;animation:shSlam .5s cubic-bezier(.2,1.6,.3,1) both}@keyframes shSlam{0%{transform:scale(3.2);opacity:0}100%{transform:scale(1);opacity:1}}.shHead{background:#fff;color:#14080a;font:900 19px/1.25 Georgia,'Times New Roman',serif;padding:12px 14px;border-radius:8px;margin-bottom:10px;text-align:left}.shBody{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:12px 14px;font:600 14px/1.5 Inter;text-align:left;margin-bottom:8px;max-height:34vh;overflow:auto}.shSrc{font:italic 12px Georgia,serif;opacity:.8;margin-bottom:12px}@media(prefers-reduced-motion:reduce){.shStrobe,.shSiren,.shIn,.shTop,.shBig{animation:none}}";
+  document.head.appendChild(st)})();
 setInterval(ikonFlashTick,3000);
-document.addEventListener("click",function(ev){var nx=ev.target&&ev.target.closest&&ev.target.closest("[data-newsx]");if(nx){UI.newsOpen=UI.newsOpen||{};var k=nx.dataset.newsx;UI.newsOpen[k]=!UI.newsOpen[k];render();return}var t=ev.target&&ev.target.closest&&ev.target.closest("[data-abgo]");if(!t)return;var v=t.dataset.abgo;
+document.addEventListener("click",function(ev){var na=ev.target&&ev.target.closest&&ev.target.closest("[data-newsall]");if(na){UI.newsAll=!UI.newsAll;render();return}var nx=ev.target&&ev.target.closest&&ev.target.closest("[data-newsx]");if(nx){UI.newsOpen=UI.newsOpen||{};var k=nx.dataset.newsx;UI.newsOpen[k]=!UI.newsOpen[k];render();return}var t=ev.target&&ev.target.closest&&ev.target.closest("[data-abgo]");if(!t)return;var v=t.dataset.abgo;
+  if(v==="deal"){goTab("prim");return}
   if(v==="auc"){goTab("transfer","mkView:auc");return}
   if(v.indexOf("ik|")===0){goTab("transfer","mkView:fa");setTimeout(function(){openFaOffer(v.slice(3))},50)}});
+
+/* ================= TESVIK PRIMI (anlasmali sonuc) =================
+   Menajer A, rakip menajer B'ye para verip B'nin maci bilerek kaybetmesini / farkla kaybetmesini / berabere bitirmesini ister.
+   B kabul ederse A'nin parasi bloke edilir; sonuc tutarsa B alir (oyuncu payi dusulur), tutmazsa A'ya iade edilir.
+   Kaleci (yenilgi/fark) ya da forvet (beraberlik) olaya katilirsa sonuc kesinlesir; katilmazsa %50.
+   A ayni maca kupon yapip bahisten net kazanirsa olay ortaya cikabilir (kazanca gore %3-%20) ve ceza verilir. */
+var DEAL_TYPES={yenil:{n:"Yenilsin",d:"Maçı kaybetsin",mul:0.88},fark:{n:"Farkla yenilsin",d:"En az 4 farkla kaybetsin",mul:0.78},bera:{n:"Berabere kalsın",d:"Rölantide oynasın, maç berabere bitsin",mul:0.85},kaz:{n:"Kazansın",d:"Maçı kazansın",mul:1.05,boost:1},ber:{n:"En az berabere kalsın",d:"Maçı kaybetmesin",mul:1.05,boost:1}};
+function dealIsOwn(d){return d.p===d.hm||d.p===d.aw}
+function dealBoost(s,d){var m=d.mul||1.05;return {def:s.def*m,mid:s.mid*m,forw:s.forw*m,atk:s.atk*m,con:s.con*m}}
+var DEAL_PEN=[null,{m:1.5,ban:3,pts:0},{m:2,ban:5,pts:3},{m:3,ban:7,pts:6},{m:4,ban:12,pts:9}],DEAL_PROB=[0,0.03,0.10,0.15,0.20];
+var fbDeals={},dealRefs={},dealBusy=false;
+var DEAL_COL={yenil:'#e63946',fark:'#ff7a1a',bera:'#4cc9f0',kaz:'#2bb673',ber:'#f0b44a'},DEAL_ICO={yenil:'📉',fark:'💥',bera:'🤝',kaz:'🏆',ber:'🛡️'};var DEAL_MINRI=12;function dealOpenRi(i){return i>=DEAL_MINRI}
+function dealPlKind(type){return type==="bera"?"st":"gk"}
+function dealPlName(type){return type==="bera"?"Forvet":"Kaleci"}
+function dealAskPct(id){return 20+spHash("pl|"+id)%21}
+function dealMatchOf(d){var rd=fbLeague&&fbLeague.rounds&&fbLeague.rounds[d.ri];if(!rd)return null;var mi=-1;(rd.matches||[]).forEach(function(m,i){if(m.home===d.hm&&m.away===d.aw)mi=i});return mi<0?null:{rd:rd,mi:mi,m:rd.matches[mi]}}
+function dealTeamName(u){var t=fbLeague&&fbLeague.teams&&fbLeague.teams[u];return t?t.name:"?"}
+function dealForce(idx,m){if(!fbDeals)return null;var f=null;Object.keys(fbDeals).forEach(function(id){var d=fbDeals[id];if(!d||d.st!=="on"||d.ri!==idx||d.hm!==m.home||d.aw!==m.away)return;
+  var ty=DEAL_TYPES[d.type]||{};f={side:d.side,type:d.type,mul:ty.mul||0.9,boost:!!ty.boost,pl:(!ty.boost&&d.pl)?dealPlKind(d.type):null,ok:ty.boost?false:(d.pl?true:Math.random()<0.5)}});return f}
+function dealSubscribe(){ // subscribeMarket icinden cagrilir
+  try{sikeSubscribe()}catch(e){}
+  Object.keys(dealRefs).forEach(function(k){dealRefs[k].off()});dealRefs={};fbDeals={};
+  if(!fbDb||!currentSeason||!myUid)return;var S=currentSeason;
+  function rr(){if(tab==="prim")render()}
+  if(isAdmin){var r=fbDb.ref("deals/"+S);dealRefs._all=r;r.on("value",function(sn){fbDeals=sn.val()||{};rr();adminDealTick()},function(){});return}
+  var ri=fbDb.ref("dealsIdx/"+S+"/"+myUid);dealRefs._idx=ri;
+  ri.on("value",function(sn){var ids=Object.keys(sn.val()||{});ids.forEach(function(id){if(dealRefs[id])return;var r=fbDb.ref("deals/"+S+"/"+id);dealRefs[id]=r;
+    r.on("value",function(s2){if(s2.val())fbDeals[id]=s2.val();else delete fbDeals[id];rr()},function(){})})},function(){})}
+function dealCreate(rid,ri,mi,type,amt){if(!signedIn||!fbDb||!currentSeason||!fbLeague)return;
+  var rd=fbLeague.rounds[ri],m=rd&&rd.matches[mi];
+  if(!rd||!m||compOf(rd)!=="league"||roundStarted(ri)||!dealOpenRi(ri)){msgBox("Bu maç için teklif verilemez.");return}
+  if(m.home!==rid&&m.away!==rid){msgBox("Seçilen takım bu maçta oynamıyor.");return}
+  var ownM=m.home===myUid||m.away===myUid;if(ownM===!!(DEAL_TYPES[type]&&DEAL_TYPES[type].boost)){msgBox("Bu maç için bu teklif türü geçerli değil.");return}
+  if(!fbLeague.teams[rid]||isAiId(rid)||rid===myUid){msgBox("Teklif sadece rakip menajere yapılabilir.");return}
+  amt=Math.round(amt);if(!(amt>=1e5)){msgBox("Prim tutarını gir (en az 0,1 M€).");return}
+  if(amt>budOf(myUid)-reservedOf(myUid)){msgBox("Bakiyen bu prim için yetmiyor.");return}
+  var S=currentSeason,id=fbDb.ref("deals/"+S).push().key,upd={};
+  upd["deals/"+S+"/"+id]={p:myUid,r:rid,ri:ri,hm:m.home,aw:m.away,side:m.home===rid?"home":"away",type:type,amt:amt,st:"offer",at:Date.now(),negN:0};
+  upd["dealsIdx/"+S+"/"+myUid+"/"+id]=true;upd["dealsIdx/"+S+"/"+rid+"/"+id]=true;
+  fbDb.ref().update(upd).catch(function(e){fbBadge("Teklif gönderilemedi (Rules hatası): "+e.message)})}
+function dealUpd(id,patch){if(!fbDb||!currentSeason)return;fbDb.ref("deals/"+currentSeason+"/"+id).update(patch).catch(function(e){fbBadge("Anlaşma güncellenemedi (Rules hatası): "+e.message)})}
+function dealRespond(id,mode,amt,withPl){var d=fbDeals[id];if(!d||d.r!==myUid||d.st!=="offer")return;
+  if(mode==="rej"){dealUpd(id,{st:"rej",ctr:null});return}
+  if(mode==="nopl"){dealUpd(id,{st:"acc",pl:null,ctr:null});return}
+  if(mode==="pl"){dealUpd(id,{st:"acc",pl:{pct:dealAskPct(id)},ctr:null});return}
+  if(mode==="ctr"){var n=(d.negN||0)+1;amt=Math.round(amt);if(n>2||!(amt>=1e5))return;
+    dealUpd(id,{ctr:{amt:amt,pl:!!withPl,n:n,at:Date.now()},negN:n,ctrRej:null})}}
+function dealCtrAnswer(id,yes){var d=fbDeals[id];if(!d||d.p!==myUid||d.st!=="offer"||!d.ctr)return;
+  if(!yes){dealUpd(id,{ctr:null,ctrRej:d.ctr.n});return}
+  if(d.ctr.amt>budOf(myUid)-reservedOf(myUid)){msgBox("Bakiyen bu karşı teklif için yetmiyor.");return}
+  dealUpd(id,{st:"acc",amt:d.ctr.amt,pl:d.ctr.pl?{pct:dealAskPct(id)}:null,ctr:null,orig:d.amt})}
+function dealWithdraw(id){var d=fbDeals[id];if(!d||d.p!==myUid||d.st!=="offer")return;dealUpd(id,{st:"wd"})}
+function dealOutcome(d,m){var h=m.result.h,a=m.result.a,rg=d.side==="home"?h:a,og=d.side==="home"?a:h;
+  return d.type==="kaz"?rg>og:d.type==="ber"?rg>=og:d.type==="yenil"?rg<og:d.type==="fark"?og-rg>=4:rg===og}
+function adminDealTick(){
+  if(!isAdmin||!fbDb||!currentSeason||!fbLeague||!fbLeague.rounds||!fbBudLoaded||!fbBetLoaded||dealBusy||betBusy||mkBusy||ordersBusy||spBusy||Object.keys(aucResolving).length)return;
+  var S=currentSeason,ids=Object.keys(fbDeals||{});
+  for(var q=0;q<ids.length;q++){var id=ids[q],d=fbDeals[id];if(!d)continue;
+    var st=d.st,dm=dealMatchOf(d);
+    if(st==="offer"||st==="acc"){
+      if(!dm||roundStarted(d.ri)){dealBusy=true;fbDb.ref("deals/"+S+"/"+id+"/st").set("exp").then(function(){dealBusy=false}).catch(function(){dealBusy=false});return}
+      if(st==="acc"){dealBusy=true;
+        if(budOf(d.p)<d.amt){fbDb.ref("deals/"+S+"/"+id+"/st").set("nofund").then(function(){dealBusy=false}).catch(function(){dealBusy=false});return}
+        var upd={};upd["budgets/"+S+"/"+d.p]=budOf(d.p)-d.amt;upd["deals/"+S+"/"+id+"/st"]="on";txPush(upd,S,d.p,"Teşvik primi bloke edildi","Anlaşma sonuçlanana kadar",-d.amt,Date.now());
+        fbDb.ref().update(upd).then(function(){dealBusy=false}).catch(function(e){dealBusy=false;fbBadge("Prim bloke edilemedi (Rules hatası): "+e.message)});return}
+      continue}
+    if(st==="on"){
+      if(!dm||!roundDone(d.ri)||!dm.m.played||!dm.m.result)continue;
+      var wk="w"+d.ri,cp=fbBets&&fbBets[wk]&&fbBets[wk][d.p],hasLeg=cp&&legsOf(cp).some(function(l){return l.mi===dm.mi}),br=fbBetRes&&fbBetRes[wk]&&fbBetRes[wk][d.p];
+      if(hasLeg&&!br)continue; // ilgili kupon sonuclanmadan bekle
+      dealSettle(id,d,dm,hasLeg&&br&&!br.void&&!br.refund?(br.won?(br.payout||0)-(br.stake||0):-(br.stake||0)):0);return}}}
+function dealSettle(id,d,dm,net){dealBusy=true;var S=currentSeason,m=dm.m,ok=dealOutcome(d,m),upd={},now=Date.now(),T=fbLeague.teams,own=dealIsOwn(d);
+  var share=d.pl?Math.round(d.amt*d.pl.pct/100):0,pay=ok?d.amt-share:0;
+  if(ok){upd["budgets/"+S+"/"+d.r]=budOf(d.r)+pay;txPush(upd,S,d.r,"Teşvik primi alındı","Anlaşma gerçekleşti"+(share?" (oyuncu payı düşüldü)":""),pay,now)}
+  else{upd["budgets/"+S+"/"+d.p]=budOf(d.p)+d.amt;txPush(upd,S,d.p,"Teşvik primi iade","Anlaşma gerçekleşmedi",d.amt,now)}
+  var inv=null;
+  if(d.pl&&own){var ln=(m.lineups&&m.lineups[d.side])||[],slot=dealPlKind(d.type)==="gk"?"KL":"ST",x=ln.filter(function(z){return z.slot===slot})[0],ros=(T[d.r]&&T[d.r].roster)||[],pl=x&&ros.filter(function(p){return p.id===x.id})[0];if(pl)inv={id:pl.id,n:pl.n}}
+  var rec={ok:ok,paid:pay,net:net,at:now};if(inv)rec.inv=inv;
+  upd["deals/"+S+"/"+id+"/st"]="done";upd["deals/"+S+"/"+id+"/res"]=rec;
+  var le={k:own?"kendi":"dest",S:S,sn:sikeSn(),ri:d.ri,p:d.p,r:d.r,amt:d.amt,ok:ok,at:now};if(!own&&ok&&net>0)le.bet=1;if(own&&ok&&inv)le.inv=inv;
+  upd["sike/log/d_"+id]=le;
+  fbDb.ref().update(upd).then(function(){dealBusy=false}).catch(function(e){dealBusy=false;fbBadge("Anlaşma sonuçlanamadı (Rules hatası): "+e.message)})}
+setInterval(adminDealTick,4000);
+/* ================= SIKE DEFTERI + SORUSTURMA =================
+   sike/log/<id>: her anlasma / yasa disi sponsor kaydi (sadece admin okur). sike/ban/s<sezonNo>/<uid>: kupa men / transfer yasagi (herkes okur).
+   Soruşturma: 5. sezondan itibaren, pencerenin 2-4. sezonunda, sezon icinde (10-12. hafta acilis, 19. hafta karar). */
+var fbSike={},sikeRef=null,sikeBusy=false,SIKE_PTS=[0,1,1,1,2,2,3,3,4];
+function sikeSn(){return curOrd()+1}
+function sikeSubscribe(){if(sikeRef){sikeRef.off();sikeRef=null}fbSike={};if(!fbDb||!myUid)return;
+  sikeRef=fbDb.ref(isAdmin?"sike":"sike/ban");
+  sikeRef.on("value",function(sn){var v=sn.val()||{};fbSike=isAdmin?v:{ban:v};if(tab==="prim")render();if(isAdmin)adminSikeTick()},function(){})}
+function sikeBanOf(uid,sn){var b=fbSike&&fbSike.ban&&fbSike.ban["s"+(sn||sikeSn())];return (b&&b[uid])||null}
+function trBanned(uid){var b=sikeBanOf(uid);if(b&&b.tr){msgBox("Disiplin Kurulu cezası: bu sezon transfer yasağın var. İhale, serbest oyuncu ve pazar alımı yapamazsın (sezon sonu çekilişleri hariç).");return true}return false}
+function sikeEuBan(){var b=(fbSike&&fbSike.ban&&fbSike.ban["s"+sikeSn()])||{},m={},n=0;Object.keys(b).forEach(function(u){if(b[u]&&b[u].eu){m[u]=1;n++}});return {m:m,n:n}}
+function sikeTally(log){var T={};function g(u){return T[u]||(T[u]={u:u,pts:0,c1:0,c4:0,c6:0,v2:0,a2:0,v3:0,a3:0,c5:0,c7:0,c8:0,pl:[],ent:[]})}
+  Object.keys(log||{}).forEach(function(id){var e=log[id];if(!e)return;
+    if(e.k==="spon"){var t=g(e.u),r=e.n>=2?6:e.n===1?4:1;t.pts+=SIKE_PTS[r];if(r===1)t.c1++;else if(r===4)t.c4++;else t.c6++;t.ent.push(e);return}
+    var P=g(e.p),R=g(e.r);
+    if(e.k==="kendi"){if(e.ok){P.pts+=3;R.pts+=3;P.c7++;R.c7++;if(e.inv)R.pl.push(e.inv)}else{P.pts+=1;R.pts+=1;P.v3++;R.a3++}}
+    else{if(!e.ok){P.pts+=1;R.pts+=1;P.v2++;R.a2++}else if(e.bet){P.pts+=4;R.pts+=2;P.c8++;R.c5++}else{P.pts+=2;R.pts+=2;P.c5++;R.c5++}}
+    P.ent.push(e);R.ent.push(e)});return T}
+function sikePen(t){var M=1e6,para=5*M*(t.c1+t.c4+t.c6),pts=3*t.c4+6*t.c6,eu=(t.c4||t.c6)?1:0,tr=t.c6?1:0;
+  para+=3*M*t.v2+1*M*t.a2+4*M*t.v3+2*M*t.a3;
+  if(t.c5){para+=10*M*t.c5;pts+=6+2*(t.c5-1)}
+  if(t.c7){para+=20*M+10*M*(t.c7-1);pts+=9+2*(t.c7-1);eu=Math.max(eu,t.c7>1?2:1);tr=1}
+  if(t.c8){para+=70*M+10*M*(t.c8-1);pts+=9+2*(t.c8-1);eu=2;tr=1}
+  return {para:para,pts:pts,eu:eu,tr:tr,pl:t.pl}}
+function sikeLeakLine(u,e,nm,exp){var T=fbLeague.teams,me=nm(u),w=(e.ri!=null?(e.ri+1)+". hafta ":"");
+  if(e.k==="spon")return me+" kulübünün "+(e.brand&&SP_PRO[e.brand]?SP_PRO[e.brand].n:"bir bahis şirketi")+" ile imzaladığı sponsorluk anlaşması masada."+(e.n?" Şirketin istediği "+e.n+" maçta şike yapıldığı belgelendi.":" Şirketin yasa dışı faaliyetleri kulübü de zora soktu.");
+  var o=u===e.p?e.r:e.p,known=exp[o],ot=known?nm(o):null;
+  var what=e.k==="kendi"?(u===e.p?"rakibine para verip maçı bilerek kaybettirmeye çalıştı":"kendi maçında yönetiminin para karşılığı sonuca razı olduğu iddia ediliyor"):(u===e.p?"başka bir maçta "+(ot||"bir takıma")+" kazanması için teşvik primi verdi":"teşvik primi karşılığında sahaya motive çıktığı iddia ediliyor");
+  var flow=known?(" Para akışı "+me+" ↔ "+ot+" arasında belgelendi ("+fmtM(e.amt)+").")
+     :(" Kaynağı tespit edilemeyen "+fmtM(e.amt)+" tutarında bir para akışı bulundu; karşı tarafın kimliği kesinleşmedi.");
+  return me+", "+w+"maçıyla ilgili olarak "+what+"."+flow}
+function adminSikeTick(){
+  if(!isAdmin||!fbDb||!currentSeason||!fbLeague||!fbLeague.rounds||!fbBudLoaded||!fbBspLoaded||sikeBusy||dealBusy||betBusy||mkBusy||ordersBusy||spBusy||Object.keys(aucResolving).length)return;
+  var S=currentSeason,sn=sikeSn(),log=fbSike.log||{},inv=(fbSike.inv||{})[S],rs=fbLeague.rounds,now=Date.now();
+  function done(){sikeBusy=false}
+  function wr(upd,after){sikeBusy=true;fbDb.ref().update(upd).then(function(){done();if(after)after()}).catch(function(e){done();fbBadge("Şike kaydı yazılamadı (Rules hatası): "+e.message)})}
+  // 1) yasa disi sponsor kaydi
+  var up={},ch=0;
+  Object.keys(fbBsp||{}).forEach(function(u){var x=fbBsp[u];if(!x||typeof x!=="object"||!x.brand)return;
+    var chk=((fbBspPriv||{})[u]||{}).chk||{},n=Object.keys(chk).filter(function(r){return chk[r]&&chk[r].st==="paid"}).length,id="s_"+S+"_"+u,cur=log[id];
+    if(!cur||cur.n!==n){up["sike/log/"+id]={k:"spon",S:S,sn:sn,u:u,brand:x.brand,n:n};ch=1}});
+  if(ch){wr(up);return}
+  var dn=-1;for(var i=0;i<rs.length;i++)if(roundDone(i))dn=i;
+  var T=fbLeague.teams,nm=function(u){return (T[u]&&T[u].name)||"?"};
+  // 2) sorusturma acilisi
+  if(inv===undefined){
+    var w0=(fbSike.state&&fbSike.state.w0)||4,k=sn-w0+1,start=9+spHash("sk|"+S)%3;
+    if(sn<5||k<2||dn<start)return;
+    var tl=sikeTally(log),total=0,elig=[];Object.keys(tl).forEach(function(u){if(!T[u])return;total+=tl[u].pts;if(tl[u].pts>=2)elig.push(u)});
+    var thr=k===2?15:k===3?8:2;
+    if(!(total>=thr&&elig.length)){var u0={};u0["sike/inv/"+S]={none:1,at:now,sn:sn};wr(u0);return}
+    var sh=elig.slice();for(var a=sh.length-1;a>0;a--){var b=Math.floor(Math.random()*(a+1)),t=sh[a];sh[a]=sh[b];sh[b]=t}
+    var hc=Math.max(0,elig.length-4),hidden=sh.slice(0,hc),expo=sh.slice(hc),exp={};expo.forEach(function(u){exp[u]=1});
+    var cases={},items=[];
+    expo.forEach(function(u){var pen=sikePen(tl[u]);cases[u]={para:pen.para,pts:pen.pts,eu:pen.eu,tr:pen.tr,pl:pen.pl.map(function(p){return {id:p.id,n:p.n}})};
+      var es=tl[u].ent.slice().sort(function(x,y){return (x.at||0)-(y.at||0)});
+      es.forEach(function(e,ix){items.push({t:"🕵️ Soruşturma dosyasından yeni belge: "+nm(u),b:sikeLeakLine(u,e,nm,exp)})})});
+    hidden.forEach(function(u){items.push({t:"⚖️ Kayırma iddiası: "+nm(u)+" dosyadan çıkarıldı mı?",b:"Birkaç kulüp, Disiplin Kurulu'nun dosya hazırlığında "+nm(u)+" kulübünün adını listeden sildiğini öne sürdü. Kulüp başkanları “Bu bir hukuksuzluk, açık bir kayırma” diyerek federasyona başvurdu. Kurul ise “Dosyaya yeterli delil girmedi” açıklaması yaptı."})});
+    for(var q=items.length-1;q>0;q--){var r2=Math.floor(Math.random()*(q+1)),tt=items[q];items[q]=items[r2];items[r2]=tt}
+    var W=Math.max(1,16-start),leaks=items.map(function(it,j){return {wk:start+1+Math.floor(j*W/Math.max(1,items.length)),t:it.t,b:it.b}});
+    var ui={};ui["sike/inv/"+S]={at:now,sn:sn,start:start,cases:cases,hidden:hidden,leaks:leaks,posted:0,fin:0};
+    wr(ui,function(){pushNews({type:"sike",shock:1,title:"⚖️ Disiplin Kurulu şike soruşturması başlattı",body:"Federasyon Disiplin Kurulu, bazı kulüplerin teşvik primi ve yasa dışı bahis sponsorluğu üzerinden maç sonuçlarına karıştığı iddiasıyla resmi soruşturma açtı. Dosyalar önümüzdeki haftalarda basına sızacak, nihai karar 19. haftada açıklanacak."},"sikeopen_"+S)});return}
+  if(!inv||inv.none||inv.fin)return;
+  // 3) sizinti haberleri
+  var leaks=asArr(inv.leaks),posted=inv.posted||0;
+  if(posted<leaks.length&&dn>=leaks[posted].wk){var lk=leaks[posted],pu={};pu["sike/inv/"+S+"/posted"]=posted+1;
+    wr(pu,function(){pushNews({type:"sike",title:lk.t,body:lk.b},"sikeleak_"+S+"_"+posted)});return}
+  // 4) nihai karar
+  if(posted>=leaks.length&&dn>=17){
+    var upd={},lines=[],cs=inv.cases||{},keys=Object.keys(cs),exSet={};
+    keys.forEach(function(u){exSet[u]=1});asArr(inv.hidden).forEach(function(u){exSet[u]=1});
+    keys.forEach(function(u,ix){var c=cs[u],bn=upd["budgets/"+S+"/"+u]!==undefined?upd["budgets/"+S+"/"+u]:budOf(u);
+      upd["budgets/"+S+"/"+u]=bn-c.para;txPush(upd,S,u,"Disiplin Kurulu cezası","Şike soruşturması",-c.para,now+ix);
+      if(c.pts)upd["leagues/"+S+"/pen/"+u]=((fbLeague.pen&&fbLeague.pen[u])||0)+c.pts;
+      if(c.eu>=1){upd["sike/ban/s"+(sn+1)+"/"+u+"/eu"]=1}if(c.eu>=2){upd["sike/ban/s"+(sn+2)+"/"+u+"/eu"]=1}
+      if(c.tr)upd["sike/ban/s"+(sn+1)+"/"+u+"/tr"]=1;
+      asArr(c.pl).forEach(function(p){upd["sike/pend/s"+(sn+1)+"/"+u+"/"+String(p.id).replace(/[.#$\[\]\/]/g,"_")]={n:p.n,m:10}});
+      var ex=[fmtM(c.para)+" para cezası"];if(c.pts)ex.push("−"+c.pts+" puan");if(c.eu)ex.push(c.eu+" sezon Avrupa kupası yasağı");if(c.tr)ex.push("1 sezon transfer yasağı");
+      asArr(c.pl).forEach(function(p){ex.push(p.n+" 10 maç ceza")});
+      lines.push("• "+nm(u)+": "+ex.join(", "))});
+    Object.keys(log).forEach(function(id){var e=log[id];if(!e)return;if(exSet[e.k==="spon"?e.u:e.p]||exSet[e.k==="spon"?e.u:e.r])upd["sike/log/"+id]=null});
+    upd["sike/state/w0"]=sn+1;upd["sike/inv/"+S+"/fin"]=1;
+    wr(upd,function(){pushNews({type:"sike",shock:1,title:"⚖️ Disiplin Kurulu kararını açıkladı",body:(lines.length?lines.join("\n"):"Soruşturma sonucunda ceza verilmedi.")+"\nPuan silme cezaları bu sezonun puan durumuna işlendi. Kupa ve transfer yasakları gelecek sezon için geçerli."},"sikefin_"+S)})}}
+setInterval(adminSikeTick,4000);
+
+/* ---- ekran ---- */
+function dealCss(){if(window._dlCss)return;window._dlCss=1;var st=document.createElement("style");st.textContent=
+".dlAlert{border-color:#f0b44a!important;box-shadow:0 0 0 1px rgba(240,180,74,.45),0 0 22px rgba(240,180,74,.18)}.dlHero{position:relative;overflow:hidden;border-radius:18px;padding:16px;margin:0 0 14px;background:linear-gradient(135deg,#2a1218 0%,#1a1226 55%,#0f1a2b 100%);border:1px solid rgba(230,57,70,.35)}.dlHero:before{content:\"🤫\";position:absolute;right:-6px;top:-14px;font-size:92px;opacity:.13;transform:rotate(12deg)}.dlHero>b{display:block;font:800 17px Inter;margin-bottom:4px}.dlHero span{font:600 12.5px/1.45 Inter;color:#c9b8c0;display:block;max-width:92%}.dlLock{border:1px dashed var(--bd);border-radius:14px;padding:16px;text-align:center}.dlLock b{display:block;font:800 14px Inter;margin-bottom:4px}.dlLock span{font:600 12.5px Inter;color:var(--mut)}.dlVs{display:flex;align-items:center;justify-content:center;gap:10px;margin:2px 0 12px;padding:12px;border-radius:14px;background:var(--card2)}.dlVs i{font:800 11px Inter;color:var(--mut);font-style:normal}.dlVs b{font:800 14px Inter;flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dlVs b.me{color:var(--amber)}.dlChips{display:flex;gap:6px;margin:6px 0 2px;flex-wrap:wrap}.dlChips button{flex:1;border:1px solid var(--bd);background:var(--card2);color:var(--tx);border-radius:999px;padding:7px 0;font:800 12.5px Inter}.dlBox{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;margin:0 0 12px}.dlBox h3{margin:0 0 8px;font:800 15px Inter}.dlBox .dlS{font:600 12.5px/1.45 Inter;color:var(--mut)}.dlRow{display:flex;gap:8px;align-items:center;margin:8px 0}.dlRow label{flex:0 0 78px;font:700 12px Inter;color:var(--mut)}.dlRow select,.dlRow input{flex:1;min-width:0;padding:10px;border-radius:12px;border:1px solid var(--bd);background:var(--card2);color:var(--tx);font:600 14px Inter}"+
+".dlTy{display:grid;gap:8px;margin:10px 0}.dlTy button{text-align:left;border:1px solid var(--bd);background:var(--card2);color:var(--tx);border-radius:12px;padding:10px 12px;font:700 13.5px Inter}.dlTy button small{display:block;font:600 11.5px Inter;color:var(--mut);margin-top:2px}.dlTy button{border-left:4px solid var(--tc,#888)}.dlTy button.on{border-color:var(--tc,#f0b44a);background:color-mix(in srgb,var(--tc,#f0b44a) 16%,var(--card2));box-shadow:0 0 0 1px var(--tc,#f0b44a) inset}.dlTy button b{font:800 14px Inter}"+
+".dlSt{display:inline-block;border-radius:999px;padding:2px 9px;font:800 11px Inter;background:var(--card2);color:var(--mut)}.dlSt.ok{background:rgba(43,182,115,.18);color:#2bb673}.dlSt.bad{background:rgba(230,57,70,.18);color:#e63946}.dlSt.wait{background:rgba(240,180,74,.18);color:#f0b44a}"+
+".dlAct{display:grid;gap:8px;margin-top:10px}.dlAct button{border-radius:12px;padding:11px 12px;font:800 13px Inter;border:1px solid var(--bd);background:var(--card2);color:var(--tx);text-align:left}.dlAct button.p{background:var(--tx);color:var(--bg,#0b1017);border-color:transparent}.dlAct button small{display:block;font:600 11.5px Inter;opacity:.8;margin-top:2px}.dlNeg{display:flex;gap:8px;align-items:center}.dlNeg input{flex:1;padding:10px;border-radius:12px;border:1px solid var(--bd);background:var(--card2);color:var(--tx);font:700 14px Inter;min-width:0}";
+  document.head.appendChild(st)}
+function dealStat(d){var r=d.res;
+  if(d.st==="offer")return ['wait',d.p===myUid?'Cevap bekleniyor':'Cevabını bekliyor'];
+  if(d.st==="acc")return ['wait','Para bloke ediliyor'];
+  if(d.st==="on")return ['wait','Maç bekleniyor'];
+  if(d.st==="rej")return ['bad','Reddedildi'];if(d.st==="wd")return ['bad','Geri çekildi'];if(d.st==="exp")return ['bad','Süresi doldu'];if(d.st==="nofund")return ['bad','Bakiye yetmedi'];
+  if(d.st==="done")return r&&r.ok?['ok','Gerçekleşti']:['bad','Gerçekleşmedi (iade)'];
+  return ['',''];}
+function dealMatchLabel(d){var rd=fbLeague.rounds[d.ri];return (d.ri+1)+". hafta · "+dealTeamName(d.hm)+" – "+dealTeamName(d.aw)}
+function dealBest(team,kind){var ros=(team&&team.roster)||[],pos=kind==="gk"?"KL":"ST";return ros.filter(function(p){return p.m===pos}).sort(function(a,b){return b.r-a.r})[0]||null}
+function vPrim(){var gate=gateCard();if(gate)return gate;dealCss();
+  if(!fbLeague||!fbLeague.teams||!fbLeague.teams[myUid])return '<div class="card"><h2>Teşvik primi</h2><p class="msg">Lig başlayınca kullanılabilir.</p></div>';
+  var T=fbLeague.teams,h='<div class="pgTitle" style="margin-bottom:10px">Teşvik primi</div>'+
+   '<div class="dlHero"><b>Gizli anlaşmalar</b><span><b>Kendi maçında</b> rakip menajere para verip yenilgi, farklı yenilgi ya da beraberlik isteyebilirsin. <b>Başka bir maçta</b> bir takımın kazanması veya yenilmemesi için prim verebilirsin. Anlaşma sadece sana ve karşı tarafa görünür.</span></div>';
+  // --- gelen teklifler
+  var mineDeals=Object.keys(fbDeals).map(function(k){return {id:k,d:fbDeals[k]}}).filter(function(x){return x.d&&(x.d.p===myUid||x.d.r===myUid)}).sort(function(a,b){return (b.d.at||0)-(a.d.at||0)});
+  var inc=mineDeals.filter(function(x){return x.d.r===myUid&&x.d.st==="offer"});
+  // karsi teklif geldi (teklifi yapan ben)
+  var ctrIn=mineDeals.filter(function(x){return x.d.p===myUid&&x.d.st==="offer"&&x.d.ctr});
+  ctrIn.forEach(function(x){var d=x.d,c=d.ctr,id=x.id;
+    h+='<div class="dlBox dlAlert"><h3>↩️ Karşı teklif geldi</h3><div class="dlS">'+esc(dealTeamName(d.r))+' teklifini değiştirdi.<br>'+esc(dealMatchLabel(d))+' · '+DEAL_TYPES[d.type].n+'<br>Senin teklifin: <b style="color:var(--tx)">'+fmtM(d.amt)+'</b> → İstediği: <b style="color:var(--amber)">'+fmtM(c.amt)+'</b>'+(c.pl?'<br><b style="color:var(--tx)">'+dealPlName(d.type)+' da olaya katılır, sonuç kesinleşir.</b>':'<br>Oyuncusuz: gerçekleşmesi kesin değil.')+'</div>'+
+      '<div class="dlAct"><button class="p" data-dlc="'+id+'|y">Kabul et ('+fmtM(c.amt)+')<small>Prim sonuç belli olana kadar bloke edilir</small></button><button data-dlc="'+id+'|n">Reddet (ilk teklifin geçerli kalır)</button></div></div>'});
+  var inc=mineDeals.filter(function(x){return x.d.r===myUid&&x.d.st==="offer"});
+  if(inc.length){h+='<div class="secH"><h3>Gelen teklifler</h3><a style="cursor:default">'+inc.length+'</a></div>';
+    inc.forEach(function(x){var d=x.d,id=x.id,ty=DEAL_TYPES[d.type],ask=dealAskPct(id),share=Math.round(d.amt*ask/100),pl=dealBest(T[myUid],dealPlKind(d.type)),nn=d.negN||0,c=d.ctr,left=2-nn;
+      var head='<div class="dlBox dlAlert"><h3>'+esc(dealTeamName(d.p))+' sana prim teklif ediyor</h3><div class="dlS">'+esc(dealMatchLabel(d))+'<br>İstenen: <b style="color:var(--tx)">'+ty.n+'</b> · Teklif edilen prim: <b style="color:var(--amber)">'+fmtM(d.amt)+'</b></div>';
+      if(c){h+=head+'<div class="dlS" style="margin-top:8px"><b style="color:var(--tx)">Karşı teklifin gönderildi:</b> '+fmtM(c.amt)+(c.pl?' · '+dealPlName(d.type)+' ile kesin':' · oyuncusuz')+'<br>Karşı tarafın cevabı bekleniyor.</div><div class="dlAct"><button data-dlr="'+id+'|rej">Teklifi reddet</button></div></div>';return}
+      h+=head+(d.ctrRej?'<div class="dlS" style="margin-top:6px;color:#e63946">Karşı teklifin reddedildi.</div>':'');
+      var ctrUI=left>0?'<div class="dlS" style="margin:10px 0 4px"><b style="color:var(--tx)">Karşı teklif ver</b> ('+left+' hak). İstediğin primi yaz:</div><div class="dlNeg"><input type="number" inputmode="decimal" step="0.1" min="0.1" placeholder="İstediğin prim (M€)" id="dlNg_'+id+'"></div>'+
+        (ty.boost?'<div class="dlAct"><button data-dlr="'+id+'|ctrn">Bu primi iste</button></div>':'<div class="dlAct"><button data-dlr="'+id+'|ctry">'+dealPlName(d.type)+'yi de katıp kesinleştirerek iste<small>Prim büyükse oyuncuya pay vermen gerekir</small></button><button data-dlr="'+id+'|ctrn">Oyuncusuz iste</button></div>'):'';
+      if(ty.boost){h+='<div class="dlS" style="margin-top:8px">Sonuç tutarsa prim hesabına geçer. Gerçekleşmesi kesin değil.</div><div class="dlAct"><button class="p" data-dlr="'+id+'|nopl">Teklifi kabul et<small>Prim: '+fmtM(d.amt)+'</small></button></div>'+ctrUI+'<div class="dlAct"><button data-dlr="'+id+'|rej">Reddet</button></div></div>';return}
+      h+='<div class="dlS" style="margin-top:8px">'+dealPlName(d.type)+(pl?' <b style="color:var(--tx)">'+esc(pl.n)+'</b>':'')+' da olaya katılırsa sonuç <b style="color:var(--tx)">kesinleşir</b>. Bunun için ona '+fmtM(share)+' ödenir, sana '+fmtM(d.amt-share)+' kalır. Oyuncusuz sonuç kesin değildir.</div>'+
+       '<div class="dlAct"><button class="p" data-dlr="'+id+'|pl">'+dealPlName(d.type)+'yle kabul et<small>Kesin sonuç · oyuncuya '+fmtM(share)+' · sana '+fmtM(d.amt-share)+'</small></button><button data-dlr="'+id+'|nopl">Oyuncusuz kabul et<small>Gerçekleşmesi kesin değil · primin tamamı sende</small></button></div>'+ctrUI+'<div class="dlAct"><button data-dlr="'+id+'|rej">Reddet</button></div></div>'})}
+  // --- yeni teklif
+  var rds=(fbLeague.rounds||[]).map(function(rd,i){return {rd:rd,i:i}}).filter(function(x){return compOf(x.rd)==="league"&&!x.rd.skip&&!roundStarted(x.i)&&dealOpenRi(x.i)}).slice(0,3);
+  h+='<div class="secH"><h3>Yeni teklif</h3></div><div class="dlBox">';
+  if(!rds.length)h+='<div class="dlLock"><b>🔒 Henüz açılmadı</b><span>Teşvik primi teklifleri 12. haftadan sonra verilebilir.</span></div>';
+  else{
+    var ri=rds.some(function(x){return String(x.i)===String(UI.dlRi)})?+UI.dlRi:rds[0].i,rd=fbLeague.rounds[ri];
+    var ms=(rd.matches||[]).map(function(m,i){return {m:m,i:i}}).filter(function(x){return [x.m.home,x.m.away].some(function(u){return u!==myUid&&T[u]&&!isAiId(u)})});
+    var mi=ms.some(function(x){return String(x.i)===String(UI.dlMi)})?+UI.dlMi:(ms[0]?ms[0].i:-1),m=mi>=0?rd.matches[mi]:null;
+    var recvs=m?[m.home,m.away].filter(function(u){return u!==myUid&&T[u]&&!isAiId(u)}):[],rid=recvs.indexOf(UI.dlRid)>=0?UI.dlRid:(recvs[0]||""),ownM=!!m&&(m.home===myUid||m.away===myUid),allowed=ownM?["yenil","fark","bera"]:["kaz","ber"],ty=allowed.indexOf(UI.dlType)>=0?UI.dlType:allowed[0];
+    h+='<div class="dlRow"><label>Hafta</label><select data-dlsel="dlRi">'+rds.map(function(x){return '<option value="'+x.i+'"'+(x.i===ri?' selected':'')+'>'+(x.i+1)+'. hafta · '+fmtTRDate(x.rd.date)+'</option>'}).join("")+'</select></div>';
+    if(!ms.length)h+='<p class="msg">Bu haftada rakip menajerin oynadığı maç yok.</p>';
+    else{
+      h+='<div class="dlRow"><label>Maç</label><select data-dlsel="dlMi">'+ms.map(function(x){return '<option value="'+x.i+'"'+(x.i===mi?' selected':'')+'>'+esc(dealTeamName(x.m.home))+' – '+esc(dealTeamName(x.m.away))+'</option>'}).join("")+'</select></div>'+
+       '<div class="dlRow"><label>Anlaşılacak</label><select data-dlsel="dlRid">'+recvs.map(function(u){return '<option value="'+u+'"'+(u===rid?' selected':'')+'>'+esc(dealTeamName(u))+'</option>'}).join("")+'</select></div>'+
+       (m?'<div class="dlVs"><b'+(m.home===myUid?' class="me"':'')+'>'+esc(dealTeamName(m.home))+'</b><i>VS</i><b'+(m.away===myUid?' class="me"':'')+'>'+esc(dealTeamName(m.away))+'</b></div>':'')+'<div class="dlS" style="margin:-4px 0 8px">'+(ownM?'Kendi maçın: rakibe para verirsin. Oyuncu da devreye girerse sonuç kesinleşir.':'Başka maç: seçtiğin takıma kazanması ya da yenilmemesi için prim verirsin. Bu maça bahis yapabilirsin.')+'</div><div class="dlTy">'+allowed.map(function(k){return '<button data-dlty="'+k+'" style="--tc:'+DEAL_COL[k]+'" class="'+(k===ty?'on':'')+'"><b>'+DEAL_ICO[k]+' '+DEAL_TYPES[k].n+'</b><small>'+DEAL_TYPES[k].d+'</small></button>'}).join("")+'</div>'+
+       '<div class="dlRow"><label>Prim (M€)</label><input type="number" inputmode="decimal" step="0.1" min="0.1" id="dlAmt" value="'+esc(UI.dlAmt||"")+'" placeholder="örn. 5"></div><div class="dlChips">'+[1,2,5,10,20].map(function(v){return '<button data-dlq="'+v+'">'+v+' M€</button>'}).join('')+'</div>'+
+       '<div class="dlS">Bakiye: '+fmtM(budOf(myUid))+'. Prim, karşı taraf kabul edince bloke edilir; sonuç tutmazsa iade edilir.</div>'+
+       '<button class="btn" id="dlSend" style="margin-top:10px">Teklifi gönder</button>'}}
+  h+='</div>';
+  var bn=[];[sikeSn(),sikeSn()+1].forEach(function(sn,ix){var b=sikeBanOf(myUid,sn);if(b){if(b.tr)bn.push((ix?'Gelecek sezon':'Bu sezon')+' transfer yasağın var.');if(b.eu)bn.push((ix?'Gelecek sezon':'Bu sezon')+' Avrupa kupalarından men cezan var.')}});
+  if(bn.length)h+='<div class="dlBox" style="border-color:rgba(230,57,70,.5)"><h3>⚖️ Disiplin Kurulu cezaların</h3><div class="dlS">'+bn.join('<br>')+'</div></div>';
+  // --- anlasmalarim
+  var rest=mineDeals.filter(function(x){return !(x.d.r===myUid&&x.d.st==="offer")});
+  h+='<div class="secH"><h3>Anlaşmalarım</h3><a style="cursor:default">'+rest.length+'</a></div>';
+  if(!rest.length)h+='<p class="msg" style="padding:6px 2px">Henüz anlaşma yok.</p>';
+  rest.forEach(function(x){var d=x.d,ty=DEAL_TYPES[d.type],s2=dealStat(d),me=d.p===myUid,r=d.res;
+    h+='<div class="dlBox"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font:800 14px Inter">'+(me?'Teklif: '+esc(dealTeamName(d.r)):'Teklif eden: '+esc(dealTeamName(d.p)))+'</b><span class="dlSt '+s2[0]+'">'+s2[1]+'</span></div>'+
+      '<div class="dlS" style="margin-top:6px">'+esc(dealMatchLabel(d))+'<br>'+ty.n+' · Prim '+fmtM(d.amt)+(d.pl?' · '+dealPlName(d.type)+' katıldı (%'+d.pl.pct+')':(d.st==="acc"||d.st==="on"||d.st==="done"?' · oyuncusuz (kesin değil)':''))+'</div>'+
+      (r?'<div class="dlS" style="margin-top:6px">'+(r.ok?(me?'Sonuç tuttu, prim ödendi.':'Sonuç tuttu: hesabına '+fmtM(r.paid)+' geçti.'):(me?'Sonuç tutmadı, prim iade edildi.':'Sonuç tutmadı, prim alınamadı.'))+'</div>':'')+
+      (me&&d.st==="offer"?'<div class="dlAct"><button data-dlwd="'+x.id+'">Teklifi geri çek</button></div>':'')+'</div>'});
+  return h}
+document.addEventListener("click",function(ev){var t=ev.target&&ev.target.closest;if(!t)return;
+  var cc=ev.target.closest("[data-dlc]");if(cc){var ca=cc.dataset.dlc.split("|");dealCtrAnswer(ca[0],ca[1]==="y");return}
+  var b=ev.target.closest("[data-dlr]");if(b){var a=b.dataset.dlr.split("|"),id=a[0],md=a[1];
+    if(md==="ctry"||md==="ctrn"){var inp=document.getElementById("dlNg_"+id),v=inp?parseFloat(String(inp.value).replace(",",".")):NaN;if(!(v>=0.1)){msgBox("İstediğin prim tutarını M€ olarak yaz.");return}dealRespond(id,"ctr",Math.round(v*1e6),md==="ctry");return}
+    if(md==="rej"){cfm("Teklif reddedilsin mi?",function(){dealRespond(id,"rej")});return}
+    dealRespond(id,md);return}
+  var w=ev.target.closest("[data-dlwd]");if(w){dealWithdraw(w.dataset.dlwd);return}
+  var ty=ev.target.closest("[data-dlty]");if(ty){var ai=document.getElementById("dlAmt");if(ai)UI.dlAmt=ai.value;UI.dlType=ty.dataset.dlty;render();return}
+  if(ev.target.closest("#dlSend")){var ai2=document.getElementById("dlAmt"),amt=Math.round((parseFloat(String(ai2&&ai2.value||"").replace(",","."))||0)*1e6);
+    var rd2=fbLeague.rounds,ris=(rd2||[]).map(function(rd,i){return i}).filter(function(i){return compOf(rd2[i])==="league"&&!rd2[i].skip&&!roundStarted(i)&&dealOpenRi(i)}).slice(0,3),ri=ris.indexOf(+UI.dlRi)>=0?+UI.dlRi:ris[0],rr=rd2[ri];
+    var T=fbLeague.teams,ms=(rr.matches||[]).map(function(m,i){return i}).filter(function(i){var m=rr.matches[i];return [m.home,m.away].some(function(u){return u!==myUid&&T[u]&&!isAiId(u)})}),mi=ms.indexOf(+UI.dlMi)>=0?+UI.dlMi:ms[0],m=rr.matches[mi],rc=[m.home,m.away].filter(function(u){return u!==myUid&&T[u]&&!isAiId(u)}),rid=rc.indexOf(UI.dlRid)>=0?UI.dlRid:rc[0];
+    var ownM=m.home===myUid||m.away===myUid,al=ownM?["yenil","fark","bera"]:["kaz","ber"],tyk=al.indexOf(UI.dlType)>=0?UI.dlType:al[0];
+    cfm(dealTeamName(rid)+" takımına "+fmtM(amt)+" teşvik primi teklif edilsin mi? ("+DEAL_TYPES[tyk].n+")",function(){UI.dlAmt="";dealCreate(rid,ri,mi,tyk,amt)})}});
+document.addEventListener("change",function(ev){var s=ev.target&&ev.target.closest&&ev.target.closest("[data-dlsel]");if(!s)return;var ai=document.getElementById("dlAmt");if(ai)UI.dlAmt=ai.value;UI[s.dataset.dlsel]=s.value;if(s.dataset.dlsel==="dlRi"){UI.dlMi=undefined;UI.dlRid=undefined}if(s.dataset.dlsel==="dlMi")UI.dlRid=undefined;render()});
 function render(){
   if(tab==="db"&&!isAdmin)tab="home";
   applyTheme();renderTop();
@@ -24508,7 +24847,7 @@ function render(){
   try{
     rowOwner=null;
     var gp=spGatePage();v.innerHTML=gp?gp:(editingRound!=null&&fbLeague&&!viewingPlayer&&!viewingClub&&!viewingProfile)?vLineupEditor():viewingPlayer?vPlayerProfile(viewingPlayer):viewingClub?vClubHistory(viewingClub):viewingProfile?vManagerProfile(viewingProfile):
-      (tab==="home"?vHome():tab==="draw"?vDraw():tab==="squad"?vSquadTab():tab==="all"?(UI.sqView="all",tab="squad",vSquadTab()):tab==="money"?vMoney():tab==="fixture"?vMatches():tab==="standings"?(UI.fxView="table",tab="fixture",vMatches()):tab==="history"?BACKMORE+vHistory():tab==="sponsor"?BACKMORE+vSponsor():tab==="news"?BACKMORE+vNews():tab==="transfer"?vMarket():tab==="more"?vMore():tab==="clubid"?vClubId():BACKMORE+vDb())
+      (tab==="home"?vHome():tab==="draw"?vDraw():tab==="squad"?vSquadTab():tab==="all"?(UI.sqView="all",tab="squad",vSquadTab()):tab==="money"?vMoney():tab==="fixture"?vMatches():tab==="standings"?(UI.fxView="table",tab="fixture",vMatches()):tab==="history"?BACKMORE+vHistory():tab==="sponsor"?BACKMORE+vSponsor():tab==="news"?BACKMORE+vNews():tab==="prim"?BACKMORE+vPrim():tab==="transfer"?vMarket():tab==="more"?vMore():tab==="clubid"?vClubId():BACKMORE+vDb())
   if(!gp&&editingRound==null&&!viewingPlayer&&!viewingClub&&!viewingProfile){var _ab=alertBandsHTML();if(_ab)v.insertAdjacentHTML("afterbegin",_ab)}
   }catch(err){ // ekran cokerse bos kalmasin: hata mesaji + (yoneticiyse) yeni donem dugmeleri
     v.innerHTML='<div class="card"><h2>Bu ekran açılamadı</h2><p class="msg">Bir hata oluştu: '+esc(String(err&&err.message||err))+'</p><p class="slot">Hatayı yöneticiye ilet. Sayfayı yenilemek bazen yardımcı olur.</p></div>'+
@@ -24653,5 +24992,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v101 · 27.10 21:52</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v109 · 29.10 21:53</div></body>
 </html>
