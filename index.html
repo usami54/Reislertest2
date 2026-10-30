@@ -25115,10 +25115,10 @@ loadDb();render();fbInit();
     run=false;restore();if(btn&&btn.textContent.indexOf("⏹")===0)lab("⏩ Hızlı sezon")}
   function mk(){if(btn||typeof isAdmin==="undefined"||!isAdmin)return;
     btn=document.createElement("button");btn.textContent="⏩ Hızlı sezon";
-    btn.style.cssText="position:fixed;right:8px;top:62px;z-index:99998;background:#e63946;color:#fff;border:0;border-radius:999px;padding:5px 10px;font:700 11px Inter,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4)";
+    btn.style.cssText="position:fixed;left:50%;transform:translateX(-50%);top:62px;z-index:99998;background:#e63946;color:#fff;border:0;border-radius:999px;padding:5px 10px;font:700 11px Inter,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4)";
     btn.onclick=function(){if(run){run=false;restore();lab("⏩ Hızlı sezon");return}run=true;loop()};
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v117 · 30.10 22:33</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v117 · 30.10 22:37</div></body>
 </html>
