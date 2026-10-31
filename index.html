@@ -22145,7 +22145,7 @@ function adminAucTick(){
   var rec={idx:idx,status:"open",tier:tier,createdAt:Date.now()};if(pl)rec.player=pl;
   upd["auction/"+currentSeason+"/w"+idx]=rec;
   aucCreating[idx]=true;
-  fbDb.ref().update(upd).then(function(){delete aucCreating[idx]})
+  fbDb.ref().update(upd).then(function(){delete aucCreating[idx];if(pl&&pl.r>=80)pushNews({type:"ihaleflash",title:"🔨 İhalede büyük isim: "+pl.n,body:pl.n+" ("+pl.m+", "+pl.r+") bu hafta ihaleye çıktı. Teklifler gizli; maçlar başlamadan teklifini ver, hafta bitince en yüksek teklif kazanır.",round:idx},"r"+idx+"_ihaleopen")})
     .catch(function(e){delete aucCreating[idx];fbBadge("İhale açılamadı (Rules hatası): "+e.message)})}
 setInterval(adminAucTick,3000);
 
@@ -25184,6 +25184,7 @@ loadDb();render();fbInit();
       if(!rd||!rd.matches||!rd.matches.length){lab("⏳ Hafta "+(i+1)+" hazırlanıyor");await sleep(1500);if(++tries>20){lab("⚠️ Takıldı: hafta "+(i+1));break}continue}
       tries=0;
       lab("⏹ Durdur · hafta "+(i+1)+"/"+leagueRounds().length);
+      if(!rd.live&&i<AUC_WEEKS&&i<=leagueRounds().length-2){var tw=Date.now();while(run&&Date.now()-tw<10000&&!(fbAuc&&fbAuc["w"+i])){try{adminAucTick()}catch(e){}await sleep(400)}}
       if(!rd.live){try{simulateRound(i)}catch(e){}}
       var t0=Date.now(),ok=false;
       while(run&&Date.now()-t0<120000){await sleep(600);var r2=leagueRounds()[i];if(r2&&rdAll(r2)&&(r2.paid||r2.skip)){ok=true;break}}
@@ -25197,5 +25198,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v133 · 31.10 14:38</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v135 · 31.10 15:19</div></body>
 </html>
