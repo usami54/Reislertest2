@@ -19827,8 +19827,11 @@ function simulateMatchCore(homeRoster,awayRoster,homeLineup,awayLineup,homeInj,a
   ["home","away"].forEach(function(k){Object.keys(ratings[k]).forEach(function(id){ratings[k][id]=+clamp(ratings[k][id],4,10).toFixed(1)})});
 
   var newInj={home:{},away:{}};
-  hInjEvents.forEach(function(ev){newInj.home[ev.playerId]=1+Math.floor(rnd()*3)});
-  aInjEvents.forEach(function(ev){newInj.away[ev.playerId]=1+Math.floor(rnd()*3)});
+  // sakatlik suresi 1-12 hafta: sure uzadikca ihtimal her hafta x0.7 azalir (ortalama ~3,2 hafta)
+  var INJ_CUM=(function(){var w=[],s=0,k;for(k=0;k<12;k++){w.push(Math.pow(0.7,k));s+=w[k]}var c=[],a=0;for(k=0;k<12;k++){a+=w[k]/s;c.push(a)}return c})();
+  function injLen(){var r=rnd();for(var k=0;k<12;k++)if(r<INJ_CUM[k])return k+1;return 12}
+  hInjEvents.forEach(function(ev){newInj.home[ev.playerId]=injLen()});
+  aInjEvents.forEach(function(ev){newInj.away[ev.playerId]=injLen()});
 
   // ek mac istatistikleri (topla oynama/faul/korner/ofsayt): skordan BAGIMSIZ ureteliyor ki
   // istatistikler her zaman kazanan lehine olmasin (bazen kaybeden daha iyi istatistiklere sahip olabilir)
@@ -24734,7 +24737,7 @@ function sikePen(t){var M=1e6,para=5*M*(t.c1+t.c4+t.c6),pts=3*t.c4+6*t.c6,eu=(t.
   para+=3*M*t.v2+1*M*t.a2+4*M*t.v3+2*M*t.a3;
   if(t.c5){para+=10*M*t.c5;pts+=6+2*(t.c5-1)}
   if(t.c7){para+=20*M+10*M*(t.c7-1);pts+=9+2*(t.c7-1);eu=Math.max(eu,t.c7>1?2:1);tr=1}
-  if(t.c8){para+=70*M+10*M*(t.c8-1);pts+=9+2*(t.c8-1);eu=2;tr=1}
+  if(t.c8){para+=40*M+10*M*(t.c8-1);pts+=9+2*(t.c8-1);eu=2;tr=1}
   return {para:para,pts:pts,eu:eu,tr:tr,pl:t.pl}}
 var SIKE_WHY=["Şikenin sahaya yansıdığı kanıtlanamadı","Deliller usulsüz toplandığı için hukuken geçersiz sayıldı","Şike iddiası sahadaki sonuca yansımadı","Dinleme ve belge kayıtları usul hatası nedeniyle dosyaya alınamadı"];
 function sikeQuote(u,S,team){var q=["Şike yaptıysam "+team+" için yaptım.","Biz şerefsiz değiliz, biz şike yapmadık!","Ne şikesi, memleket elden gidiyor!","Şike yaptığım ispat edilirse kendimi köprüden atarım!"];return q[spHash("q|"+u+"|"+S)%q.length]}
@@ -25177,5 +25180,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v126 · 31.10 12:42</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v128 · 31.10 13:10</div></body>
 </html>
