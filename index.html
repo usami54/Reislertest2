@@ -20611,7 +20611,14 @@ function spTierOf(uid){var prev=null;Object.keys(fbHistory||{}).forEach(function
   if(!prev)return "bronz";var pz=fbHistory[prev].prizes||{};if(pz[uid]==null)return "bronz";
   var rank=1;Object.keys(pz).forEach(function(u){if(pz[u]>pz[uid])rank++});return rank<=3?"altin":rank<=5?"gumus":"bronz"}
 function spHash(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
-function spOffers(uid){var tier=spTierOf(uid),pool=SP_BR[tier],h=spHash(curOrd()+"|"+uid),i=h%pool.length,j=(i+1+((h>>>7)%(pool.length-1)))%pool.length;return {tier:tier,A:pool[i],B:pool[j]}}
+/* sponsor teklifleri: her takim icin 4 sezonluk turlarda havuz karistirilir, sezon basina bir cift alinir (4 sezon boyunca hic tekrar yok);
+   yeni turun ilk cifti bir onceki turun son cifti ile cakismaz */
+function spCyclePerm(c,uid,L){var prev=[];if(c>0){var pp=spCyclePerm(c-1,uid,L);prev=[pp[L>=8?6:0],pp[L>=8?7:1]]}var best=null;
+  for(var t=0;t<30;t++){var x=spHash("sp|"+c+"|"+uid+"|"+t)||1,a=[],i;for(i=0;i<L;i++)a.push(i);
+    for(i=L-1;i>0;i--){x^=x<<13;x>>>=0;x^=x>>>17;x^=x<<5;x>>>=0;var k=x%(i+1),q=a[i];a[i]=a[k];a[k]=q}
+    if(!best)best=a;if(prev.indexOf(a[0])<0&&prev.indexOf(a[1])<0)return a}
+  return best}
+function spOffers(uid){var tier=spTierOf(uid),pool=SP_BR[tier],n=curOrd(),pm=spCyclePerm(Math.floor(n/4),uid,pool.length),k=n%4,i=pm[2*k],j=pm[2*k+1];return {tier:tier,A:pool[i],B:pool[j]}}
 function betPrefixOf(uid){var b=fbBsp&&fbBsp[uid];return b&&b.brand&&SP_PRO[b.brand]?SP_PRO[b.brand].n:""}
 function chestPrefixOf(uid){var x=contractOf(uid);if(!x||!x.c.nm)return "";var b=spBrandOf(x.c.id);return b?b.s:""}
 function stadBet(uid,st){var p=betPrefixOf(uid);return p&&st?p+" "+st:st}
@@ -20846,6 +20853,9 @@ function roundIncome(idx){var rd=leagueRounds()[idx],c=compOf(rd),inc={},add=fun
     else if(c==="el"){add(w,EL_WIN);add(w===m.home?m.away:m.home,EL_DRAW);if(idx===lastRoundOf("el")){add(w,EL_CHAMP);add(w===m.home?m.away:m.home,EL_FIN)}}});
   var spi=sponsorRoundIncome(idx);Object.keys(spi).forEach(function(u){add(u,spi[u])});
   return inc}
+/* gelir vergisi ve son sirada bitirenin ikonu: canli surumde yalnizca LAW_TS'den SONRA baslayan sezonlarin sonunda gecerli (LAW_TS yayinlanma aninda build.py ile yazilir; test surumunde 0 = hep acik) */
+var LAW_TS=/*LAW_TS*/0;
+function lawOn(){var s=parseInt(currentSeason,10);return !(LAW_TS>0&&(isNaN(s)||s<=LAW_TS))}
 function taxOf(b){var M=1e6;if(b<=50*M)return 0;var r=b<=80*M?0.20:b<=120*M?0.23:0.26,net=b*(1-r),fl=50*M;if(b>80*M)fl=Math.max(fl,64*M);if(b>120*M)fl=Math.max(fl,92.4*M);return Math.round(b-Math.max(net,fl))}
 function adminIncomeTick(){
   if(!isAdmin||!fbDb||!currentSeason||!fbLeague||!fbLeague.rounds||betBusy||ordersBusy||!spReady()||Object.keys(aucResolving).length)return;
@@ -20863,7 +20873,7 @@ function adminIncomeTick(){
         if(c>0){bons[u]=c;upd["leagues/"+currentSeason+"/champion/bonus/"+u]=c;txPush(upd,currentSeason,u,"Gol/asist primleri",ds.join(" · "),-c,Date.now())}})}
     Object.keys(inc).forEach(function(u){if(!teams[u])return;var cur=(bv[u]!==undefined&&bv[u]!==null)?bv[u]:START_BUDGET,nb=cur+inc[u];
       if(champPay&&bons[u])nb-=bons[u];
-      if(champPay){var tx=taxOf(nb);if(tx>0){taxes[u]=tx;nb-=tx;upd["leagues/"+currentSeason+"/champion/tax/"+u]=tx}}
+      if(champPay&&lawOn()){var tx=taxOf(nb);if(tx>0){taxes[u]=tx;nb-=tx;upd["leagues/"+currentSeason+"/champion/tax/"+u]=tx}}
       upd["budgets/"+currentSeason+"/"+u]=nb});
     return fbDb.ref().update(upd).then(function(){var ks=Object.keys(taxes);if(ks.length)pushNews({type:"vergi",title:"💸 Gelir vergisi",body:"Sezon sonu bakiyesi 50 M€ üstünde olan kulüplerden gelir vergisi kesildi (50–80 M€ %20, 80–120 M€ %23, 120 M€ üstü %26):\n"+ks.map(function(u){return "• "+teams[u].name+": −"+fmtM(taxes[u])}).join("\n")},"son_vergi")})}).then(function(){betBusy=false}).catch(function(e){betBusy=false;fbBadge("Gelirler yazılamadı (Rules hatası): "+e.message)})}
 setInterval(adminIncomeTick,3000);
@@ -20992,7 +21002,7 @@ function computeSeasonEndTransfers(stats){
   var teams=fbLeague.teams||{};
   var posChoices=shuffle(ORDER.slice()).slice(0,4); // her sezon rastgele 4 FARKLI mevki, herkes icin ayni
   var freeAgents=[],carryOver={},iconFree=[];
-  var lastUid=(stats.table&&stats.table.length)?stats.table[stats.table.length-1].id:null; // ligi sonuncu bitiren: ikonu kesin serbest kalir
+  var lastUid=(lawOn()&&stats.table&&stats.table.length)?stats.table[stats.table.length-1].id:null; // ligi sonuncu bitiren: ikonu kesin serbest kalir
   var perfName={};(function(){var pm=perfMapNow();Object.keys(teams).forEach(function(tid){(teams[tid].roster||[]).forEach(function(p){var x=pm[p.id];if(x&&x.n)perfName[p.n+"|"+p.m]={pf:x.sum/x.n,pn:x.n}})})})();
   var usedK=aucUsedKeys();Object.keys(fbFaPool||{}).forEach(function(k){usedK[k]=1});
   // gelisim: yeni overall'lar sadece SONRAKI doneme tasinan kadroya/serbest havuza yansir (biten sezonun kadrosu oldugu gibi kalir)
@@ -25166,5 +25176,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v123 · 31.10 12:21</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v124 · 31.10 12:30</div></body>
 </html>
