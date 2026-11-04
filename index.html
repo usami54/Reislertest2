@@ -18838,6 +18838,7 @@ function vAiProfile(uid){var T=(fbLeague&&fbLeague.ai&&fbLeague.ai[uid])||(typeo
     var o=st[c]=st[c]||{p:0,w:0,d:0,l:0,gf:0,ga:0};[o,tot].forEach(function(x){x.p++;x.gf+=gf;x.ga+=ga;if(gf>ga)x.w++;else if(gf<ga)x.l++;else x.d++})})});
   var G={},A={},ids={};(T.roster||[]).forEach(function(q){ids[q.id]=1});
   (fbLeague&&fbLeague.rounds||[]).forEach(function(rd){(rd.matches||[]).forEach(function(m){if(!m.played||!m.events)return;m.events.forEach(function(e){if(e.type!=="goal"||e.og)return;if(ids[e.playerId])G[e.playerId]=(G[e.playerId]||0)+1;if(e.assistId&&ids[e.assistId])A[e.assistId]=(A[e.assistId]||0)+1})})});
+  var dmG={},dmA={};if(p){var _s=(typeof sikeSn==="function")?sikeSn():1,_k=bgRoundsShown(p[0],_s),_bt=bgTeamPlayers(p[0],p[1],_s,_k);dmG=_bt.G;dmA=_bt.A}
   var RS=[],nameOf=function(u){var t=(fbLeague.teams&&fbLeague.teams[u])||(fbLeague.ai&&fbLeague.ai[u]);return t&&t.name?t.name:(typeof euParse==="function"&&euParse(u)?euTeamName(u):"?")};
   (fbLeague&&fbLeague.rounds||[]).forEach(function(rd,ri){(rd.matches||[]).forEach(function(m){if(!m.played||!m.result||(m.home!==uid&&m.away!==uid))return;var hm=m.home===uid,gf=hm?m.result.h:m.result.a,ga=hm?m.result.a:m.result.h;
     var pe=m.result.pen||m.pen,lab="";try{lab=compTitle(rd,ri,mC(rd,m))}catch(e){try{lab=compTitle(rd,ri)}catch(e2){}}RS.push({comp:(function(){try{return mC(rd,m)}catch(e){return compOf(rd)}})(),ri:ri,hm:hm,opp:nameOf(hm?m.away:m.home),gf:gf,ga:ga,lab:lab})})});
@@ -18851,14 +18852,87 @@ function vAiProfile(uid){var T=(fbLeague&&fbLeague.ai&&fbLeague.ai[uid])||(typeo
   else h+='<div class="card"><p class="msg">Bu sezon henüz maç oynamadı.</p></div>';
   if(RS.length)h+='<div class="card"><h2 style="font-size:16px;margin-bottom:6px">Son maçlar</h2>'+RS.map(function(r){var c=r.gf>r.ga?'w':r.gf<r.ga?'l':'d',col=c==='w'?'var(--win)':c==='l'?'#e5484d':'var(--mut,#98a2b3)';
     return '<div class="bgPl" style="grid-template-columns:30px 1fr auto"><span style="font:800 12px Inter;color:'+col+'">'+(c==='w'?'G':c==='l'?'M':'B')+'</span><span class="nm" style="white-space:normal">'+esc(r.opp)+'<small style="display:block;color:var(--mut,#98a2b3);font-size:11px">'+esc(r.lab)+' · '+(r.hm?'ev':'deplasman')+'</small></span><b style="font:800 14px Inter">'+r.gf+' - '+r.ga+'</b></div>'}).join("")+'</div>';
+  h+=aiTrophyCardHTML(uid)+aiEuropeHTML(uid);
   var O=["KL","STP","SLB","SGB","DOS","OS","OOS","SLK","SGK","ST"];
   var pl=(T.roster||[]).slice().sort(function(a,b){var x=O.indexOf(a.m),y=O.indexOf(b.m);return (x<0?99:x)-(y<0?99:y)||b.r-a.r});
   if(pl.length)h+='<div class="card"><h2 style="font-size:16px;margin-bottom:6px">Kadro</h2><div class="bgPl bgPlH"><span></span><span>Oyuncu</span><span style="text-align:center">Güç</span><span class="n">⚽</span><span class="n">🅰️</span></div>'+
-    pl.map(function(q){return '<div class="bgPl plLink" data-pn="'+esc(q.n)+'"><span class="ps">'+esc(q.m)+'</span><span class="nm">'+esc(q.n)+'</span><span><b style="display:block;text-align:center;padding:2px 0;border-radius:7px;font:800 12.5px Inter;color:#1a1200;background:'+(q.r>=85?'linear-gradient(135deg,#f7d06a,#e0a52c)':q.r>=80?'linear-gradient(135deg,#dfe5ee,#aeb8c8)':q.r>=75?'linear-gradient(135deg,#e3b98a,#c08550)':'#7b8494;color:#fff')+'">'+q.r+'</b></span><span class="n">'+(G[q.id]||'')+'</span><span class="n">'+(A[q.id]||'')+'</span></div>'}).join("")+'</div>';
+    pl.map(function(q){return '<div class="bgPl plLink" data-pn="'+esc(q.n)+'"><span class="ps">'+esc(q.m)+'</span><span class="nm">'+esc(q.n)+'</span><span><b style="display:block;text-align:center;padding:2px 0;border-radius:7px;font:800 12.5px Inter;color:#1a1200;background:'+(q.r>=85?'linear-gradient(135deg,#f7d06a,#e0a52c)':q.r>=80?'linear-gradient(135deg,#dfe5ee,#aeb8c8)':q.r>=75?'linear-gradient(135deg,#e3b98a,#c08550)':'#7b8494;color:#fff')+'">'+q.r+'</b></span><span class="n">'+(((G[q.id]||0)+(dmG[pIdx(q.id)]||0))||'')+'</span><span class="n">'+(((A[q.id]||0)+(dmA[pIdx(q.id)]||0))||'')+'</span></div>'}).join("")+'</div>';
   if(p){var cur0=(typeof sikeSn==="function")?sikeSn():1,hr=[];for(var sn0=cur0-1;sn0>=1;sn0--){var tb0=bgFinal(p[0],sn0).table,ps0=0,pt0=0;tb0.forEach(function(t,ix){if(t.i===p[1]){ps0=ix+1;pt0=t.pts}});
       hr.push('<div class="bgPl" style="grid-template-columns:1fr auto auto;gap:12px"><span>'+sn0+'. sezon</span><b>'+(ps0===1?'🏆 ':'')+ps0+'. sıra</b><span class="n" style="min-width:56px;text-align:right">'+pt0+' puan</span></div>')}
     if(hr.length)h+='<div class="card"><h2 style="font-size:16px;margin-bottom:6px">Geçmiş sezonlar <span style="font:600 12px Inter;color:var(--mut,#98a2b3)">· '+esc(WORLD[p[0]].l)+'</span></h2>'+hr.join("")+'</div>'}
   return h}
+
+/* ================= YAPAY ZEKA TAKIM / OYUNCU: kupa tablosu + Avrupa performansi ================= */
+function aiLoc(name){var ai=(fbLeague&&fbLeague.ai)||{},r=null;
+  Object.keys(ai).forEach(function(u){if(r)return;(ai[u].roster||[]).forEach(function(p){if(!r&&p.n===name)r={uid:u,pid:p.id,team:ai[u].name}})});
+  if(r)return r;
+  if(typeof WORLD!=="undefined")for(var li=0;li<WORLD.length;li++)for(var ti=0;ti<WORLD[li].t.length;ti++){var T=WORLD[li].t[ti];for(var pi=0;pi<T.p.length;pi++)if(T.p[pi][0]===name){var u=euId(li,ti);return {uid:u,pid:u+"_p"+pi,team:T.n,li:li,ti:ti,pi:pi}}}
+  return null}
+function aiSeasonList(){var ns=allSeasonLeagues(),cur=sikeSn();return ns.list.map(function(se){return {se:se,sn:se.done?(parseInt(se.label,10)||cur):cur}})}
+function aiNameIn(raw,u){var t=(raw.teams&&raw.teams[u])||(raw.ai&&raw.ai[u]);return t&&t.name?t.name:(euParse(u)?euTeamName(u):"?")}
+var AI_CN={league:"Lig",cup:"Ulusal Kupa",super:"Süper Kupa",cl:"Şampiyonlar Ligi",el:"Avrupa Ligi",esc:"Avrupa Süper Kupası"};
+function aiCompIcon(c,lgc){if(c==="league"&&lgc)return bgFlag(lgc,14);if(c==="cl")return CL_LOGO;return compIconHTML(c)}
+/* bir sezonluk ham veride takimin (ve varsa oyuncunun) yarisma bazli kaydi */
+function aiMatchRec(raw,uid,pid,name){var out={comps:{},ms:[]};
+  (raw.rounds||[]).forEach(function(rd){if(rd.skip)return;(rd.matches||[]).forEach(function(m){if(!m.played||!m.result||(m.home!==uid&&m.away!==uid))return;
+    var c=mC(rd,m),side=m.home===uid?"home":"away",hm=side==="home",gf=hm?m.result.h:m.result.a,ga=hm?m.result.a:m.result.h;if(gf==null||ga==null)return;
+    var st=rd.stage==="Grup"&&rd.gday?"Grup "+rd.gday+". maç":(rd.stage||""),
+        o=out.comps[c]=out.comps[c]||{p:0,w:0,d:0,l:0,gf:0,ga:0,pa:0,g:0,a:0,last:""};
+    o.p++;o.gf+=gf;o.ga+=ga;if(gf>ga)o.w++;else if(gf<ga)o.l++;else o.d++;if(st)o.last=st;
+    if(pid){var rt=m.ratings&&m.ratings[side];if(rt&&rt[pid]!==undefined)o.pa++}
+    if(name)(m.events||[]).forEach(function(ev){if(ev.team!==side||ev.type!=="goal"||ev.og)return;if(ev.playerName===name)o.g++;if(ev.assistName===name)o.a++});
+    out.ms.push({c:c,st:st,opp:aiNameIn(raw,hm?m.away:m.home),hm:hm,gf:gf,ga:ga,pen:m.pen||null})})});
+  return out}
+/* takimin kazandigi kupalar: {league:[etiket],cup:[],...} */
+function aiTrophyMap(uid){var res={league:[],cup:[],super:[],cl:[],el:[],esc:[]},p=euParse(uid);
+  aiSeasonList().forEach(function(x){var tr=seasonTrophies(x.se.raw);["cup","super","cl","el","esc"].forEach(function(c){if(tr[c]===uid)res[c].push(x.se.label)});
+    if(!p&&tr.league===uid)res.league.push(x.se.label)});
+  if(p){var cur=sikeSn();for(var sn=1;sn<=cur;sn++){var R=bgSimLeague(p[0],sn).rounds.length;if(bgRoundsShown(p[0],sn)<R)continue;var tb=bgFinal(p[0],sn).table;if(tb[0]&&tb[0].i===p[1])res.league.push(sn+". sezon")}}
+  return res}
+function aiTrophyCardHTML(uid,title){var tm=aiTrophyMap(uid),p=euParse(uid),lgc=p?WORLD[p[0]].c:"",keys=p?["league","cl","el","esc"]:["league","cup","super","cl","el","esc"],tot=0;
+  var rows=keys.map(function(c){var a=tm[c];tot+=a.length;return '<div class="li" style="display:block"><div style="display:flex;align-items:center;gap:8px"><span class="nm" style="flex:1">'+aiCompIcon(c,lgc)+' '+(c==="league"&&p?esc(WORLD[p[0]].l)+" şampiyonluğu":AI_CN[c]+(c==="league"?" şampiyonluğu":""))+'</span><b style="font:800 15px Inter;color:'+(a.length?'var(--amber,#f2b705)':'var(--mut,#98a2b3)')+'">'+a.length+'</b></div>'+
+    (a.length?'<div style="font-size:11.5px;color:var(--mut,#98a2b3);margin:2px 0 4px 26px">'+a.map(esc).join(" · ")+'</div>':'')+'</div>'}).join("");
+  return '<div class="card"><h2 style="font-size:16px;margin-bottom:6px">🏆 '+(title||"Kupa tablosu")+' <span style="font:600 12px Inter;color:var(--mut,#98a2b3)">· '+tot+'</span></h2>'+rows+'</div>'}
+/* sezon sezon Avrupa / kupa ozeti + son sezonun tum maclari */
+function aiEuropeHTML(uid){var rows=[],last=null,tr={};
+  aiSeasonList().forEach(function(x){var rec=aiMatchRec(x.se.raw,uid,null,null),t=seasonTrophies(x.se.raw);
+    ["cl","el","esc","cup","super"].forEach(function(c){var o=rec.comps[c];if(!o)return;
+      var won=t[c]===uid;rows.push('<div class="bgPl" style="grid-template-columns:1fr auto;gap:10px"><span class="nm" style="white-space:normal">'+aiCompIcon(c)+' '+esc(AI_CN[c])+'<small style="display:block;color:var(--mut,#98a2b3);font-size:11px">'+esc(x.se.label)+(o.last?' · '+esc(o.last):'')+(won?' · 🏆 Şampiyon':'')+'</small></span><b style="font:700 12.5px Inter;text-align:right">'+o.p+' maç · '+o.w+'G '+o.d+'B '+o.l+'M<small style="display:block;font-weight:600;color:var(--mut,#98a2b3)">'+o.gf+'-'+o.ga+'</small></b></div>')});
+    if(rec.ms.some(function(m){return m.c!=="league"}))last={label:x.se.label,ms:rec.ms.filter(function(m){return m.c!=="league"})}});
+  var h='';
+  if(rows.length)h+='<div class="card"><h2 style="font-size:16px;margin-bottom:6px">Avrupa ve kupa performansı</h2>'+rows.reverse().join("")+'</div>';
+  if(last)h+='<div class="card"><h2 style="font-size:16px;margin-bottom:6px">Avrupa / kupa maçları <span style="font:600 12px Inter;color:var(--mut,#98a2b3)">· '+esc(last.label)+'</span></h2>'+last.ms.map(function(r){var c=r.gf>r.ga?'w':r.gf<r.ga?'l':'d',col=c==='w'?'var(--win)':c==='l'?'#e5484d':'var(--mut,#98a2b3)';
+    return '<div class="bgPl" style="grid-template-columns:30px 1fr auto"><span style="font:800 12px Inter;color:'+col+'">'+(c==='w'?'G':c==='l'?'M':'B')+'</span><span class="nm" style="white-space:normal">'+esc(r.opp)+'<small style="display:block;color:var(--mut,#98a2b3);font-size:11px">'+esc(AI_CN[r.c])+(r.st?' · '+esc(r.st):'')+' · '+(r.hm?'ev':'deplasman')+'</small></span><b style="font:800 14px Inter">'+r.gf+' - '+r.ga+(r.pen?'<small style="display:block;font-size:10.5px;text-align:right;color:var(--mut,#98a2b3)">pen. '+r.pen.h+'-'+r.pen.a+'</small>':'')+'</b></div>'}).join("")+'</div>';
+  return h}
+/* AI oyuncusu: lig + kupa + Avrupa performansi */
+function aiPlayerHTML(name){var L=aiLoc(name);if(!L)return null;
+  var tot={},rows=[],cur=sikeSn(),cups=[];
+  function add(c,o){var t=tot[c]=tot[c]||{p:0,g:0,a:0};t.p+=o.pa;t.g+=o.g;t.a+=o.a}
+  var seen={};
+  aiSeasonList().forEach(function(x){var raw=x.se.raw,pid=L.pid,rr=raw.ai&&raw.ai[L.uid];
+    if(rr)(rr.roster||[]).forEach(function(q){if(q.n===name)pid=q.id});
+    var rec=aiMatchRec(raw,L.uid,pid,name),parts=[];seen[x.sn]=1;
+    if(L.li!=null){var k=bgRoundsShown(L.li,x.sn),bt=bgTeamPlayers(L.li,L.ti,x.sn,k),g=bt.G[L.pi]||0,a=bt.A[L.pi]||0;
+      if(k>0){tot.league=tot.league||{p:0,g:0,a:0};tot.league.g+=g;tot.league.a+=a;var ap=bgPlayerApps(L.li,L.ti,L.pi,x.sn,k);tot.league.p+=ap;parts.push(['league',ap+' maç · '+g+'G '+a+'A'])}}
+    Object.keys(rec.comps).forEach(function(c){var o=rec.comps[c];if(L.li!=null&&c==="league")return;add(c,o);parts.push([c,(o.pa?o.pa:o.p)+' maç · '+o.g+'G '+o.a+'A'])});
+    if(parts.length)rows.push('<div class="sh" style="display:block"><div style="font-weight:700">'+esc(x.se.label)+' · '+esc(L.team)+'</div>'+parts.map(function(q){return '<div style="font-size:12.5px;display:flex;justify-content:space-between;gap:8px;padding:2px 0"><span>'+aiCompIcon(q[0],L.li!=null?WORLD[L.li].c:"")+' '+esc(q[0]==="league"&&L.li!=null?WORLD[L.li].l:AI_CN[q[0]])+'</span><span>'+q[1]+'</span></div>'}).join("")+'</div>')});
+  var tm=aiTrophyMap(L.uid);["league","cup","super","cl","el","esc"].forEach(function(c){tm[c].forEach(function(lb){cups.push('<div class="li"><span class="nm">'+aiCompIcon(c,L.li!=null?WORLD[L.li].c:"")+' '+(c==="league"?"Lig şampiyonluğu":AI_CN[c])+' <span class="avg">· '+esc(lb)+' · '+esc(L.team)+'</span></span></div>')})});
+  var keys=["league","cup","super","cl","el","esc"],gT=0,aT=0,pT=0;keys.forEach(function(c){if(tot[c]){gT+=tot[c].g;aT+=tot[c].a;pT+=tot[c].p}});
+  var h='<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-top:12px"><div><b>'+pT+'</b><small>Maç</small></div><div><b style="color:var(--amber)">'+gT+'</b><small>Gol</small></div><div><b>'+aT+'</b><small>Asist</small></div><div><b>'+cups.length+'</b><small>Kupa</small></div></div>';
+  h+='<div class="card"><h2>Yarışma bazında</h2>'+keys.filter(function(c){return L.li==null||c==="league"||c==="cl"||c==="el"||c==="esc"}).map(function(c){var q=tot[c];return '<div class="li"><span class="nm">'+aiCompIcon(c,L.li!=null?WORLD[L.li].c:"")+' '+esc(c==="league"&&L.li!=null?WORLD[L.li].l:AI_CN[c])+'</span><span class="r">'+(q&&(q.g||q.a||q.p)?(q.p?q.p+' maç · ':'')+q.g+'G '+q.a+'A':'—')+'</span></div>'}).join("")+'</div>';
+  h+='<div class="card"><h2>🏆 Takımıyla kazandığı kupalar <span class="avg">· '+cups.length+'</span></h2>'+(cups.length?cups.join(""):'<p class="msg">Henüz kupa kazanmadı.</p>')+'</div>';
+  if(rows.length)h+='<div class="card"><h2>Sezonlar</h2>'+rows.reverse().join("")+'</div>';
+  return h}
+
+function pIdx(id){var m=/_p(\d+)$/.exec(id||"");return m?+m[1]:-1}
+
+/* Diger Ligler oyuncusunun lig maci sayisi (simulasyon kadro tutmadigi icin tohumlu tahmin; gol/asist attigi maclar kesin sayilir) */
+function bgPlayerApps(li,ti,pi,sn,k){var T=WORLD[li].t[ti],S=bgSimLeague(li,sn),me=T.p[pi],gk=me[1]==="GK",ord=T.p.map(function(q,i){return i}).filter(function(i){return (T.p[i][1]==="GK")===gk}).sort(function(a,b){return T.p[b][2]-T.p[a][2]||a-b}),rk=ord.indexOf(pi),
+    pr=gk?(rk===0?.97:.03):(rk<10?.9:rk<15?.45:.08),n=0;
+  for(var q=0;q<k&&q<S.rounds.length;q++)S.rounds[q].forEach(function(m){if(m[0]!==ti&&m[1]!==ti)return;var side=m[0]===ti?0:1,used=false;
+    m[4].forEach(function(s,gi){if(s[0]===side&&(s[1]===pi||m[5][gi]===pi))used=true});
+    if(used||bgRng(sn*7001+li*911+ti*53+pi*17+q*3)()<pr)n++});
+  return n}
 /* ================= AVRUPA KUPALARI KATILIMCILARI (arka plan liglerinden) ================= */
 var EU_ALIAS={"Bor. Dortmund":"Dortmund","FC Porto":"Porto","Leicester City":"Leicester","Manchester Utd":"Manchester United","FC Bayern":"Bayern Münih","FC Barcelona":"Barcelona","Valencia CF":"Valencia","SL Benfica":"Benfica","Sevilla FC":"Sevilla","Olym. Marseille":"Marseille","RB Salzburg":"Salzburg","FC Basel":"Basel","RCD Espanyol":"Espanyol","SC Braga":"Braga"};
 var EU_POS={GK:"KL",CB:"STP",LB:"SLB",RB:"SGB",LWB:"SLB",RWB:"SGB",CDM:"DOS",CM:"OS",CAM:"OOS",LM:"SLK",LW:"SLK",RM:"SGK",RW:"SGK",ST:"ST",CF:"ST"};
@@ -23316,6 +23390,7 @@ function vPlayerProfile(name){
     '<div><div style="font:900 24px/1.05 Inter;letter-spacing:-.03em">'+esc(name)+'</div><div style="font-size:13px;opacity:.9;margin-top:5px">'+esc(m||"-")+(NAMES[m]?' · '+NAMES[m]:'')+(info.l?' · '+esc(info.l):'')+'</div>'+
     ((cur||aiP)?'<div style="margin-top:8px;display:inline-flex;gap:6px;align-items:center;background:rgba(11,16,23,.5);border-radius:999px;padding:5px 10px;font:700 12px Inter">'+esc(cur?cur.team:aiP.team)+'</div>':'')+'</div></div>'+
     ((isIc||tb)?'<div style="position:relative;display:flex;gap:6px;margin-top:14px;flex-wrap:wrap">'+(isIc?'<span style="padding:5px 10px;border-radius:999px;background:rgba(11,16,23,.5);font:700 12px Inter">⭐ Kulüp ikonu</span>':'')+(tb?'<span style="padding:5px 10px;border-radius:999px;background:rgba(11,16,23,.5);font:700 12px Inter">+'+tb+' antrenman (normali '+base+')</span>':'')+'</div>':'')+'</div>';
+  var aiX=(!cur&&!rows.length&&typeof aiPlayerHTML==="function")?aiPlayerHTML(name):null;if(aiX)return h+aiX;
   h+='<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-top:12px"><div><b>'+tot.app+'</b><small>Maç</small></div><div><b style="color:var(--amber)">'+tot.g+'</b><small>Gol</small></div><div><b>'+tot.a+'</b><small>Asist</small></div><div><b>'+(tot.app?(tot.sum/tot.app).toFixed(2).replace(".",","):"-")+'</b><small>Ort. puan</small></div></div>';
   var CNAME={league:compIconHTML('league')+' Lig şampiyonluğu',cup:compIconHTML('cup')+' Ulusal Kupa',super:compIconHTML('super')+' Süper Kupa',cl:CL_LOGO+' Şampiyonlar Ligi',el:compIconHTML('el')+' Avrupa Ligi',esc:compIconHTML('esc')+' Avrupa Süper Kupası'};
   h+='<div class="card"><h2>🏆 Kazandığı kupalar <span class="avg">· '+cups.length+'</span></h2>'+(cups.length?cups.map(function(t){return '<div class="li"><span class="nm">'+CNAME[t.c]+' <span class="avg">· '+esc(t.label)+' · '+esc(t.team)+'</span></span></div>'}).join(""):'<p class="msg">Henüz kupa kazanmadı.</p>')+'</div>';
@@ -25799,5 +25874,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v174 · 04.11 11:13</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v176 · 04.11 11:57</div></body>
 </html>
