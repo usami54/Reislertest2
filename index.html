@@ -21521,7 +21521,7 @@ function computeSeasonEndTransfers(stats){
       while(lack>0){var pool=st.db.filter(function(o){return o.m===g.m&&o.r<70&&o.r>=60&&o.l!==FREE&&!usedK[pkey(o)]});
         if(!pool.length)pool=st.db.filter(function(o){return o.m===g.m&&o.r<70&&o.l!==FREE&&!usedK[pkey(o)]});if(!pool.length)break;
         var o=pool[Math.floor(Math.random()*pool.length)];usedK[pkey(o)]=1;g.pl.push({n:o.n,m:o.m,l:o.l,r:o.r,t:tierOf(o.r),fill:1});lack--}});
-    var icn=clubIcon(uid),notIc=function(p){return !(icn&&icn.n===p.n&&icn.m===p.m)};
+    var icn=clubIcon(uid),notIc=function(p){return !((icn&&icn.n===p.n&&icn.m===p.m)||(typeof efsOf==="function"&&efsOf(p)))}; // kulup ikonu + paketten cikan ikon serbest kalmaz
     if(uid===lastUid&&icn){keptPicks.forEach(function(g){var ix=-1;g.pl.forEach(function(p,i){if(p.n===icn.n&&p.m===icn.m)ix=i});
         if(ix>=0){var ip=g.pl.splice(ix,1)[0],pf=perfName[ip.n+"|"+ip.m]||{};iconFree.push({n:ip.n,m:ip.m,l:ip.l||"",r:ip.r,fromUid:uid,fromTeam:teamName,fromOwner:ownerName,pf:pf.pf!=null?Math.round(pf.pf*100)/100:null,pn:pf.pn||0})}})}
     // her serbest kalan mevki icin: o mevkiden birden fazla secim grubu varsa rastgele birini sec,
@@ -23933,15 +23933,47 @@ function vHistory(){var gate=gateCard();if(gate)return gate;
     counts[h.uid].n++;counts[h.uid].teamName=h.teamName;if(h.ownerName)counts[h.uid].ownerName=h.ownerName});
   var countArr=Object.keys(counts).map(function(k){return counts[k]}).sort(function(a,b){return b.n-a.n});
   hsCss();
-  var hv=UI.hsView==="recs"?"recs":"hist";
-  var h='<div class="pgTitle" style="margin-bottom:12px">Geçmiş</div>'+segHTML("hsView",[["hist","Geçmiş"],["recs","Rekorlar"]],hv);
-  if(hv==="recs"){var ar=computeAllTimeRecords();
+  var hv=UI.hsView==="recs"?"recs":UI.hsView==="all"?"all":"hist";
+  var h='<div class="pgTitle" style="margin-bottom:12px">Geçmiş</div>'+segHTML("hsView",[["hist","Geçmiş"],["recs","Rekorlar"],["all","Tüm zamanlar"]],hv);
+  if(hv==="all")h+=atHTML();
+  else if(hv==="recs"){var ar=computeAllTimeRecords();
     h+=segHTML("recView",[["team","Takım"],["player","Oyuncu"],["bet","Bahis"]],UI.recView||"team")+hsRecordsHTML(ar,countArr,UI.recView||"team")}
   else h+='<div class="secH"><h3>Kupa rafı</h3></div>'+hsShelfHTML(ids)+
     '<div class="secH"><h3>Sezon sonuçları</h3></div>'+hsSeasonsHTML(ids)+
     '<div class="secH"><h3>Sezon kartları</h3></div>'+hsCardsHTML(ids);
   return adminBtn+h}
 
+
+/* ================= TUM ZAMANLAR TABLOSU (Lig / Sampiyonlar Ligi / Avrupa Ligi) ================= */
+function atCss(){if(document.getElementById("atCssH"))return;var st=document.createElement("style");st.id="atCssH";st.textContent=
+".atT{margin-top:8px;border-radius:16px;background:var(--card);border:1px solid var(--bd);overflow:hidden}.atR{display:grid;grid-template-columns:18px minmax(0,1fr) 20px 20px 20px 20px 24px 24px 26px 26px 36px;gap:1px;align-items:center;padding:8px 8px;border-top:1px solid var(--bd);font:600 11.5px Inter;text-align:center}.atR.h{border-top:0;color:var(--mut,#98a2b3);font:700 11px Inter;background:rgba(255,255,255,.03)}"+
+".atR .tm{display:flex;align-items:center;gap:5px;text-align:left;min-width:0}.atR .tm b{display:block;font:700 12.5px Inter;white-space:normal;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.atR .tm small{display:block;font:600 10px Inter;color:var(--mut,#98a2b3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.atR .tm>div{min-width:0}.atR .pos{font:800 12px Inter;color:var(--mut,#98a2b3)}.atR .pt{font:800 13px Inter;color:var(--tx)}"+
+".atR.me{background:rgba(242,183,5,.07)}.atR.t1 .pos{color:#f2b705}.atR.t2 .pos{color:#c0c7d1}.atR.t3 .pos{color:#cd7f32}.atR .av.p{color:var(--win)}.atR .av.n{color:#e5484d}.atHd{display:flex;align-items:center;gap:12px;margin:14px 2px 0}.atHd b{display:block;font:800 18px Inter}.atHd small{font:600 12px Inter;color:var(--mut,#98a2b3)}.atLg{display:inline-flex;align-items:center;justify-content:center;min-width:44px}.atTi{display:inline-flex;align-items:center;gap:3px}.atS{display:inline-flex;align-items:center;justify-content:center;gap:2px}.atS b{font:800 12px Inter;color:var(--amber,#f2b705)}.atNote{font:600 11.5px Inter;color:var(--mut,#98a2b3);margin:8px 4px;text-align:center}";
+  document.head.appendChild(st)}
+function atLogo(c,px){var s=c==='cl'?CL_LOGO:compIconHTML(c);return '<span style="font-size:'+(px/1.25)+'px;display:inline-flex;align-items:center;line-height:1">'+s+'</span>'}
+function atBuild(c){var map={},nm={},tit={},ses={},pend=false;
+  var ns=allSeasonLeagues();pend=ns.pending;
+  ns.list.forEach(function(se){var raw=se.raw||{},tr=seasonTrophies(raw),seen={};
+    var tms=raw.teams||{},ai=raw.ai||{};Object.keys(tms).concat(Object.keys(ai)).forEach(function(u){var t=tms[u]||ai[u];if(t&&(t.baseName||t.name))nm[u]=t.baseName||t.name});
+    (raw.rounds||[]).forEach(function(rd){if(rd.skip)return;(rd.matches||[]).forEach(function(m){if(!m.played||!m.result||mC(rd,m)!==c)return;var h=m.result.h,a=m.result.a;if(h==null||a==null)return;
+      [[m.home,h,a],[m.away,a,h]].forEach(function(x){var r=map[x[0]]=map[x[0]]||{u:x[0],p:0,w:0,d:0,l:0,gf:0,ga:0};r.p++;r.gf+=x[1];r.ga+=x[2];if(x[1]>x[2])r.w++;else if(x[1]<x[2])r.l++;else r.d++;
+        if(!seen[x[0]]){seen[x[0]]=1;ses[x[0]]=(ses[x[0]]||0)+1}})})});
+    if(tr[c])tit[tr[c]]=(tit[tr[c]]||0)+1});
+  var T=(fbLeague&&fbLeague.teams)||{};Object.keys(T).forEach(function(u){if(T[u]&&(T[u].baseName||T[u].name))nm[u]=T[u].baseName||T[u].name});
+  var rows=Object.keys(map).map(function(u){var r=map[u];r.pts=3*r.w+r.d;r.name=(euParse(u)?euTeamName(u):nm[u])||u;r.t=tit[u]||0;r.s=ses[u]||0;return r});
+  rows.sort(function(x,y){return y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf||(x.name<y.name?-1:1)});
+  return {rows:rows,pend:pend}}
+function atHTML(){atCss();var c=UI.atView==="cl"||UI.atView==="el"?UI.atView:"league",d=atBuild(c),
+  title={league:"Reisler Ligi",cl:"Şampiyonlar Ligi",el:"Avrupa Ligi"}[c];
+  var h=segHTML("atView",[["league","Lig"],["cl","Şampiyonlar Ligi"],["el","Avrupa Ligi"]],c);
+  if(!d.rows.length)return h+'<div class="card" style="margin-top:10px"><p class="msg">'+(d.pend?'Geçmiş sezonlar yükleniyor…':'Henüz oynanmış maç yok.')+'</p></div>';
+  h+='<div class="atHd"><span class="atLg">'+atLogo(c,44)+'</span><div><b>'+title+'</b><small>Tüm zamanlar · '+d.rows.length+' takım</small></div></div>';
+  h+='<div class="atT"><div class="atR h"><span></span><span style="text-align:left">Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span>AG</span><span>YG</span><span>AV</span><span>P</span><span>Ş</span></div>'+
+    d.rows.map(function(r,i){var av=r.gf-r.ga,sub='';
+      return '<div class="atR'+(i<3?' t'+(i+1):'')+(r.u===myUid?' me':'')+'"><span class="pos">'+(i+1)+'</span><div class="tm mgrLink" data-uid="'+esc(r.u)+'" style="cursor:pointer">'+avatarHTML(r.name,20)+'<div><b>'+esc(r.name)+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div></div>'+
+        '<span>'+r.p+'</span><span>'+r.w+'</span><span>'+r.d+'</span><span>'+r.l+'</span><span>'+r.gf+'</span><span>'+r.ga+'</span><span class="av '+(av>0?'p':av<0?'n':'')+'">'+(av>0?'+':'')+av+'</span><span class="pt">'+r.pts+'</span><span class="atS">'+atLogo(c,12)+'<b>'+r.t+'</b></span></div>'}).join("")+'</div>';
+  if(d.pend)h+='<p class="atNote">Bazı sezonlar yükleniyor…</p>';
+  return h}
 function vFixture(){var gate=gateCard();if(gate)return gate;
   if(editingRound!=null&&fbLeague)return vLineupEditor();
   var h='';
@@ -25880,5 +25912,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v180 · 04.11 13:51</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v182 · 04.11 19:08</div></body>
 </html>
