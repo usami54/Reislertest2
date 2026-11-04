@@ -18820,6 +18820,7 @@ function vBgTeam(li,ti,sn,k,d,q){var lg=WORLD[li],T=lg.t[ti],cur=(typeof sikeSn=
   h+='<div class="bgSt"><div><b>'+row.p+'</b><small>Maç</small></div><div><b>'+row.w+'</b><small>G</small></div><div><b>'+row.d+'</b><small>B</small></div><div><b>'+row.l+'</b><small>M</small></div><div><b>'+(av>0?'+':'')+av+'</b><small>Averaj</small></div><div><b>'+row.pts+'</b><small>Puan</small></div></div>';
   var last=st.res.slice(-6);
   if(last.length)h+='<div class="card"><h2 style="font-size:16px;margin-bottom:10px">Son maçlar</h2><div class="bgForm">'+last.map(function(m){var c=m.gf>m.ga?'w':m.gf<m.ga?'l':'';return '<span class="'+c+'" title="'+esc(lg.t[m.opp].n)+'">'+(m.home?'':'D ')+m.gf+'-'+m.ga+' '+esc(lg.t[m.opp].n.length>11?lg.t[m.opp].n.slice(0,10)+'…':lg.t[m.opp].n)+'</span>'}).join("")+'</div></div>';
+  h+=aiTrophyCardHTML(euId(li,ti))+aiEuropeHTML(euId(li,ti));
   var pl=T.p.map(function(p,i){return {n:p[0],m:EU_POS[p[1]]||p[1],r:p[2],g:st.G[i]||0,a:st.A[i]||0}}).sort(function(a,b){var O=["KL","STP","SLB","SGB","DOS","OS","OOS","SLK","SGK","ST"],x=O.indexOf(a.m),y=O.indexOf(b.m);return (x<0?99:x)-(y<0?99:y)||b.r-a.r});
   h+='<div class="card"><h2 style="font-size:16px;margin-bottom:6px">Kadro</h2><div class="bgPl bgPlH"><span></span><span>Oyuncu</span><span style="text-align:center">Güç</span><span class="n">⚽</span><span class="n">🅰️</span></div>'+
     pl.map(function(p){return '<div class="bgPl plLink" data-pn="'+esc(p.n)+'"><span class="ps">'+esc(p.m)+'</span><span class="nm">'+esc(p.n)+'</span><span><b style="display:block;text-align:center;padding:2px 0;border-radius:7px;font:800 12.5px Inter;color:#1a1200;background:'+(p.r>=85?'linear-gradient(135deg,#f7d06a,#e0a52c)':p.r>=80?'linear-gradient(135deg,#dfe5ee,#aeb8c8)':p.r>=75?'linear-gradient(135deg,#e3b98a,#c08550)':'#7b8494;color:#fff')+'">'+p.r+'</b></span><span class="n">'+(p.g||'')+'</span><span class="n">'+(p.a||'')+'</span></div>'}).join("")+'</div>';
@@ -25874,5 +25875,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v176 · 04.11 11:57</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v177 · 04.11 12:03</div></body>
 </html>
