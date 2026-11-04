@@ -18865,10 +18865,10 @@ function vAiProfile(uid){var T=(fbLeague&&fbLeague.ai&&fbLeague.ai[uid])||(typeo
 
 /* ================= YAPAY ZEKA TAKIM / OYUNCU: kupa tablosu + Avrupa performansi ================= */
 function aiLoc(name,uid){var ai=(fbLeague&&fbLeague.ai)||{},r=null;
-  if(uid){if(ai[uid]){(ai[uid].roster||[]).forEach(function(p){if(!r&&p.n===name)r={uid:uid,pid:p.id,team:ai[uid].name,m:p.m,r:p.r}});return r}
+  if(uid){if(ai[uid]&&!euParse(uid)){(ai[uid].roster||[]).forEach(function(p){if(!r&&p.n===name)r={uid:uid,pid:p.id,team:ai[uid].name,m:p.m,r:p.r}});return r}
     var pp=euParse(uid);if(pp){var T=WORLD[pp[0]].t[pp[1]];for(var k=0;k<T.p.length;k++)if(T.p[k][0]===name)return {uid:uid,pid:uid+"_p"+k,team:T.n,li:pp[0],ti:pp[1],pi:k,m:EU_POS[T.p[k][1]]||T.p[k][1],r:T.p[k][2]}}
     return null}
-  Object.keys(ai).forEach(function(u){if(r)return;(ai[u].roster||[]).forEach(function(p){if(!r&&p.n===name)r={uid:u,pid:p.id,team:ai[u].name}})});
+  Object.keys(ai).forEach(function(u){if(r||euParse(u))return;(ai[u].roster||[]).forEach(function(p){if(!r&&p.n===name)r={uid:u,pid:p.id,team:ai[u].name}})});
   if(r)return r;
   if(typeof WORLD!=="undefined")for(var li=0;li<WORLD.length;li++)for(var ti=0;ti<WORLD[li].t.length;ti++){var T=WORLD[li].t[ti];for(var pi=0;pi<T.p.length;pi++)if(T.p[pi][0]===name){var u=euId(li,ti);return {uid:u,pid:u+"_p"+pi,team:T.n,li:li,ti:ti,pi:pi}}}
   return null}
@@ -25880,5 +25880,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v179 · 04.11 13:21</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v180 · 04.11 13:51</div></body>
 </html>
