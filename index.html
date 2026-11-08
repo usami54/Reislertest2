@@ -19043,7 +19043,7 @@ function euLogoFill(map){WORLD.forEach(function(lg){lg.t.forEach(function(t){if(
 function euId(li,ti){return "ai_bg"+li+"_"+ti}
 function euParse(id){var m=/^ai_bg(\d+)_(\d+)$/.exec(id||"");return m?[+m[1],+m[2]]:null}
 function euCountry(id){var p=euParse(id);return p?WORLD[p[0]].c:"A.Selçuklu"}
-function euCurSn(){return (typeof sikeSn==="function")?sikeSn():1}
+function euCurSn(){if(window._eaSn)return window._eaSn;return (typeof sikeSn==="function")?sikeSn():1}
 function euOvrOf(id){var p=euParse(id);return p?bgW(euCurSn())[p[0]].t[p[1]].o:0}
 function euTeamName(id){var p=euParse(id);return p?WORLD[p[0]].t[p[1]].n:id}
 function aiSlug(uid){var p=euParse(uid);if(p)return euSlugOfName(WORLD[p[0]].t[p[1]].n)||"";return String(uid).slice(3)}
@@ -22250,8 +22250,22 @@ function subscribeHistory(){if(historyRef)return; // bir kez abone ol, sezon deg
   if(!fbDb)return;
   historyRef=fbDb.ref("history");
   historyRef.on("value",function(snap){fbHistory=snap.val()||{};fbHistLoaded=true;if(tab==="history")render()},function(){fbHistLoaded=true})}
+function eaRecover(){
+  if(!isAdmin||!fbDb||!fbLeague||!currentSeason||!fbHistory)return;
+  var sids=Object.keys(fbHistory).filter(function(k){return fbHistory[k]}).sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)});
+  window._eaRec=window._eaRec||{};
+  sids.forEach(function(sid,i){
+    if(String(sid)===String(currentSeason)||fbHistory[sid].euAwards||window._eaRec[sid])return;
+    var raw=historyRaw[sid];if(!raw){loadHistoryRaw(sid);return}if(raw==="loading")return;
+    window._eaRec[sid]=1;
+    var rs=raw.rounds||[];if(!rs.length||!raw.champion||!rs.every(function(rd){return rdAll(rd)}))return;
+    var sv={l:fbLeague,c:currentSeason},aw=null;
+    try{fbLeague=raw;currentSeason=sid;window._eaSn=i+1;aw=eaCompute()}catch(e){aw=null;try{fbBadge("Geçmiş sezon ödülleri hesaplanamadı: "+e.message)}catch(x){}}
+    fbLeague=sv.l;currentSeason=sv.c;window._eaSn=0;
+    if(aw&&((aw.bd||[]).length||(aw.gb||[]).length)){var u={};u["history/"+sid+"/euAwards"]=aw;fbDb.ref().update(u).catch(function(){})}})}
 function checkChampion(){
   if(!isAdmin||!fbLeague||!currentSeason||!fbDb)return;
+  eaRecover();
   var rounds=fbLeague.rounds||[];
   var lgR=rounds.filter(function(rd){return compOf(rd)==="league"});
   if(!lgR.length||!lgR.every(function(rd){return rdAll(rd)}))return;
@@ -26771,5 +26785,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v221 · 07.11 19:51</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v222 · 07.11 19:51</div></body>
 </html>
