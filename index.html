@@ -19025,7 +19025,7 @@ function bgAllTr(){var o=[],cur=sikeSn();for(var s=bgTrStart();s<=cur;s++)bgTrLi
 function bgTrRow(t,noName){var W=bgW(t.sn),fa=W[t.from[0]].t[t.from[1]].n,ta=W[t.to[0]].t[t.to[1]].n,tag=t.tag?'<span class="trTag '+(t.tag==="sürpriz"?'s':'y')+'">'+(t.tag==="sürpriz"?'Sürpriz':'Yedek')+'</span>':'';
   return '<div class="trRow"><div class="trTop"><span class="ps">'+esc(EU_POS[t.pos]||t.pos)+'</span>'+(noName?'<span class="nm" style="font-weight:700">'+t.sn+'. sezon</span>':'<span class="nm plLink" data-pu="'+esc(euId(t.to[0],t.to[1]))+'" data-pn="'+esc(t.n)+'" style="font-weight:700">'+esc(t.n)+'</span>')+'<b class="trR">'+t.r+'</b><span class="trFee">'+t.fee.toFixed(t.fee<10?1:1).replace(/\.0$/,'')+' M€</span></div>'+
     '<div class="trMv"><span class="trTm bgTap" onclick="UI.bgLg='+t.from[0]+';UI.bgSn='+t.sn+';bgSet(\'bgTeam\','+t.from[1]+')">'+avatarHTML(fa,18)+'<i>'+esc(fa)+'</i></span><span class="trAr">→</span><span class="trTm bgTap" onclick="UI.bgLg='+t.to[0]+';UI.bgSn='+t.sn+';bgSet(\'bgTeam\','+t.to[1]+')">'+avatarHTML(ta,18)+'<i>'+esc(ta)+'</i></span>'+tag+'</div></div>'}
-function bgPlayerApps(li,ti,pi,sn,k){var T=bgW(sn)[li].t[ti],S=bgSimLeague(li,sn),me=T.p[pi],gk=me[1]==="GK",ord=T.p.map(function(q,i){return i}).filter(function(i){return (T.p[i][1]==="GK")===gk}).sort(function(a,b){return T.p[b][2]-T.p[a][2]||a-b}),rk=ord.indexOf(pi),
+function bgPlayerApps(li,ti,pi,sn,k){var T=bgW(sn)[li].t[ti],S=bgSimLeague(li,sn),me=T.p[pi];if(!me)return 0;var gk=me[1]==="GK",ord=T.p.map(function(q,i){return i}).filter(function(i){return (T.p[i][1]==="GK")===gk}).sort(function(a,b){return T.p[b][2]-T.p[a][2]||a-b}),rk=ord.indexOf(pi),
     pr=gk?(rk===0?.97:.03):(rk<10?.9:rk<15?.45:.08),n=0;
   for(var q=0;q<k&&q<S.rounds.length;q++)S.rounds[q].forEach(function(m){if(m[0]!==ti&&m[1]!==ti)return;var side=m[0]===ti?0:1,used=false;
     m[4].forEach(function(s,gi){if(s[0]===side&&(s[1]===pi||m[5][gi]===pi))used=true});
@@ -19174,11 +19174,12 @@ function eaCompute(){
   var wc=[];
   for(var li2=0;li2<W.length;li2++){var S=bgStatsAll(li2,sn),T=W[li2].t,fin=bgFinal(li2,sn).table;
     Object.keys(S.G).concat(Object.keys(S.A)).forEach(function(k,ix,arr){if(arr.indexOf(k)!==ix)return;var ti=Math.floor(k/100),pi=k%100,g=S.G[k]||0,a=S.A[k]||0;wc.push({li:li2,ti:ti,pi:pi,g:g,a:a})})}
-  var pool=wc.slice().sort(function(x,y){return (y.g+y.a)-(x.g+x.a)}).slice(0,260);
+  var pool=wc.filter(function(x){return W[x.li]&&W[x.li].t[x.ti]&&W[x.li].t[x.ti].p[x.pi]}).sort(function(x,y){return (y.g+y.a)-(x.g+x.a)}).slice(0,260);
   var haveW={};pool.forEach(function(x){haveW["ai_bg"+x.li+"_"+x.ti+"_p"+x.pi]=1});
   Object.keys(P).forEach(function(id){var m=/^ai_bg(\d+)_(\d+)_p(\d+)$/.exec(id);if(m&&!haveW[id]&&(P[id].cl.g+P[id].cl.a+P[id].el.g+P[id].el.a>0)){var li3=+m[1],ti3=+m[2],pi3=+m[3],S3=bgStatsAll(li3,sn),k3=ti3*100+pi3;pool.push({li:li3,ti:ti3,pi:pi3,g:S3.G[k3]||0,a:S3.A[k3]||0});haveW[id]=1}});
   if(eu.wcwin)W.forEach(function(lg4,li4){lg4.t.forEach(function(t4,ti4){t4.p.forEach(function(q4,pi4){var id4="ai_bg"+li4+"_"+ti4+"_p"+pi4;if(haveW[id4])return;var x4=P["W"+(q4[3]||(li4+":"+ti4+":"+pi4))];
     if(x4&&x4.wc.g+x4.wc.a>=2){var S4=bgStatsAll(li4,sn),k4=ti4*100+pi4;pool.push({li:li4,ti:ti4,pi:pi4,g:S4.G[k4]||0,a:S4.A[k4]||0});haveW[id4]=1}})})});
+  pool=pool.filter(function(x){return W[x.li]&&W[x.li].t[x.ti]&&W[x.li].t[x.ti].p[x.pi]});
   pool.forEach(function(x){var T=W[x.li].t[x.ti],p=T.p[x.pi],id="ai_bg"+x.li+"_"+x.ti+"_p"+x.pi,q=P[id]||pl(id),fin=bgFinal(x.li,sn).table,row=fin.filter(function(r){return r.i===x.ti})[0]||{p:1,gf:0,ga:0},
     rounds=bgSimLeague(x.li,sn).rounds.length,n=bgPlayerApps(x.li,x.ti,x.pi,sn,rounds);
     C.push({id:id,n:p[0],t:T.n,tid:"ai_bg"+x.li+"_"+x.ti,pos:p[1],ovr:p[2],wk:p[3]||(x.li+":"+x.ti+":"+x.pi),li:x.li,h:0,lg:{g:x.g,a:x.a,n:n,rs:0},cl:q.cl,el:q.el,tm:{gd:(row.gf-row.ga)/Math.max(1,row.p),ga:row.ga/Math.max(1,row.p)}})});
@@ -26785,5 +26786,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v222 · 07.11 19:51</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v223 · 07.11 19:51</div></body>
 </html>
