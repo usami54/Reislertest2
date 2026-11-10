@@ -19825,16 +19825,16 @@ function kwQual(s){var out=[],used={},contOf={sa:"Güney Amerika",na:"Kuzey Amer
     for(var i=0;i<ours.length;i++){var drop=null;for(var j=picks.length-1;j>=0;j--)if(kwCtry(picks[j].u)!=="A.Selçuklu"){drop=j;break}if(drop===null)break;picks.splice(drop,1)}
     ours.forEach(function(c){picks.push(c);c._g=1})}
   picks.sort(function(a,b){return R.indexOf(a)-R.indexOf(b)});
-  picks.forEach(function(c){add(c.u,"eu",c._g?"UEFA sıralaması (A.Selçuklu garantisi)":"UEFA sıralaması",null)});
+  picks.forEach(function(c){add(c.u,"eu","UEFA sıralaması",null)});
   var euN=out.filter(function(x){return x.cont==="eu"}).length;
   /* Guney Amerika 6, Kuzey Amerika 5, Asya 6 */
   [["sa",6],["na",5],["as",6]].forEach(function(z){var k=z[0],ch=kcChamps(k,s);ch.forEach(function(x){add(x.id,k,x.sn+". sezon "+KC[k].s+" şampiyonu")});
     var n=out.filter(function(x){return x.cont===k}).length,pp=kwPpm(Object.keys(KC[k].cs),s);
-    pp.forEach(function(e){if(out.filter(function(x){return x.cont===k}).length>=z[1])return;add(e.id,k,"Lig performansı (maç başı "+e.ppm.toFixed(2)+")",e.ppm)})});
+    pp.forEach(function(e){if(out.filter(function(x){return x.cont===k}).length>=z[1])return;add(e.id,k,({sa:"CONMEBOL",na:"CONCACAF",as:"AFC"})[k]+" sıralaması",e.ppm)})});
   /* Guney Afrika: hepsi */
-  var af=kcLi("Güney Afrika");if(af>=0)WORLD[af].t.forEach(function(t,ti){add(euId(af,ti),"af","Güney Afrika ligi")});
+  var af=kcLi("Güney Afrika");if(af>=0)WORLD[af].t.forEach(function(t,ti){add(euId(af,ti),"af","CAF sıralaması")});
   /* Okyanusya 1 */
-  var oc=kwPpm(["Avustralya"],s)[0];if(oc)add(oc.id,"oc","Lig performansı (maç başı "+oc.ppm.toFixed(2)+")",oc.ppm);
+  var oc=kwPpm(["Avustralya"],s)[0];if(oc)add(oc.id,"oc","OFC sıralaması",oc.ppm);
   return {s:s,list:out,contOf:contOf}}
 /* ---- KDK: kura (torbalar) + turnuva ---- */
 function kwRat(id,sn){var p=euParse(id);if(p){var t=bgW(sn)[p[0]];return t&&t.t[p[1]]?t.t[p[1]].o:70}
@@ -19888,7 +19888,7 @@ function kwQHTML(){var cur=(typeof sikeSn==="function")?sikeSn():1,s=KW_FIRST;wh
     h+='<div class="cfInfo"><details><summary>Nasıl oluşuyor?</summary><div style="margin-top:6px">32 takım, 4 yılda bir. Avrupa 12 (son 4 sezonun ŞL şampiyonları + UEFA kulüp sıralamasından kalanlar, ülke başına en fazla 2; A.Selçuklu\'dan en az 2 takım garanti), Güney Amerika 6 (4 Libertadores şampiyonu + 2 lig performansı), Kuzey Amerika 5 (4 Concacaf ŞL şampiyonu + 1), Asya 6 (4 Asya ŞL şampiyonu + 2), Güney Afrika 2, Okyanusya 1. Aynı takım birden fazla şampiyonluk kazandıysa boşalan yer lig performansı / UEFA sıralamasıyla dolar.</div></details></div>';
     h+='<p class="msg">'+ed+'. sezon · '+Q.list.length+' takım'+(ed>cur?' · tahmini (son sezonlar bitince kesinleşir)':'')+'</p>';
     ORD.forEach(function(k){var l=by[k]||[];if(!l.length)return;
-      h+='<div class="wcTb"><b>'+Q.contOf[k]+' ('+l.length+')</b><table>'+l.map(function(x){return '<tr class="'+(x.c==="A.Selçuklu"?'me':'')+'"><td style="text-align:left">'+bgFlag(x.c,12)+avatarHTML(x.name,18)+' '+esc(x.name)+'</td><td style="text-align:right;opacity:.7;font-size:12px">'+esc(x.via)+'</td></tr>'}).join("")+'</table></div>'});
+      h+='<div class="wcTb"><b>'+Q.contOf[k]+' ('+l.length+')</b>'+l.map(function(x){return '<div class="kwRow'+(x.c==="A.Selçuklu"?' me':'')+'"><span class="kwA">'+avatarHTML(x.name,26)+'</span><div class="kwT"><b>'+esc(x.name)+'</b><small>'+esc(x.via)+'</small></div><span class="kwF">'+bgFlag(x.c,13)+'</span></div>'}).join("")+'</div>'});
     if(Q.list.length!==32)h+='<p class="msg">Not: şu an '+Q.list.length+' takım çıkıyor, turnuva başlamadan önce 32\'ye tamamlanır.</p>'}
   return h}
 function vKw(){var gate=gateCard();if(gate)return gate;stdCss();wcCss2();
@@ -19912,7 +19912,7 @@ function vKw(){var gate=gateCard();if(gate)return gate;stdCss();wcCss2();
   return h}
 
 function wcCss2(){if(document.getElementById("wcCss2"))return;var st=document.createElement("style");st.id="wcCss2";st.textContent=
-".wcTb{margin:8px 0;padding:8px;border-radius:12px;background:rgba(255,255,255,.04)}.wcTb b{display:block;margin-bottom:4px}.wcTb table{width:100%;border-collapse:collapse;font-size:13px}.wcTb th{font-weight:600;opacity:.6;text-align:center;padding:2px 3px}.wcTb th:nth-child(2),.wcTb td:nth-child(2){text-align:left}.wcTb td{padding:4px 3px;text-align:center;border-top:1px solid rgba(255,255,255,.06)}.wcTb tr.q td:first-child{box-shadow:inset 3px 0 #2bd66b}.wcTb tr.t td:first-child{box-shadow:inset 3px 0 #f0b44a}.wcTb tr.me td{background:rgba(240,180,74,.14);font-weight:700}.wcKo{padding:5px 0;font-size:13px;display:flex;justify-content:space-between;gap:6px;border-top:1px solid rgba(255,255,255,.06)}.wcKo.me{font-weight:700;color:#f0b44a}";
+".kwRow{display:flex;align-items:center;gap:10px;padding:7px 2px;border-top:1px solid rgba(255,255,255,.06)}.kwRow.me{background:rgba(240,180,74,.14);border-radius:8px;padding-left:6px;padding-right:6px}.kwRow .kwA{flex:none;display:flex}.kwT{min-width:0;flex:1}.kwT b{display:block;font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kwT small{display:block;font-size:11.5px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kwRow .kwF{flex:none;display:flex}.kwRow .kwF img,.kwRow .kwF .cfFlag{margin:0}.wcTb{margin:8px 0;padding:8px;border-radius:12px;background:rgba(255,255,255,.04)}.wcTb b{display:block;margin-bottom:4px}.wcTb table{width:100%;border-collapse:collapse;font-size:13px}.wcTb th{font-weight:600;opacity:.6;text-align:center;padding:2px 3px}.wcTb th:nth-child(2),.wcTb td:nth-child(2){text-align:left}.wcTb td{padding:4px 3px;text-align:center;border-top:1px solid rgba(255,255,255,.06)}.wcTb tr.q td:first-child{box-shadow:inset 3px 0 #2bd66b}.wcTb tr.t td:first-child{box-shadow:inset 3px 0 #f0b44a}.wcTb tr.me td{background:rgba(240,180,74,.14);font-weight:700}.wcKo{padding:5px 0;font-size:13px;display:flex;justify-content:space-between;gap:6px;border-top:1px solid rgba(255,255,255,.06)}.wcKo.me{font-weight:700;color:#f0b44a}";
   document.head.appendChild(st)}
 function wcTablesHTML(){wcCss2();var my=myWcId(),G=wcGrpData(true),ks=Object.keys(G).sort(),T=fbLeague.teams||{},allDone=ks.length&&ks.every(function(k){return G[k].done}),th={};
   if(allDone)wcThirds(G).slice(0,TRN[trKdR()].th).forEach(function(x){th[x.id]=1});
@@ -27261,5 +27261,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v257 · 07.11 19:51</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v258 · 07.11 19:51</div></body>
 </html>
