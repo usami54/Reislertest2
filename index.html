@@ -19807,8 +19807,7 @@ function kcSim(k,sn){var ck=k+"_"+sn;if(_kcC[ck])return _kcC[ck];
   if(sf.length>1){fin=kcMatch(r,by[sf[0].w],by[sf[1].w],true);champ=fin.w;fin2=fin.w===fin.a?fin.b:fin.a}else{champ=sf[0].w}
   return (_kcC[ck]={k:k,sn:sn,pv:pv,teams:teams,groups:groups,qf:qf,sf:sf,fin:fin,champ:champ,fin2:fin2})}
 /* biten sezon sayisi: gecmis + (bu sezon tum haftalar oynandiysa) bu sezon; gelecek sezonlar gosterilmez */
-function kwHv(s){var cu=(typeof sikeSn==="function")?sikeSn():s,hv=Math.max(Object.keys(fbHistory||{}).length,cu-1);
-  try{var fh=fbHistory||{},nh=Object.keys(fh).length,inH=!!fh[currentSeason],fin=!!(fbLeague&&(fbLeague.champion||fbLeague.extrasDone||((fbLeague.rounds||[]).length&&fbLeague.rounds.every(function(rd){return rdAll(rd)}))));if(inH)hv=Math.max(hv,nh);else if(fin)hv=Math.max(hv,nh+1,cu)}catch(e){}return hv}
+function kwHv(s){var cu=(typeof sikeSn==="function")?sikeSn():s,nh=Object.keys(fbHistory||{}).length;return Math.max(nh,cu)}
 function kcChamps(k,s){var o=[],a=Math.max(kcFirst(),s-4),hv=kwHv(s);for(var sn=a;sn<s&&sn<=hv;sn++)o.push({sn:sn,id:kcSim(k,sn).champ});return o}
 function kwSids(){return Object.keys(fbHistory||{}).sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)})}
 function kwEuId(id){if(!id)return null;if(euParse(id))return id;if(/^ai_/.test(id)){var nm=aiNameOf(id),f=null;WORLD.forEach(function(lg,li){if(lg.cont)return;lg.t.forEach(function(t,ti){if(t.n===nm)f=euId(li,ti)})});return f}
@@ -27494,5 +27493,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v299 · 14.11 21:30</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v300 · 14.11 21:40</div></body>
 </html>
