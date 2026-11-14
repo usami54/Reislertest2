@@ -24561,9 +24561,10 @@ function yilMenajeri(raw,se,noNat){var teams=raw.teams||{},ids=Object.keys(teams
   (raw.rounds||[]).forEach(function(rd){if(!rd||rd.skip)return;(rd.matches||[]).forEach(function(m){var c=mC(rd,m);if(!YM_CAP[c]||c==="league")return;var st=rd.stage||(m.stage);
     [m.home,m.away].forEach(function(u){if(!u)return;var v=ymStF(st);
       if((st==="Final"||!st)&&m.played&&m.result){try{if(koWinner(m)===u)v=1}catch(e){}}
+      if(st==="3.lük maçı"&&m.played&&m.result){try{if(koWinner(m)===u)v+=1/YM_CAP[c]}catch(e){}}
       var R=reach[c]||(reach[c]={});if(v>(R[u]||0))R[u]=v})})});
   var A=raw.ai||{},own={};Object.keys(A).forEach(function(k){if(wcIsId(k)&&A[k].wcOwner!=null)own[String(A[k].wcOwner)]=k});
-  var nl={};["wc","ec"].forEach(function(c){var R=reach[c];if(!R)return;var ks=Object.keys(R).filter(function(k){return A[k]}).sort(function(a,b){return (A[b].level||0)-(A[a].level||0)});var top=ks.length?(A[ks[0]].level||0):0;ks.forEach(function(k){nl[k]=1+Math.min(.5,.05*Math.max(0,top-(A[k].level||0)))})});
+  var nl={};["wc","ec"].forEach(function(c){var R=reach[c];if(!R)return;var ks=Object.keys(R).filter(function(k){return A[k]}).sort(function(a,b){return (A[b].level||0)-(A[a].level||0)});var top=ks.length?(A[ks[0]].level||0):0;ks.forEach(function(k){nl[k]=1+.05*Math.max(0,top-(A[k].level||0))})});
   var best=null,ALL={},DET={};
   ids.forEach(function(u){var L=YM_CAP.league*(YM_LG[Math.min(pos[u]==null?9:pos[u],6)]||0),C=L,N=0,dt={league:L};
     ["cl","el","esc","cup","super","kw"].forEach(function(c){var x=YM_CAP[c]*((reach[c]&&reach[c][u])||0);dt[c]=x;C+=x});
@@ -27481,5 +27482,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v286 · 14.11 18:30</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v288 · 14.11 19:00</div></body>
 </html>
