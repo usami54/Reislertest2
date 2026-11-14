@@ -24550,7 +24550,7 @@ function yilMenajeriEski(raw,se){var teams=raw.teams||{},ids=Object.keys(teams);
 
 /* Yılın menajeri (v2): tüm yarışmalar. Her yarışmanın şampiyon tavanı var, tur başarısı tavanın oranı.
    Kulüp puanları x kadro çarpanı (1.0-1.5), milli takım puanı x milli takım çarpanı (1.0-1.5) */
-var YM_CAP={wc:20,cl:17,ec:14,league:12,kw:9,el:7,esc:4,cup:3,super:2},YM_LG=[1,.7,.5,.3,.1],
+var YM_CAP={wc:25,cl:18,ec:16,league:11,kw:14,el:9,esc:5,cup:3,super:2},YM_LG=[1,.7,.5,.3,.15,.1,.05],
   YM_ST={"Playoff":.05,"1. tur":.1,"2. Tur":.12,"Son 32":.08,"Son 16":.12,"Çeyrek final":.22,"Yarı final":.4,"3.lük maçı":.4,"Final":.65};
 function ymStF(st){if(!st)return .65;if(String(st).indexOf("Grup")===0)return .05;return YM_ST[st]!=null?YM_ST[st]:.05}
 function yilMenajeri(raw,se,noNat){var teams=raw.teams||{},ids=Object.keys(teams);if(!ids.length)return null;
@@ -24565,7 +24565,7 @@ function yilMenajeri(raw,se,noNat){var teams=raw.teams||{},ids=Object.keys(teams
   var A=raw.ai||{},own={};Object.keys(A).forEach(function(k){if(wcIsId(k)&&A[k].wcOwner!=null)own[String(A[k].wcOwner)]=k});
   var nl={};["wc","ec"].forEach(function(c){var R=reach[c];if(!R)return;var ks=Object.keys(R).filter(function(k){return A[k]}).sort(function(a,b){return (A[b].level||0)-(A[a].level||0)});var top=ks.length?(A[ks[0]].level||0):0;ks.forEach(function(k){nl[k]=1+Math.min(.5,.05*Math.max(0,top-(A[k].level||0)))})});
   var best=null,ALL={},DET={};
-  ids.forEach(function(u){var L=YM_CAP.league*(YM_LG[Math.min(pos[u]==null?9:pos[u],4)]||0),C=L,N=0,dt={league:L};
+  ids.forEach(function(u){var L=YM_CAP.league*(YM_LG[Math.min(pos[u]==null?9:pos[u],6)]||0),C=L,N=0,dt={league:L};
     ["cl","el","esc","cup","super","kw"].forEach(function(c){var x=YM_CAP[c]*((reach[c]&&reach[c][u])||0);dt[c]=x;C+=x});
     var nid=noNat?null:own[String(u)];if(nid)["wc","ec"].forEach(function(c){var v=reach[c]&&reach[c][nid];if(v)N+=YM_CAP[c]*v*(nl[nid]||1)});
     var mu=1+Math.min(.5,.05*Math.max(0,pw[byP[0]]-pw[u])),sc=C*mu+N;ALL[u]=sc;dt.nat=N;dt.mu=mu;dt.pos=pos[u]==null?null:pos[u]+1;DET[u]=dt;
@@ -27481,5 +27481,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v284 · 14.11 17:00</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v286 · 14.11 18:30</div></body>
 </html>
