@@ -27063,18 +27063,18 @@ setInterval(adminSikeTick,4000);
 function dupScan(){var by={},T=fbLeague.teams||{},lo={};
   function nz(p){return String(p.n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"")+"__"+p.m}
   Object.keys(T).forEach(function(u){(T[u].roster||[]).forEach(function(p){var k=pkey(p);(by[k]=by[k]||[]).push({u:u,p:p});var k2=nz(p);(lo[k2]=lo[k2]||[]).push({u:u,p:p})})});
-  var ok=function(g){return g.length>1&&new Set(g.map(function(x){return x.u})).size>1},ex=Object.keys(by).filter(function(k){return ok(by[k])}).map(function(k){return by[k]}),seen={};
-  ex.forEach(function(g){g.forEach(function(x){seen[x.p.id]=1})});
+  var ok=function(g){return g.length>1},ex=Object.keys(by).filter(function(k){return ok(by[k])}).map(function(k){return by[k]}),seen={};
+  ex.forEach(function(g){g.same=new Set(g.map(function(x){return x.u})).size<g.length;g.forEach(function(x){seen[x.p.id]=1})});
   /* olasi kopya: ayni isim+mevki ama farkli lig etiketi/yazim */
-  var lx=Object.keys(lo).filter(function(k){return ok(lo[k])&&!lo[k].every(function(x){return seen[x.p.id]})}).map(function(k){var g=lo[k];g.loose=true;return g});
+  var lx=Object.keys(lo).filter(function(k){return ok(lo[k])&&!lo[k].every(function(x){return seen[x.p.id]})}).map(function(k){var g=lo[k];g.loose=true;g.same=new Set(g.map(function(x){return x.u})).size<g.length;return g});
   return ex.concat(lx)}
 function openDupSheet(){if(!isAdmin||!fbLeague||!fbLeague.teams)return;skCss();dealCss();var T=fbLeague.teams,sh=document.createElement("div");sh.className="sheet";document.body.appendChild(sh);
   function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
-  function draw(){var L=dupScan();sh.innerHTML='<div class="in skIn"><div class="grab"></div><div class="dlS" style="margin:2px 0 8px"><b style="color:var(--tx);font:800 17px Inter">Kopya oyuncu taraması</b><br>'+(L.length?'Aynı oyuncu birden fazla kadroda. Kalacağı takımı seç, diğerinden çıkarılır ve o takımda boş mevki açılır.':'Kopya oyuncu yok. Tüm kadrolar temiz.')+'</div>'+
-    L.map(function(g,i){var p=g[0].p;return '<div class="skClub pun"><div class="skHd"><b>'+esc(p.n)+'</b><span>'+(g.loose?'Olası kopya · ':'')+esc(p.m)+' · '+g.map(function(x){return p.r===x.p.r?p.r:p.r+'/'+x.p.r}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' ')+'</span></div><div class="skSeg" style="grid-template-columns:repeat('+Math.min(g.length,3)+',1fr);margin-top:8px">'+g.map(function(x,j){return '<button data-dk="'+i+'|'+j+'">'+esc((T[x.u]||{}).name||"?")+(g.loose?' ('+esc(x.p.n)+(x.p.l?' · '+esc(x.p.l):'')+')':'')+' kalsın</button>'}).join("")+'</div></div>'}).join("")+
+  function draw(){var L=dupScan();sh.innerHTML='<div class="in skIn"><div class="grab"></div><div class="dlS" style="margin:2px 0 8px"><b style="color:var(--tx);font:800 17px Inter">Kopya oyuncu taraması</b><br>'+(L.length?'Aynı oyuncu birden fazla kayıtta (başka takımda ya da aynı takımda). Kalacak kaydı seç, diğerleri çıkarılır ve boş mevki açılır. Aynı takımdaysa maç sayısı fazla olan kaydı bırakmak istatistiği korur.':'Kopya oyuncu yok. Tüm kadrolar temiz.')+'</div>'+
+    L.map(function(g,i){var p=g[0].p;return '<div class="skClub pun"><div class="skHd"><b>'+esc(p.n)+'</b><span>'+(g.loose?'Olası kopya · ':'')+(g.same?'Aynı takımda iki kez · ':'')+esc(p.m)+' · '+g.map(function(x){return p.r===x.p.r?p.r:p.r+'/'+x.p.r}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' ')+'</span></div><div class="skSeg" style="grid-template-columns:repeat('+Math.min(g.length,3)+',1fr);margin-top:8px">'+g.map(function(x,j){return '<button data-dk="'+i+'|'+j+'">'+esc((T[x.u]||{}).name||"?")+(g.loose?' ('+esc(x.p.n)+(x.p.l?' · '+esc(x.p.l):'')+')':'')+(g.same?' · '+(((perfMapNow()[x.p.id]||{}).n)||0)+' maç':'')+' kalsın</button>'}).join("")+'</div></div>'}).join("")+
     '<div class="dlAct" style="margin-top:10px"><button id="dkNo">Kapat</button></div></div>'}
   sh.addEventListener("click",function(ev){if(ev.target.closest("#dkNo")){close();return}var b=ev.target.closest("[data-dk]");if(!b)return;var a=b.dataset.dk.split("|"),g=dupScan()[+a[0]];if(!g)return;var keep=g[+a[1]];
-    var W=mkWork(),upd={};g.forEach(function(x,j){if(j!==+a[1]&&x.u!==keep.u)rosterChange(W,upd,currentSeason,x.u,x.p,null,"")});
+    var W=mkWork(),upd={};g.forEach(function(x,j){if(j!==+a[1]&&x.p.id!==keep.p.id)rosterChange(W,upd,currentSeason,x.u,x.p,null,"")});
     fbDb.ref().update(upd).then(function(){setTimeout(draw,700)}).catch(function(e){fbBadge("Kopya düzeltilemedi (Rules hatası): "+e.message)})});
   draw()}
 /* ---- yonetici: Disiplin Kurulu paneli ---- */
@@ -27491,5 +27491,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v294 · 14.11 20:55</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v295 · 14.11 21:10</div></body>
 </html>
