@@ -19806,12 +19806,15 @@ function kcSim(k,sn){var ck=k+"_"+sn;if(_kcC[ck])return _kcC[ck];
   s.forEach(function(x){sf.push(kcMatch(r,by[x[0].w],by[x[1].w],true))});
   if(sf.length>1){fin=kcMatch(r,by[sf[0].w],by[sf[1].w],true);champ=fin.w;fin2=fin.w===fin.a?fin.b:fin.a}else{champ=sf[0].w}
   return (_kcC[ck]={k:k,sn:sn,pv:pv,teams:teams,groups:groups,qf:qf,sf:sf,fin:fin,champ:champ,fin2:fin2})}
-function kcChamps(k,s){var o=[],a=Math.max(kcFirst(),s-4),cu=(typeof sikeSn==="function")?sikeSn():s,hv=Math.max(Object.keys(fbHistory||{}).length,cu-1);for(var sn=a;sn<s&&sn<=hv;sn++)o.push({sn:sn,id:kcSim(k,sn).champ});return o}
+/* biten sezon sayisi: gecmis + (bu sezon tum haftalar oynandiysa) bu sezon; gelecek sezonlar gosterilmez */
+function kwHv(s){var cu=(typeof sikeSn==="function")?sikeSn():s,hv=Math.max(Object.keys(fbHistory||{}).length,cu-1);
+  try{if(fbLeague&&fbLeague.champion&&!(fbHistory||{})[currentSeason]&&(fbLeague.rounds||[]).length&&fbLeague.rounds.every(function(rd){return rd.skip||rdAll(rd)}))hv=Math.max(hv,cu)}catch(e){}return hv}
+function kcChamps(k,s){var o=[],a=Math.max(kcFirst(),s-4),hv=kwHv(s);for(var sn=a;sn<s&&sn<=hv;sn++)o.push({sn:sn,id:kcSim(k,sn).champ});return o}
 function kwSids(){return Object.keys(fbHistory||{}).sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)})}
 function kwEuId(id){if(!id)return null;if(euParse(id))return id;if(/^ai_/.test(id)){var nm=aiNameOf(id),f=null;WORLD.forEach(function(lg,li){if(lg.cont)return;lg.t.forEach(function(t,ti){if(t.n===nm)f=euId(li,ti)})});return f}
   return (fbLeague&&fbLeague.teams&&fbLeague.teams[id])||(fbSquads&&fbSquads[id])?id:id}
 function kwClChamps(s){var sids=kwSids(),o=[];for(var sn=Math.max(1,s-4);sn<s;sn++){var h=fbHistory[sids[sn-1]];if(!h||!h.clWin)continue;var id=kwEuId(h.clWin);if(id)o.push({sn:sn,id:id})}return o}
-function kwPpm(cs,s){var o={},a=Math.max(kcFirst(),s-4),cu=(typeof sikeSn==="function")?sikeSn():s,hv=Math.max(Object.keys(fbHistory||{}).length,cu-1);
+function kwPpm(cs,s){var o={},a=Math.max(kcFirst(),s-4),hv=kwHv(s);
   cs.forEach(function(c){var li=kcLi(c);if(li<0)return;for(var sn=a;sn<s&&sn<=hv;sn++)bgFinal(li,sn).table.forEach(function(x){var id=euId(li,x.i),e=o[id]||(o[id]={id:id,c:c,pts:0,p:0});e.pts+=x.pts;e.p+=x.p})});
   return Object.keys(o).map(function(id){var e=o[id];e.ppm=e.p?e.pts/e.p:0;return e}).sort(function(x,y){return y.ppm-x.ppm||(x.id<y.id?-1:1)})}
 function kwName(id){return typeof cfName==="function"?cfName(id):id}
@@ -19895,7 +19898,7 @@ function kwQHTML(){wcCss2();var cur=(typeof sikeSn==="function")?sikeSn():1,s=KW
       h+='<div class="wcTb"><b>'+Q.contOf[k]+' ('+l.length+')</b>'+l.map(function(x){return '<div class="kwRow'+(x.c==="A.Selçuklu"?' me':'')+'"><span class="kwA">'+avatarHTML(x.name,26)+'</span><div class="kwT"><b>'+esc(x.name)+'</b><small>'+esc(x.via)+'</small></div><span class="kwF">'+bgFlag(x.c,13)+'</span></div>'}).join("")+'</div>'});
     if(Q.list.length!==32)h+='<p class="msg">Not: şu an '+Q.list.length+' takım çıkıyor, turnuva başlamadan önce 32\'ye tamamlanır.</p>'}
   return h}
-function kwContHTML(){wcCss2();var cur=(typeof sikeSn==="function")?sikeSn():1,done=Object.keys(fbHistory||{}).length,have=Math.max(done,cur-1);
+function kwContHTML(){wcCss2();var cur=(typeof sikeSn==="function")?sikeSn():1,have=kwHv(cur);
   var h="",k=UI.kcC||"sa",sn=UI.kcS;if(!sn||sn>have||sn<kcFirst())sn=Math.max(kcFirst(),have);
     var ss=[];for(var x=have;x>=kcFirst();x--)ss.push([String(x),x+". sezon",""]);
     h+=segHTML("kcC",KC_ORD.map(function(c){return [c,KC[c].s]}),k)+(have>=kcFirst()?ddHTML("data-kcs",String(sn),ss):'');
@@ -27491,5 +27494,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v295 · 14.11 21:10</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v298 · 14.11 21:20</div></body>
 </html>
