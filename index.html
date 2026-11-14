@@ -19806,13 +19806,13 @@ function kcSim(k,sn){var ck=k+"_"+sn;if(_kcC[ck])return _kcC[ck];
   s.forEach(function(x){sf.push(kcMatch(r,by[x[0].w],by[x[1].w],true))});
   if(sf.length>1){fin=kcMatch(r,by[sf[0].w],by[sf[1].w],true);champ=fin.w;fin2=fin.w===fin.a?fin.b:fin.a}else{champ=sf[0].w}
   return (_kcC[ck]={k:k,sn:sn,pv:pv,teams:teams,groups:groups,qf:qf,sf:sf,fin:fin,champ:champ,fin2:fin2})}
-function kcChamps(k,s){var o=[],a=Math.max(kcFirst(),s-4);for(var sn=a;sn<s;sn++)o.push({sn:sn,id:kcSim(k,sn).champ});return o}
+function kcChamps(k,s){var o=[],a=Math.max(kcFirst(),s-4),cu=(typeof sikeSn==="function")?sikeSn():s,hv=Math.max(Object.keys(fbHistory||{}).length,cu-1);for(var sn=a;sn<s&&sn<=hv;sn++)o.push({sn:sn,id:kcSim(k,sn).champ});return o}
 function kwSids(){return Object.keys(fbHistory||{}).sort(function(a,b){return (fbHistory[a].finishedAt||0)-(fbHistory[b].finishedAt||0)})}
 function kwEuId(id){if(!id)return null;if(euParse(id))return id;if(/^ai_/.test(id)){var nm=aiNameOf(id),f=null;WORLD.forEach(function(lg,li){if(lg.cont)return;lg.t.forEach(function(t,ti){if(t.n===nm)f=euId(li,ti)})});return f}
   return (fbLeague&&fbLeague.teams&&fbLeague.teams[id])||(fbSquads&&fbSquads[id])?id:id}
 function kwClChamps(s){var sids=kwSids(),o=[];for(var sn=Math.max(1,s-4);sn<s;sn++){var h=fbHistory[sids[sn-1]];if(!h||!h.clWin)continue;var id=kwEuId(h.clWin);if(id)o.push({sn:sn,id:id})}return o}
-function kwPpm(cs,s){var o={},a=Math.max(kcFirst(),s-4);
-  cs.forEach(function(c){var li=kcLi(c);if(li<0)return;for(var sn=a;sn<s;sn++)bgFinal(li,sn).table.forEach(function(x){var id=euId(li,x.i),e=o[id]||(o[id]={id:id,c:c,pts:0,p:0});e.pts+=x.pts;e.p+=x.p})});
+function kwPpm(cs,s){var o={},a=Math.max(kcFirst(),s-4),cu=(typeof sikeSn==="function")?sikeSn():s,hv=Math.max(Object.keys(fbHistory||{}).length,cu-1);
+  cs.forEach(function(c){var li=kcLi(c);if(li<0)return;for(var sn=a;sn<s&&sn<=hv;sn++)bgFinal(li,sn).table.forEach(function(x){var id=euId(li,x.i),e=o[id]||(o[id]={id:id,c:c,pts:0,p:0});e.pts+=x.pts;e.p+=x.p})});
   return Object.keys(o).map(function(id){var e=o[id];e.ppm=e.p?e.pts/e.p:0;return e}).sort(function(x,y){return y.ppm-x.ppm||(x.id<y.id?-1:1)})}
 function kwName(id){return typeof cfName==="function"?cfName(id):id}
 function kwCtry(id){return typeof cfCountry==="function"?cfCountry(id):"A.Selçuklu"}
@@ -27060,12 +27060,18 @@ function sikeOpenManual(sel,dec){var S=currentSeason,sn=sikeSn(),log=fbSike.log|
 setInterval(adminSikeTick,4000);
 
 /* ---- yonetici: kopya oyuncu tara (ayni oyuncu birden fazla kadroda) ---- */
-function dupScan(){var by={},T=fbLeague.teams||{};Object.keys(T).forEach(function(u){(T[u].roster||[]).forEach(function(p){var k=pkey(p);(by[k]=by[k]||[]).push({u:u,p:p})})});
-  return Object.keys(by).filter(function(k){return by[k].length>1&&new Set(by[k].map(function(x){return x.u})).size>1}).map(function(k){return by[k]})}
+function dupScan(){var by={},T=fbLeague.teams||{},lo={};
+  function nz(p){return String(p.n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"")+"__"+p.m}
+  Object.keys(T).forEach(function(u){(T[u].roster||[]).forEach(function(p){var k=pkey(p);(by[k]=by[k]||[]).push({u:u,p:p});var k2=nz(p);(lo[k2]=lo[k2]||[]).push({u:u,p:p})})});
+  var ok=function(g){return g.length>1&&new Set(g.map(function(x){return x.u})).size>1},ex=Object.keys(by).filter(function(k){return ok(by[k])}).map(function(k){return by[k]}),seen={};
+  ex.forEach(function(g){g.forEach(function(x){seen[x.p.id]=1})});
+  /* olasi kopya: ayni isim+mevki ama farkli lig etiketi/yazim */
+  var lx=Object.keys(lo).filter(function(k){return ok(lo[k])&&!lo[k].every(function(x){return seen[x.p.id]})}).map(function(k){var g=lo[k];g.loose=true;return g});
+  return ex.concat(lx)}
 function openDupSheet(){if(!isAdmin||!fbLeague||!fbLeague.teams)return;skCss();dealCss();var T=fbLeague.teams,sh=document.createElement("div");sh.className="sheet";document.body.appendChild(sh);
   function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
   function draw(){var L=dupScan();sh.innerHTML='<div class="in skIn"><div class="grab"></div><div class="dlS" style="margin:2px 0 8px"><b style="color:var(--tx);font:800 17px Inter">Kopya oyuncu taraması</b><br>'+(L.length?'Aynı oyuncu birden fazla kadroda. Kalacağı takımı seç, diğerinden çıkarılır ve o takımda boş mevki açılır.':'Kopya oyuncu yok. Tüm kadrolar temiz.')+'</div>'+
-    L.map(function(g,i){var p=g[0].p;return '<div class="skClub pun"><div class="skHd"><b>'+esc(p.n)+'</b><span>'+esc(p.m)+' · '+p.r+'</span></div><div class="skSeg" style="grid-template-columns:repeat('+Math.min(g.length,3)+',1fr);margin-top:8px">'+g.map(function(x,j){return '<button data-dk="'+i+'|'+j+'">'+esc((T[x.u]||{}).name||"?")+' kalsın</button>'}).join("")+'</div></div>'}).join("")+
+    L.map(function(g,i){var p=g[0].p;return '<div class="skClub pun"><div class="skHd"><b>'+esc(p.n)+'</b><span>'+(g.loose?'Olası kopya · ':'')+esc(p.m)+' · '+g.map(function(x){return p.r===x.p.r?p.r:p.r+'/'+x.p.r}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' ')+'</span></div><div class="skSeg" style="grid-template-columns:repeat('+Math.min(g.length,3)+',1fr);margin-top:8px">'+g.map(function(x,j){return '<button data-dk="'+i+'|'+j+'">'+esc((T[x.u]||{}).name||"?")+(g.loose?' ('+esc(x.p.n)+(x.p.l?' · '+esc(x.p.l):'')+')':'')+' kalsın</button>'}).join("")+'</div></div>'}).join("")+
     '<div class="dlAct" style="margin-top:10px"><button id="dkNo">Kapat</button></div></div>'}
   sh.addEventListener("click",function(ev){if(ev.target.closest("#dkNo")){close();return}var b=ev.target.closest("[data-dk]");if(!b)return;var a=b.dataset.dk.split("|"),g=dupScan()[+a[0]];if(!g)return;var keep=g[+a[1]];
     var W=mkWork(),upd={};g.forEach(function(x,j){if(j!==+a[1]&&x.u!==keep.u)rosterChange(W,upd,currentSeason,x.u,x.p,null,"")});
@@ -27485,5 +27491,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v292 · 14.11 20:15</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v294 · 14.11 20:55</div></body>
 </html>
