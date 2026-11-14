@@ -19212,7 +19212,7 @@ function eaCompute(){
   pool=pool.filter(function(x){return W[x.li]&&W[x.li].t[x.ti]&&W[x.li].t[x.ti].p[x.pi]});
   pool.forEach(function(x){var T=W[x.li].t[x.ti],p=T.p[x.pi],id="ai_bg"+x.li+"_"+x.ti+"_p"+x.pi,q=P[id]||pl(id),fin=bgFinal(x.li,sn).table,row=fin.filter(function(r){return r.i===x.ti})[0]||{p:1,gf:0,ga:0},
     rounds=bgSimLeague(x.li,sn).rounds.length,n=bgPlayerApps(x.li,x.ti,x.pi,sn,rounds);
-    C.push({id:id,n:p[0],t:T.n,tid:"ai_bg"+x.li+"_"+x.ti,pos:p[1],ovr:p[2],wk:p[3]||(x.li+":"+x.ti+":"+x.pi),li:x.li,h:0,lg:{g:x.g,a:x.a,n:n,rs:0},cl:q.cl,el:q.el,tm:{gd:(row.gf-row.ga)/Math.max(1,row.p),ga:row.ga/Math.max(1,row.p)}})});
+    C.push({id:id,n:p[0],t:T.n,tid:"ai_bg"+x.li+"_"+x.ti,pos:p[1],ovr:p[2],wk:p[3]||(x.li+":"+x.ti+":"+x.pi),li:x.li,h:0,lg:{g:x.g,a:x.a,n:n,rs:0},cl:q.cl,el:q.el,kw:q.kw,tm:{gd:(row.gf-row.ga)/Math.max(1,row.p),ga:row.ga/Math.max(1,row.p)}})});
   /* Ballon d'Or */
   C.forEach(function(c){var x=P["W"+(c.h?c.id:(c.wk||""))];c.wc=(x&&x.wc)||{g:0,a:0,n:0,rs:0};c.wt=(x&&x.wt)||null});
   C.forEach(function(c){var n=c.lg.n;if(n<5){c.pts=null;return}
@@ -24550,16 +24550,19 @@ function yilMenajeriEski(raw,se){var teams=raw.teams||{},ids=Object.keys(teams);
 
 /* Yılın menajeri (v2): tüm yarışmalar. Her yarışmanın şampiyon tavanı var, tur başarısı tavanın oranı.
    Kulüp puanları x kadro çarpanı (1.0-1.5), milli takım puanı x milli takım çarpanı (1.0-1.5) */
-var YM_CAP={wc:25,cl:18,ec:16,league:11,kw:14,el:9,esc:5,cup:3,super:2},YM_LG=[1,.7,.5,.3,.15,.1,.05],
+var YM_CAP={wc:25,cl:21,ec:18,league:11,kw:16,el:11,esc:5,cup:3,super:2},YM_LG=[1,.7,.5,.3,.15,.1,.05],
   YM_ST={"Playoff":.05,"1. tur":.1,"2. Tur":.12,"Son 32":.08,"Son 16":.12,"Çeyrek final":.22,"Yarı final":.4,"3.lük maçı":.4,"Final":.65};
-function ymStF(st){if(!st)return .65;if(String(st).indexOf("Grup")===0)return .05;return YM_ST[st]!=null?YM_ST[st]:.05}
+function ymCurve(g,a,b,c,d,e,f){return {"Playoff":g,"1. tur":a,"Son 32":a,"2. Tur":b,"Son 16":b,"Çeyrek final":c,"Yarı final":d,"3.lük maçı":d,"Final":e,"_g":g}}
+/* v289: WC/SL/AvKupasi/KDK icin ileri turlar daha degerli (puan = tavan x oran) */
+var YM_STC={wc:ymCurve(.04,.08,.16,.44,.66,.84),cl:ymCurve(.05,.1,.25,11/21,16/21,18.5/21),ec:ymCurve(.05,.1,.2,.4,11/18,14.5/18),kw:ymCurve(.05,.1,.12,.4,11/16,13.5/16),el:ymCurve(.05,.1,.2,.35,.6,.8)};
+function ymStF(st,c){if(!st)return .65;var T=c&&YM_STC[c];if(String(st).indexOf("Grup")===0)return T?T._g:.05;if(T&&T[st]!=null)return T[st];return YM_ST[st]!=null?YM_ST[st]:.05}
 function yilMenajeri(raw,se,noNat){var teams=raw.teams||{},ids=Object.keys(teams);if(!ids.length)return null;
   var tb=computeStats(raw).table||[],pos={};tb.forEach(function(r,i){pos[r.id]=i});
   var pw={};ids.forEach(function(u){var r=(teams[u].roster||[]).slice().sort(function(a,b){return b.r-a.r}).slice(0,11);pw[u]=r.length?r.reduce(function(a,p){return a+p.r},0)/r.length:0});
   var byP=ids.slice().sort(function(a,b){return pw[b]-pw[a]}),n=ids.length,rk={};byP.forEach(function(u,i){rk[u]=i});
   var reach={};
   (raw.rounds||[]).forEach(function(rd){if(!rd||rd.skip)return;(rd.matches||[]).forEach(function(m){var c=mC(rd,m);if(!YM_CAP[c]||c==="league")return;var st=rd.stage||(m.stage);
-    [m.home,m.away].forEach(function(u){if(!u)return;var v=ymStF(st);
+    [m.home,m.away].forEach(function(u){if(!u)return;var v=ymStF(st,c);
       if((st==="Final"||!st)&&m.played&&m.result){try{if(koWinner(m)===u)v=1}catch(e){}}
       if(st==="3.lük maçı"&&m.played&&m.result){try{if(koWinner(m)===u)v+=1/YM_CAP[c]}catch(e){}}
       var R=reach[c]||(reach[c]={});if(v>(R[u]||0))R[u]=v})})});
@@ -27482,5 +27485,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v288 · 14.11 19:00</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v292 · 14.11 20:15</div></body>
 </html>
