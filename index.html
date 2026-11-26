@@ -25502,6 +25502,7 @@ function sqaHeld(){var h={};Object.keys((fbLeague&&fbLeague.teams)||{}).forEach(
 function sqaCands(){var held=sqaHeld(),o=[],seen={};
   Object.keys(fbFaPool||{}).forEach(function(k){var e=fbFaPool[k];if(!e||!e.n)return;var kk=pkey(e);if(held[kk]||seen[kk])return;seen[kk]=1;o.push({src:"fa",k:k,n:e.n,m:e.m,l:e.l||"",r:e.r,tag:"Serbest",from:e.from||""})});
   var ex=(fbLeague&&fbLeague.ex)||{};Object.keys(ex).forEach(function(id){var e=ex[id];if(!e||!e.n)return;var kk=pkey(e);if(held[kk]||seen[kk])return;seen[kk]=1;o.push({src:"ex",k:id,n:e.n,m:e.m,l:e.l||"",r:e.r,tag:"Çıkarılan"})});
+  (st.db||[]).forEach(function(e){if(!e||!e.n||e.l===FREE)return;var kk=pkey(e);if(held[kk]||seen[kk])return;seen[kk]=1;o.push({src:"db",k:kk,n:e.n,m:e.m,l:e.l||"",r:e.r,tag:"Havuz dışı",from:""})});
   (typeof EFS_DB!=="undefined"?EFS_DB:[]).forEach(function(e){var kk=pkey({n:e.n,l:EFS_L});if(held[kk]||seen[kk])return;seen[kk]=1;var tk=fbEfsTaken&&fbEfsTaken[e.k];o.push({src:"efs",k:e.k,n:e.n,m:e.m,l:EFS_L,r:e.r,tag:"İkon"+(tk?" · paketten çıkmış":" · henüz çıkmadı"),from:"İkon paketi"})});
   return o.sort(function(a,b){return (b.r||0)-(a.r||0)})}
 function sqaAdd(uid,c){if(sqaBusy||!isAdmin||!fbDb||!currentSeason)return;var sq=fbSquads[uid];if(!sq)return;
@@ -25512,19 +25513,20 @@ function sqaAdd(uid,c){if(sqaBusy||!isAdmin||!fbDb||!currentSeason)return;var sq
   if(c.src==="fa")upd["fa/pool/"+c.k]=null;
   if(c.src==="efs"&&!(fbEfsTaken&&fbEfsTaken[c.k]))upd["icons/taken/"+c.k]={u:uid,at:Date.now()}; // paketten çıkmamış ikon, başkası çekmesin
   sqaBusy=true;fbDb.ref().update(upd).then(function(){sqaBusy=false;fbBadgeTemp(c.n+" kadroya eklendi");render()}).catch(function(e){sqaBusy=false;msgBox("Eklenemedi: "+(e&&e.message||e))})}
-function openSqaAdd(uid){if(!isAdmin||!fbSquads[uid])return;skCss();var sh=document.createElement("div");sh.className="sheet";document.body.appendChild(sh);var all=sqaCands(),q="",mf="",T=(fbLeague&&fbLeague.teams&&fbLeague.teams[uid]);
+function sqaCss(){if(window._sqaCss)return;window._sqaCss=1;var st=document.createElement("style");st.textContent=".sqIn h3{margin:2px 0 4px;font:800 18px Inter;color:var(--tx)}.sqIn .sqSub{font:600 12.5px/1.4 Inter;color:var(--mut);margin:0 0 10px}.sqIn input{width:100%;box-sizing:border-box}.sqCnt{font:700 12px Inter;color:var(--mut);margin:6px 0 2px}.sqR{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--bd)}.sqR .mid{flex:1;min-width:0}.sqR .mid b{display:block;font:800 14.5px Inter;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sqR .mid span{display:block;font:600 11.5px Inter;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sqR .rb{flex:none;min-width:36px;text-align:center}.sqAdd{flex:none;width:auto;border:0;border-radius:10px;padding:8px 16px;font:800 13px Inter;background:var(--tx);color:var(--bg,#0b1017);cursor:pointer}.sqMore,.sqClose{display:block;width:100%;margin-top:10px;border:1px solid var(--bd);background:var(--card2);color:var(--tx);border-radius:12px;padding:11px;font:800 13.5px Inter;cursor:pointer}";document.head.appendChild(st)}
+function openSqaAdd(uid){if(!isAdmin||!fbSquads[uid])return;skCss();sqaCss();var sh=document.createElement("div");sh.className="sheet";document.body.appendChild(sh);var all=sqaCands(),q="",mf="",N=40,T=(fbLeague&&fbLeague.teams&&fbLeague.teams[uid]),cur=[];
   function close(){if(sh.parentNode)sh.parentNode.removeChild(sh)}
   function nz(x){return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
   var ms=[];all.forEach(function(c){if(ms.indexOf(c.m)<0)ms.push(c.m)});ms.sort();
-  function list(){var qq=nz(q),L=all.filter(function(c){return (!mf||c.m===mf)&&(!qq||nz(c.n).indexOf(qq)>=0)});var n=L.length;L=L.slice(0,40);cur=L;
-    return '<div class="dlS" style="margin:4px 0">'+n+' oyuncu'+(n>40?' (ilk 40 gösteriliyor, aramayı daralt)':'')+'</div>'+L.map(function(c,i){return '<div style="display:flex;align-items:center;gap:8px;margin-top:7px"><span style="flex:1;min-width:0">'+esc(c.n)+' <small style="opacity:.65">'+esc(c.m)+' · '+c.r+' · '+c.tag+(c.l?' · '+esc(c.l):'')+'</small></span><button class="btn" data-sqpick="'+i+'" style="padding:6px 12px">Ekle</button></div>'}).join("")}
-  var cur=[];
-  sh.innerHTML='<div class="in skIn"><div class="grab"></div><div class="dlS" style="margin:2px 0 8px"><b style="color:var(--tx);font:800 17px Inter">Oyuncu ekle</b><br>'+esc((T&&T.name)||(fbSquads[uid].teamName||fbSquads[uid].name||""))+' kadrosuna eklenecek. Serbest oyuncular, kadrodan çıkarılanlar ve ikon oyuncular listelenir; başka kadroda olanlar listede yok.</div><input id="sqaQ" type="text" placeholder="Oyuncu adı ara" autocomplete="off"><div class="skDec" id="sqaM"></div><div id="sqaL"></div><div class="dlAct" style="margin-top:10px"><button id="sqaX">Kapat</button></div></div>';
+  function list(){var qq=nz(q),L=all.filter(function(c){return (!mf||c.m===mf)&&(!qq||nz(c.n).indexOf(qq)>=0)});var n=L.length;L=L.slice(0,N);cur=L;
+    return '<div class="sqCnt">'+n.toLocaleString("tr-TR")+' oyuncu'+(n>N?' · ilk '+N+' gösteriliyor':'')+'</div>'+L.map(function(c,i){return '<div class="sqR"><span class="rb '+rbCls(c.r)+'">'+c.r+'</span><div class="mid"><b>'+esc(c.n)+'</b><span>'+esc(c.m)+' · '+esc(c.tag)+(c.src==="db"&&c.l?' · '+esc(c.l):'')+'</span></div><button class="sqAdd" data-sqpick="'+i+'">Ekle</button></div>'}).join("")+(n>N?'<button class="sqMore" data-sqmore="1">Daha fazla göster</button>':'')}
+  sh.innerHTML='<div class="in skIn sqIn"><div class="grab"></div><h3>Oyuncu ekle</h3><p class="sqSub">'+esc((T&&T.name)||(fbSquads[uid].teamName||fbSquads[uid].name||""))+' kadrosuna eklenecek. Serbest, çıkarılan, ikon ve havuz dışı oyuncular listelenir; başka kadroda olanlar yok.</p><input id="sqaQ" type="text" placeholder="Oyuncu adı ara" autocomplete="off"><div class="skDec" id="sqaM"></div><div id="sqaL"></div><button class="sqClose" id="sqaX">Kapat</button></div>';
   function mchips(){sh.querySelector("#sqaM").innerHTML='<button data-sqm="" class="'+(mf?'':'on')+'">Hepsi</button>'+ms.map(function(m){return '<button data-sqm="'+esc(m)+'" class="'+(mf===m?'on':'')+'">'+esc(m)+'</button>'}).join("")}
-  function redraw(){sh.querySelector("#sqaL").innerHTML=list();mchips()}
+  function redraw(){N=40;sh.querySelector("#sqaL").innerHTML=list();mchips()}
   redraw();
-  sh.querySelector("#sqaQ").addEventListener("input",function(e){q=e.target.value;sh.querySelector("#sqaL").innerHTML=list()});
+  sh.querySelector("#sqaQ").addEventListener("input",function(e){q=e.target.value;N=40;sh.querySelector("#sqaL").innerHTML=list()});
   sh.addEventListener("click",function(ev){if(ev.target.closest("#sqaX")){close();return}
+    if(ev.target.closest("[data-sqmore]")){N+=60;sh.querySelector("#sqaL").innerHTML=list();return}
     var m=ev.target.closest("[data-sqm]");if(m){mf=m.dataset.sqm;redraw();return}
     var b=ev.target.closest("[data-sqpick]");if(!b)return;var c=cur[+b.dataset.sqpick];if(!c)return;
     cfm(c.n+" ("+c.m+", "+c.r+") "+((T&&T.name)||"takım")+" kadrosuna eklensin mi?",function(){close();sqaAdd(uid,c)})})}
@@ -29012,5 +29014,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v328 · 26.11 sezon kopyası güncel</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v329 · 26.11 oyuncu ekle listesi</div></body>
 </html>
