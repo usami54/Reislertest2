@@ -21905,7 +21905,19 @@ function normLeague(L){if(!L)return L;
   (L.rounds||[]).forEach(function(rd){if(!rd.matches)rd.matches=[];if(!rd.comp)rd.comp="league"});
   var ai=L.ai;if(ai){L.teams=L.teams||{};Object.keys(ai).forEach(function(id){ai[id].ai=true;ai[id].ownerName=ai[id].ownerName||"Yapay zekâ";
     Object.defineProperty(L.teams,id,{value:ai[id],enumerable:false,configurable:true,writable:true})})}
+  healAiTeams(L);
   return L}
+/* ligde maci/kurasi olan ama kaydi (ad, kadro) eksik dunya takimlari (ai_bgX_Y) kayittan degil, dunya kulup listesinden tamamlanir: fikstur/grup ekranlari bos takimda coker */
+function healAiTeams(L){try{if(!L||typeof euParse!=="function")return;var need={};
+  (L.rounds||[]).forEach(function(rd){(rd.matches||[]).forEach(function(m){[m.home,m.away].forEach(function(id){if(typeof id==="string"&&euParse(id))need[id]=1})})});
+  (function walk(o,d){if(!o||d>6)return;if(typeof o==="string"){if(euParse(o))need[o]=1;return}if(typeof o!=="object")return;Object.keys(o).forEach(function(k){if(euParse(k)&&typeof o[k]!=="object")need[k]=1;walk(o[k],d+1)})})(L.info,0);
+  L.ai=L.ai||{};L.teams=L.teams||{};
+  Object.keys(need).forEach(function(id){var ex=L.ai[id]||L.teams[id];if(ex&&ex.name&&(ex.roster||[]).length)return;
+    var t=null;try{t=euAiTeam(id)}catch(e){t=null}
+    if(!t){var p=euParse(id),T=WORLD[p[0]]&&WORLD[p[0]].t[p[1]];if(!T)return;t={name:T.n,ownerName:"Yapay zekâ",ai:true,level:70,roster:[],injuries:{},fatigue:{},cards:{},susp:{},form:{}}}
+    var o=ex||t;if(ex){Object.keys(t).forEach(function(k){if(o[k]==null||(k==="roster"&&!(o[k]||[]).length)||(k==="name"&&!o[k]))o[k]=t[k]})}
+    o.ai=true;o.ownerName=o.ownerName||"Yapay zekâ";L.ai[id]=o;
+    Object.defineProperty(L.teams,id,{value:o,enumerable:false,configurable:true,writable:true})})}catch(e){if(window.console)console.error(e)}}
 function isAiId(id){return !!(fbLeague&&fbLeague.ai&&fbLeague.ai[id])}
 function koWinner(m){if(!m||!m.result)return null;if(m.result.h>m.result.a)return m.home;if(m.result.a>m.result.h)return m.away;if(m.pen)return m.pen.h>m.pen.a?m.home:m.away;return null}
 /* ---- puan durumu siralamasi: puan > ikili averaj > genel averaj > atilan gol ---- */
@@ -29029,5 +29041,5 @@ loadDb();render();fbInit();
     document.body.appendChild(btn)}
   setInterval(mk,2000);
 })();
-</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v331 · 26.11 kura isim düzeltme</div></body>
+</script><div style="position:fixed;top:0;left:0;z-index:99999;background:#e63946;color:#fff;font:700 10px/1 sans-serif;padding:3px 6px;border-bottom-right-radius:6px;pointer-events:none">TEST v332 · 26.11 kdk takım adları</div></body>
 </html>
